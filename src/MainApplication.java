@@ -7,8 +7,8 @@ import java.awt.event.MouseEvent;
 
 public class MainApplication extends GraphicsProgram{
 	//Settings
-	public static final int WINDOW_WIDTH = 800;
-	public static final int WINDOW_HEIGHT = 600;
+	public static final int WINDOW_WIDTH = 700; 
+	public static final int WINDOW_HEIGHT = 500;
 	
 	//List of all the full screen panes
 	private WelcomePane welcomePane;
