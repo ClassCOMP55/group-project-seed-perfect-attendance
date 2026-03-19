@@ -11,8 +11,20 @@ public class MainApplication extends GraphicsProgram{
 	public static final int WINDOW_HEIGHT = 500;
 	
 	//List of all the full screen panes
-	private WelcomePane welcomePane;
-	private DescriptionPane descriptionPane;
+	private TitleCardPane titleCardPane;
+	private StartMenuPane startMenuPane;
+	private CharacterCreationPane characterCreationPane;
+	private Scene1Pane scene1Pane;
+	private Scene2Pane scene2Pane;
+	private TransitionLoading1Pane transitionLoading1Pane;
+	private RestingScene1Pane restingScene1Pane;
+	private Scene3Pane scene3Pane;
+	private Scene4Pane scene4Pane;
+	private RestingScene2Pane restingScene2Pane;
+	private Scene5Pane scene5Pane;
+	private FinalRestingScenePane finalRestingScenePane;
+	private Scene6Pane scene6Pane;
+	private EndingPane endingPane;
 	private GraphicsPane currentScreen;
 
 
@@ -35,11 +47,24 @@ public class MainApplication extends GraphicsProgram{
 		setupInteractions();
 		
 		//Initialize all Panes
-		welcomePane = new WelcomePane(this);
-		descriptionPane = new DescriptionPane(this);
+		titleCardPane = new TitleCardPane(this);
+		startMenuPane = new StartMenuPane(this);
+		
+		characterCreationPane = new CharacterCreationPane(this);
+		scene1Pane = new Scene1Pane(this);
+		scene2Pane = new Scene2Pane(this);
+		transitionLoading1Pane = new TransitionLoading1Pane(this);
+		restingScene1Pane = new RestingScene1Pane(this);
+		scene3Pane = new Scene3Pane(this);
+		scene4Pane = new Scene4Pane(this);
+		restingScene2Pane = new RestingScene2Pane(this);
+		scene5Pane = new Scene5Pane(this);
+		finalRestingScenePane = new FinalRestingScenePane(this);
+		scene6Pane = new Scene6Pane(this);
+		endingPane = new EndingPane(this);
 
 		//TheDefaultPane
-		switchToScreen(welcomePane);
+		switchToScreen(titleCardPane);
 	}
 	
 	public static void main(String[] args) {
@@ -48,11 +73,69 @@ public class MainApplication extends GraphicsProgram{
 	}
 	
 	public void switchToDescriptionScreen() {
-		switchToScreen(descriptionPane);
+		// Teacher's DescriptionPane entry point (kept only so the project compiles).
+		switchToStartMenuScreen();
 	}
 	
 	public void switchToWelcomeScreen() {
-		switchToScreen(welcomePane);
+		// Teacher's WelcomePane entry point (kept only so the project compiles).
+		switchToTitleCardScreen();
+	}
+	
+	public void switchToTitleCardScreen() {
+		switchToScreen(titleCardPane);
+	}
+	
+	public void switchToStartMenuScreen() {
+		switchToScreen(startMenuPane);
+	}
+	
+	public void switchToCharacterCreationScreen() {
+		switchToScreen(characterCreationPane);
+	}
+	
+	public void switchToScene1Screen() {
+		switchToScreen(scene1Pane);
+	}
+	
+	public void switchToScene2Screen() {
+		switchToScreen(scene2Pane);
+	}
+	
+	public void switchToTransitionLoading1Screen() {
+		switchToScreen(transitionLoading1Pane);
+	}
+	
+	public void switchToRestingScene1Screen() {
+		switchToScreen(restingScene1Pane);
+	}
+	
+	public void switchToScene3Screen() {
+		switchToScreen(scene3Pane);
+	}
+	
+	public void switchToScene4Screen() {
+		switchToScreen(scene4Pane);
+	}
+	
+	public void switchToRestingScene2Screen() {
+		switchToScreen(restingScene2Pane);
+	}
+	
+	public void switchToScene5Screen() {
+		switchToScreen(scene5Pane);
+	}
+	
+	public void switchToFinalRestingSceneScreen() {
+		switchToScreen(finalRestingScenePane);
+	}
+	
+	public void switchToScene6Screen() {
+		switchToScreen(scene6Pane);
+	}
+	
+	public void switchToEndingScreen() {
+		switchToScreen(endingPane);
 	}
 	
 	
