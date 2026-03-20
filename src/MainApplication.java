@@ -10,6 +10,8 @@ public class MainApplication extends GraphicsProgram{
 	public static final int WINDOW_WIDTH = 700; 
 	public static final int WINDOW_HEIGHT = 500;
 	
+	private Player player;
+
 	//List of all the full screen panes
 	private TitleCardPane titleCardPane;
 	private StartMenuPane startMenuPane;
@@ -53,7 +55,8 @@ public class MainApplication extends GraphicsProgram{
 	public void run() {
 		System.out.println("Lets' Begin!");
 		setupInteractions();
-		
+		player = new Player();
+
 		//Initialize all Panes
 		titleCardPane = new TitleCardPane(this);
 		startMenuPane = new StartMenuPane(this);
@@ -217,6 +220,10 @@ public class MainApplication extends GraphicsProgram{
 		refreshCurrentScreen();
 	}
 	
+	public Player getPlayer() {
+		return player;
+	}
+
 	public GObject getElementAtLocation(double x, double y) {
 		return getElementAt(x, y);
 	}
