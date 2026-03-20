@@ -10,7 +10,8 @@ public class MainApplication extends GraphicsProgram{
 	public static final int WINDOW_WIDTH = 700; 
 	public static final int WINDOW_HEIGHT = 500;
 	
-	private Player player;
+	private Player player;           // The player instance (holds hand + health)
+	private CardPlayModal cardPlayModal; // Reusable modal overlay for obstacle encounters
 
 	//List of all the full screen panes
 	private TitleCardPane titleCardPane;
@@ -56,6 +57,7 @@ public class MainApplication extends GraphicsProgram{
 		System.out.println("Lets' Begin!");
 		setupInteractions();
 		player = new Player();
+		cardPlayModal = new CardPlayModal(this);
 
 		//Initialize all Panes
 		titleCardPane = new TitleCardPane(this);
@@ -224,6 +226,26 @@ public class MainApplication extends GraphicsProgram{
 		return player;
 	}
 
+	/**
+	 * Shows the card play modal overlay on top of the current screen.
+	 * The modal lets the player choose a card to resolve the given obstacle.
+	 * After the modal is dismissed, onComplete is called to advance the game.
+	 *
+	 * @param obstacle   the ObstacleScene to resolve
+	 * @param onComplete Runnable called when the player clicks Continue
+	 */
+	public void showObstacle(ObstacleScene obstacle, Runnable onComplete) {
+		cardPlayModal.showObstacle(obstacle, onComplete);
+	}
+
+	/**
+	 * Switches to the game over screen.
+	 * Currently routes to the ending pane as a placeholder.
+	 */
+	public void switchToGameOverScreen() {
+		switchToScreen(endingPane);
+	}
+
 	public GObject getElementAtLocation(double x, double y) {
 		return getElementAt(x, y);
 	}
@@ -244,7 +266,10 @@ public class MainApplication extends GraphicsProgram{
 	
 	@Override
 	public void mouseClicked(MouseEvent e) {
-		if(currentScreen != null) {
+		// Route clicks to the modal first if it is active, otherwise to the current screen
+		if (cardPlayModal != null && !cardPlayModal.contents.isEmpty()) {
+			cardPlayModal.mouseClicked(e);
+		} else if (currentScreen != null) {
 			currentScreen.mouseClicked(e);
 		}
 	}
