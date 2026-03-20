@@ -37,8 +37,8 @@ public class TitleCardPane extends GraphicsPane{
 		for (int i = 0; i < lines.length; i++) {
 			GLabel lineLabel = new GLabel(lines[i], 100, 70);
 			lineLabel.setColor(Color.BLACK);
-			lineLabel.setFont("DialogInput-PLAIN-24");
-			lineLabel.setLocation((mainScreen.getWidth() - lineLabel.getWidth())/ 2, baseY + i * lineHeight);
+			lineLabel.setFont(scaledFont(24));
+			lineLabel.setLocation(centeredX(lineLabel), scaleY(baseY + i * lineHeight));
 			
 			contents.add(lineLabel);
 			mainScreen.add(lineLabel);
@@ -48,8 +48,8 @@ public class TitleCardPane extends GraphicsPane{
 	private void addNextButton() {
 		nextButton = new GLabel("Next", 0, 0);
 		nextButton.setColor(Color.BLUE);
-		nextButton.setFont("DialogInput-PLAIN-24");
-		nextButton.setLocation((mainScreen.getWidth() - nextButton.getWidth())/ 2, 400);
+		nextButton.setFont(scaledFont(24));
+		nextButton.setLocation(centeredX(nextButton), scaleY(400));
 		
 		contents.add(nextButton);
 		mainScreen.add(nextButton);

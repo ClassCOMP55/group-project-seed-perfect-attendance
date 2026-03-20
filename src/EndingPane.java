@@ -42,11 +42,11 @@ public class EndingPane extends GraphicsPane{
 			GLabel lineLabel = new GLabel(lines[i], 100, 70);
 			lineLabel.setColor(Color.BLACK);
 			if (i == 0) {
-				lineLabel.setFont("DialogInput-PLAIN-" + titleFontSize);
+				lineLabel.setFont(scaledFont(titleFontSize));
 			} else {
-				lineLabel.setFont("DialogInput-PLAIN-" + bodyFontSize);
+				lineLabel.setFont(scaledFont(bodyFontSize));
 			}
-			lineLabel.setLocation((mainScreen.getWidth() - lineLabel.getWidth())/ 2, baseY + i * lineHeight);
+			lineLabel.setLocation(centeredX(lineLabel), scaleY(baseY + i * lineHeight));
 			
 			contents.add(lineLabel);
 			mainScreen.add(lineLabel);

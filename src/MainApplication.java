@@ -26,6 +26,14 @@ public class MainApplication extends GraphicsProgram{
 	private Scene6Pane scene6Pane;
 	private EndingPane endingPane;
 	private GraphicsPane currentScreen;
+	private int lastKnownWidth;
+	private int lastKnownHeight;
+	/** Virtual canvas size used for layout (animates toward window size on resize). */
+	private double layoutWidth;
+	private double layoutHeight;
+
+	private static final int RESIZE_ANIM_STEP_MS = 20;
+	private static final int RESIZE_ANIM_DURATION_MS = 280;
 
 
 	public MainApplication() {
@@ -65,6 +73,24 @@ public class MainApplication extends GraphicsProgram{
 
 		//TheDefaultPane
 		switchToScreen(titleCardPane);
+		lastKnownWidth = (int) getWidth();
+		lastKnownHeight = (int) getHeight();
+		monitorResizeAndRefresh();
+	}
+
+	/** Width used for scaling layout (may animate during resize). */
+	public double getLayoutWidth() {
+		return layoutWidth;
+	}
+
+	/** Height used for scaling layout (may animate during resize). */
+	public double getLayoutHeight() {
+		return layoutHeight;
+	}
+
+	private void syncLayoutToWindow() {
+		layoutWidth = getWidth();
+		layoutHeight = getHeight();
 	}
 	
 	public static void main(String[] args) {
@@ -140,11 +166,55 @@ public class MainApplication extends GraphicsProgram{
 	
 	
 	protected void switchToScreen(GraphicsPane newScreen) {
+		syncLayoutToWindow();
 		if(currentScreen != null) {
 			currentScreen.hideContent();
 		}
 		newScreen.showContent();
 		currentScreen = newScreen;
+	}
+
+	private void refreshCurrentScreen() {
+		if (currentScreen == null) {
+			return;
+		}
+		currentScreen.hideContent();
+		currentScreen.showContent();
+	}
+
+	private void monitorResizeAndRefresh() {
+		while (true) {
+			pause(100);
+			int currentWidth = (int) getWidth();
+			int currentHeight = (int) getHeight();
+			if (currentWidth != lastKnownWidth || currentHeight != lastKnownHeight) {
+				lastKnownWidth = currentWidth;
+				lastKnownHeight = currentHeight;
+				animateLayoutToTarget(currentWidth, currentHeight);
+			}
+		}
+	}
+
+	/**
+	 * Smoothly interpolates layout size from current to target so UI scales in
+	 * rather than jumping (ease-out cubic).
+	 */
+	private void animateLayoutToTarget(double targetW, double targetH) {
+		double startW = layoutWidth;
+		double startH = layoutHeight;
+		int steps = Math.max(1, RESIZE_ANIM_DURATION_MS / RESIZE_ANIM_STEP_MS);
+		for (int i = 1; i <= steps; i++) {
+			double t = (double) i / steps;
+			// ease-out cubic: fast start, gentle finish
+			t = 1 - (1 - t) * (1 - t) * (1 - t);
+			layoutWidth = startW + (targetW - startW) * t;
+			layoutHeight = startH + (targetH - startH) * t;
+			refreshCurrentScreen();
+			pause(RESIZE_ANIM_STEP_MS);
+		}
+		layoutWidth = targetW;
+		layoutHeight = targetH;
+		refreshCurrentScreen();
 	}
 	
 	public GObject getElementAtLocation(double x, double y) {

@@ -25,8 +25,8 @@ public class DescriptionPane extends GraphicsPane{
 	private void addText() {
 		GLabel text = new GLabel("This is an example of a new screen with some description!", 100, 70);
 		text.setColor(Color.BLUE);
-		text.setFont("DialogInput-PLAIN-24");
-		text.setLocation((mainScreen.getWidth() - text.getWidth()) / 2, 70);
+		text.setFont(scaledFont(24));
+		text.setLocation(centeredX(text), scaleY(70));
 		
 		contents.add(text);
 		mainScreen.add(text);
@@ -34,8 +34,9 @@ public class DescriptionPane extends GraphicsPane{
 	
 	private void addBackButton() {
 		GImage backButton = new GImage("back.jpg", 200, 400);
-		backButton.scale(0.3, 0.3);
-		backButton.setLocation((mainScreen.getWidth() - backButton.getWidth())/ 2, 400);
+		double imageScale = 0.3 * uniformScale();
+		backButton.scale(imageScale, imageScale);
+		backButton.setLocation(centeredX(backButton), scaleY(400));
 		
 		contents.add(backButton);
 		mainScreen.add(backButton);

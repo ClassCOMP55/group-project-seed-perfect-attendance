@@ -24,8 +24,9 @@ public class WelcomePane extends GraphicsPane{
 	
 	private void addPicture(){
 		GImage startImage = new GImage("start.png", 200, 100);
-		startImage.scale(0.5, 0.5);
-		startImage.setLocation((mainScreen.getWidth() - startImage.getWidth())/ 2, 70);
+		double imageScale = 0.5 * uniformScale();
+		startImage.scale(imageScale, imageScale);
+		startImage.setLocation(centeredX(startImage), scaleY(70));
 		
 		contents.add(startImage);
 		mainScreen.add(startImage);
@@ -33,8 +34,9 @@ public class WelcomePane extends GraphicsPane{
 	
 	private void addDescriptionButton() {
 		GImage moreButton = new GImage("more.jpeg", 200, 400);
-		moreButton.scale(0.3, 0.3);
-		moreButton.setLocation((mainScreen.getWidth() - moreButton.getWidth())/ 2, 400);
+		double imageScale = 0.3 * uniformScale();
+		moreButton.scale(imageScale, imageScale);
+		moreButton.setLocation(centeredX(moreButton), scaleY(400));
 		
 		contents.add(moreButton);
 		mainScreen.add(moreButton);

@@ -28,8 +28,8 @@ public class RestingScene2Pane extends GraphicsPane{
 	private void addPlaceholderText() {
 		GLabel text = new GLabel("Resting Scene 2", 100, 70);
 		text.setColor(Color.BLACK);
-		text.setFont("DialogInput-PLAIN-30");
-		text.setLocation((mainScreen.getWidth() - text.getWidth())/ 2, 70);
+		text.setFont(scaledFont(30));
+		text.setLocation(centeredX(text), scaleY(70));
 		
 		contents.add(text);
 		mainScreen.add(text);
@@ -38,8 +38,8 @@ public class RestingScene2Pane extends GraphicsPane{
 	private void addNextButton() {
 		nextButton = new GLabel("Next", 0, 0);
 		nextButton.setColor(Color.BLUE);
-		nextButton.setFont("DialogInput-PLAIN-24");
-		nextButton.setLocation((mainScreen.getWidth() - nextButton.getWidth())/ 2, 400);
+		nextButton.setFont(scaledFont(24));
+		nextButton.setLocation(centeredX(nextButton), scaleY(400));
 		
 		contents.add(nextButton);
 		mainScreen.add(nextButton);
