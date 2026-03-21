@@ -5,19 +5,24 @@ import acm.program.*;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 
+import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
 
 public class MainApplication extends GraphicsProgram{
 	//Settings
 	public static final int WINDOW_WIDTH = 700; 
 	public static final int WINDOW_HEIGHT = 500;
+	/** Shown in the OS window title bar (replaces default “Graphics Window”). */
+	public static final String GAME_TITLE = "So There's This Wizard That's a Goat";
 	
 	private Player player;           // The player instance (holds hand + health)
 	private CardPlayModal cardPlayModal; // Reusable modal overlay for obstacle encounters
 
 	//List of all the full screen panes
 	private TitleCardPane titleCardPane;
+	private LandingPane landingPane;
 	private StartMenuPane startMenuPane;
+	private SettingsPane settingsPane;
 	private CharacterCreationPane characterCreationPane;
 	private Scene1Pane scene1Pane;
 	private Scene2Pane scene2Pane;
@@ -58,13 +63,21 @@ public class MainApplication extends GraphicsProgram{
 	public void run() {
 		System.out.println("Lets' Begin!");
 		setupInteractions();
+		SwingUtilities.invokeLater(() -> {
+			java.awt.Window w = SwingUtilities.getWindowAncestor(getGCanvas());
+			if (w instanceof JFrame) {
+				((JFrame) w).setTitle(GAME_TITLE);
+			}
+		});
 		player = new Player();
 		cardPlayModal = new CardPlayModal(this);
 
 		//Initialize all Panes
 		titleCardPane = new TitleCardPane(this);
+		landingPane = new LandingPane(this);
 		startMenuPane = new StartMenuPane(this);
-		
+		settingsPane = new SettingsPane(this);
+
 		characterCreationPane = new CharacterCreationPane(this);
 		scene1Pane = new Scene1Pane(this);
 		scene2Pane = new Scene2Pane(this);
@@ -78,8 +91,8 @@ public class MainApplication extends GraphicsProgram{
 		scene6Pane = new Scene6Pane(this);
 		endingPane = new EndingPane(this);
 
-		//TheDefaultPane
-		switchToScreen(titleCardPane);
+		// Landing splash → then main menu (Start / Options / Quit)
+		switchToScreen(landingPane);
 		lastKnownWidth = (int) getWidth();
 		lastKnownHeight = (int) getHeight();
 		monitorResizeAndRefresh();
@@ -102,7 +115,6 @@ public class MainApplication extends GraphicsProgram{
 	
 	public static void main(String[] args) {
 		new MainApplication().start();
-
 	}
 	
 	public void switchToDescriptionScreen() {
@@ -112,7 +124,12 @@ public class MainApplication extends GraphicsProgram{
 	
 	public void switchToWelcomeScreen() {
 		// Teacher's WelcomePane entry point (kept only so the project compiles).
-		switchToTitleCardScreen();
+		switchToLandingScreen();
+	}
+
+	/** Cinematic intro screen — click / Enter / Space to open the main menu. */
+	public void switchToLandingScreen() {
+		switchToScreen(landingPane);
 	}
 	
 	public void switchToTitleCardScreen() {
@@ -121,6 +138,10 @@ public class MainApplication extends GraphicsProgram{
 	
 	public void switchToStartMenuScreen() {
 		switchToScreen(startMenuPane);
+	}
+
+	public void switchToSettingsScreen() {
+		switchToScreen(settingsPane);
 	}
 	
 	public void switchToCharacterCreationScreen() {
