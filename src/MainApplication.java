@@ -5,6 +5,8 @@ import acm.program.*;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 
+import javax.swing.SwingUtilities;
+
 public class MainApplication extends GraphicsProgram{
 	//Settings
 	public static final int WINDOW_WIDTH = 700; 
@@ -215,11 +217,23 @@ public class MainApplication extends GraphicsProgram{
 			layoutWidth = startW + (targetW - startW) * t;
 			layoutHeight = startH + (targetH - startH) * t;
 			refreshCurrentScreen();
+			restackModalIfVisible();
 			pause(RESIZE_ANIM_STEP_MS);
 		}
 		layoutWidth = targetW;
 		layoutHeight = targetH;
 		refreshCurrentScreen();
+		restackModalIfVisible();
+	}
+
+	/**
+	 * Scene refresh re-adds objects on top of the canvas; the obstacle modal would
+	 * otherwise sit underneath and getElementAt would hit the scene instead of buttons.
+	 */
+	private void restackModalIfVisible() {
+		if (cardPlayModal != null && !cardPlayModal.contents.isEmpty()) {
+			cardPlayModal.restackOnTop();
+		}
 	}
 	
 	public Player getPlayer() {
@@ -252,38 +266,53 @@ public class MainApplication extends GraphicsProgram{
 	
 	@Override
 	public void mousePressed(MouseEvent e) {
-		if(currentScreen != null) {
+		if (cardPlayModal != null && !cardPlayModal.contents.isEmpty()) {
+			return;
+		}
+		if (currentScreen != null) {
 			currentScreen.mousePressed(e);
 		}
 	}
 	
 	@Override
 	public void mouseReleased(MouseEvent e) {
-		if(currentScreen != null) {
+		if (cardPlayModal != null && !cardPlayModal.contents.isEmpty()) {
+			if (SwingUtilities.isLeftMouseButton(e)) {
+				cardPlayModal.handlePointer(e.getX(), e.getY());
+			}
+			return;
+		}
+		if (currentScreen != null) {
 			currentScreen.mouseReleased(e);
 		}
 	}
 	
 	@Override
 	public void mouseClicked(MouseEvent e) {
-		// Route clicks to the modal first if it is active, otherwise to the current screen
 		if (cardPlayModal != null && !cardPlayModal.contents.isEmpty()) {
-			cardPlayModal.mouseClicked(e);
-		} else if (currentScreen != null) {
+			return;
+		}
+		if (currentScreen != null) {
 			currentScreen.mouseClicked(e);
 		}
 	}
 	
 	@Override
 	public void mouseDragged(MouseEvent e) {
-		if(currentScreen != null) {
+		if (cardPlayModal != null && !cardPlayModal.contents.isEmpty()) {
+			return;
+		}
+		if (currentScreen != null) {
 			currentScreen.mouseDragged(e);
 		}
 	}
 	
 	@Override
 	public void mouseMoved(MouseEvent e) {
-		if(currentScreen != null) {
+		if (cardPlayModal != null && !cardPlayModal.contents.isEmpty()) {
+			return;
+		}
+		if (currentScreen != null) {
 			currentScreen.mouseMoved(e);
 		}
 	}

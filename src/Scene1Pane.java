@@ -11,6 +11,12 @@ import acm.graphics.GObject;
  */
 public class Scene1Pane extends GraphicsPane {
 
+    /** Logical Y positions (700×500 design space) — tuned so text scales cleanly. */
+    private static final double TITLE_LINE1_Y = 48;
+    private static final double TITLE_LINE2_Y = 78;
+    private static final double SUB_LINE1_Y = 118;
+    private static final double SUB_LINE2_Y = 146;
+
     /**
      * Creates Scene1Pane.
      * @param mainScreen the main application reference
@@ -33,21 +39,34 @@ public class Scene1Pane extends GraphicsPane {
         contents.clear();
     }
 
-    /** Draws the scene background text (placeholder until art is added). */
+    /** Draws the scene header using split lines so nothing clips on small windows. */
     private void addSceneBackground() {
-        GLabel text = new GLabel("Scene 1 — The Overgrown Path", 0, 0);
-        text.setColor(Color.BLACK);
-        text.setFont(scaledFont(22));
-        text.setLocation(centeredX(text), scaleY(70));
-        contents.add(text);
-        mainScreen.add(text);
+        GLabel line1 = new GLabel("Scene 1", 0, 0);
+        line1.setColor(new Color(25, 25, 35));
+        line1.setFont(scaledFont(26));
+        placeCentered(line1, TITLE_LINE1_Y);
 
-        GLabel sub = new GLabel("A thick wall of thorns blocks the road ahead.", 0, 0);
-        sub.setColor(Color.DARK_GRAY);
-        sub.setFont(scaledFont(14));
-        sub.setLocation(centeredX(sub), scaleY(120));
-        contents.add(sub);
-        mainScreen.add(sub);
+        GLabel line2 = new GLabel("The Overgrown Path", 0, 0);
+        line2.setColor(new Color(55, 45, 75));
+        line2.setFont(scaledFont(18));
+        placeCentered(line2, TITLE_LINE2_Y);
+
+        GLabel sub1 = new GLabel("A thick wall of thorns blocks", 0, 0);
+        sub1.setColor(Color.DARK_GRAY);
+        sub1.setFont(scaledFont(14));
+        placeCentered(sub1, SUB_LINE1_Y);
+
+        GLabel sub2 = new GLabel("the road ahead.", 0, 0);
+        sub2.setColor(Color.DARK_GRAY);
+        sub2.setFont(scaledFont(14));
+        placeCentered(sub2, SUB_LINE2_Y);
+    }
+
+    /** Centers horizontally in the layout canvas and places at scaled logical Y. */
+    private void placeCentered(GLabel label, double logicalY) {
+        contents.add(label);
+        mainScreen.add(label);
+        label.setLocation(centeredX(label), scaleY(logicalY));
     }
 
     /**

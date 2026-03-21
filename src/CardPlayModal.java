@@ -1,5 +1,4 @@
 import java.awt.Color;
-import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -30,6 +29,11 @@ public class CardPlayModal extends GraphicsPane {
     private GRect dimOverlay;              // Semi-transparent background behind the modal box
     private GRect modalBox;               // The white modal panel
 
+    /** Card row UI (boxes + labels) so we can remove them when a card is played. */
+    private final List<GObject> cardRowObjects = new ArrayList<>();
+    /** Hit areas for whole card (not just the name label). */
+    private final List<GRect> cardHitRects = new ArrayList<>();
+
     /**
      * Creates a new CardPlayModal.
      * @param mainScreen the main application reference
@@ -51,12 +55,27 @@ public class CardPlayModal extends GraphicsPane {
         this.outcomeShowing = false;
         cardButtons = new ArrayList<>();
         cardIndices = new ArrayList<>();
+        cardRowObjects.clear();
+        cardHitRects.clear();
         renderModal();
+        restackOnTop();
+    }
+
+    /**
+     * Re-adds all modal objects so they sit above the current scene. Required
+     * after {@link MainApplication} refreshes the scene (e.g. on resize).
+     */
+    public void restackOnTop() {
+        ArrayList<GObject> snapshot = new ArrayList<>(contents);
+        for (GObject g : snapshot) {
+            mainScreen.remove(g);
+            mainScreen.add(g);
+        }
     }
 
     /** Renders the full modal overlay onto the screen. */
     private void renderModal() {
-        // --- Dim overlay covering the whole screen ---
+        // --- Dim overlay covering the whole window ---
         dimOverlay = new GRect(0, 0, mainScreen.getWidth(), mainScreen.getHeight());
         dimOverlay.setFilled(true);
         dimOverlay.setFillColor(new Color(0, 0, 0, 140)); // semi-transparent black
@@ -64,11 +83,12 @@ public class CardPlayModal extends GraphicsPane {
         contents.add(dimOverlay);
         mainScreen.add(dimOverlay);
 
-        // --- Modal box background ---
-        double boxX = scaleX(60);
-        double boxY = scaleY(40);
-        double boxW = scaleX(580) - scaleX(60);
-        double boxH = scaleY(440) - scaleY(40);
+        // --- Modal panel: fills the *entire* graphics window (no black band inside the window) ---
+        double pad = 14;
+        double boxX = pad;
+        double boxY = pad;
+        double boxW = mainScreen.getWidth() - 2 * pad;
+        double boxH = mainScreen.getHeight() - 2 * pad;
         modalBox = new GRect(boxX, boxY, boxW, boxH);
         modalBox.setFilled(true);
         modalBox.setFillColor(new Color(245, 240, 255));
@@ -76,27 +96,68 @@ public class CardPlayModal extends GraphicsPane {
         contents.add(modalBox);
         mainScreen.add(modalBox);
 
-        // --- Obstacle title ---
+        // --- Obstacle title (inside panel, with side padding for long titles) ---
         GLabel title = new GLabel(currentObstacle.getTitle(), 0, 0);
         title.setFont(scaledFont(20));
         title.setColor(new Color(60, 20, 100));
-        title.setLocation(centeredX(title), scaleY(80));
+        double titleY = boxY + (scaleY(28) - scaleY(0));
+        title.setLocation(boxX + (boxW - title.getWidth()) / 2.0, titleY);
         contents.add(title);
         mainScreen.add(title);
 
-        // --- Obstacle description ---
-        GLabel desc = new GLabel(currentObstacle.getDescription(), 0, 0);
-        desc.setFont(scaledFont(13));
-        desc.setColor(Color.DARK_GRAY);
-        desc.setLocation(centeredX(desc), scaleY(120));
-        contents.add(desc);
-        mainScreen.add(desc);
+        // --- Description: multiple lines so text never hugs the right edge ---
+        double descY = titleY + (scaleY(36) - scaleY(0));
+        addWrappedDescriptionLines(boxX, boxW, descY, currentObstacle.getDescription());
 
         // --- Prompt or no-cards message ---
         if (mainScreen.getPlayer().getHand().isEmpty()) {
-            renderNoCardsState();
+            renderNoCardsState(boxY, boxW);
         } else {
-            renderCardSelectionState();
+            renderCardSelectionState(boxX, boxY, boxW, boxH);
+        }
+    }
+
+    /**
+     * Splits description into short lines (GLabel does not auto-wrap).
+     * Respects newlines, then hard-wraps long segments.
+     */
+    private void addWrappedDescriptionLines(double panelLeft, double panelWidth, double startY, String raw) {
+        if (raw == null) {
+            return;
+        }
+        String text = raw.replace("\r", "");
+        int maxChars = Math.max(24, (int) (42 * (panelWidth / (double) MainApplication.WINDOW_WIDTH)));
+
+        List<String> lines = new ArrayList<>();
+        for (String paragraph : text.split("\n")) {
+            String p = paragraph.trim();
+            while (p.length() > maxChars) {
+                int cut = p.lastIndexOf(' ', maxChars);
+                if (cut < maxChars / 2) {
+                    cut = maxChars;
+                }
+                lines.add(p.substring(0, cut).trim());
+                p = p.substring(cut).trim();
+            }
+            if (!p.isEmpty()) {
+                lines.add(p);
+            }
+        }
+        if (lines.isEmpty()) {
+            lines.add("");
+        }
+
+        double lineGap = scaleY(22) - scaleY(0);
+        double y = startY;
+        for (String line : lines) {
+            GLabel row = new GLabel(line, 0, 0);
+            row.setFont(scaledFont(13));
+            row.setColor(Color.DARK_GRAY);
+            double x = panelLeft + (panelWidth - row.getWidth()) / 2.0;
+            row.setLocation(x, y);
+            contents.add(row);
+            mainScreen.add(row);
+            y += lineGap;
         }
     }
 
@@ -104,50 +165,88 @@ public class CardPlayModal extends GraphicsPane {
      * Renders the card selection view — shows the prompt and all cards in hand
      * as clickable buttons.
      */
-    private void renderCardSelectionState() {
-        // Prompt label
+    private void renderCardSelectionState(double panelLeft, double panelTop, double panelW, double panelH) {
+        // Prompt — centered in panel, placed in upper-middle area
         GLabel prompt = new GLabel(currentObstacle.getPrompt(), 0, 0);
         prompt.setFont(scaledFont(14));
         prompt.setColor(new Color(80, 50, 120));
-        prompt.setLocation(centeredX(prompt), scaleY(170));
+        double promptY = panelTop + panelH * 0.38;
+        prompt.setLocation(panelLeft + (panelW - prompt.getWidth()) / 2.0, promptY);
         contents.add(prompt);
         mainScreen.add(prompt);
 
-        // --- Card buttons ---
+        // --- Cards: size from panel so they stay inside the purple box ---
         List<Card> cards = mainScreen.getPlayer().getHand().getCards();
-        double[] xPositions = computeCardXPositions(cards.size());
-        double cardY = scaleY(270);
+        double gap = scaleX(14) - scaleX(0);
+        int n = cards.size();
+        double cardW = Math.min(scaleX(200) - scaleX(0),
+                (panelW - gap * (n + 1)) / Math.max(1, n));
+        double cardH = scaleY(130) - scaleY(0);
+
+        double totalRowW = n * cardW + (n - 1) * gap;
+        double rowLeft = panelLeft + (panelW - totalRowW) / 2.0;
+        // Sit cards in lower half with breathing room above bottom edge
+        double cardTop = panelTop + panelH - cardH - (scaleY(28) - scaleY(0));
+        if (cardTop < promptY + (scaleY(40) - scaleY(0))) {
+            cardTop = promptY + (scaleY(40) - scaleY(0));
+        }
+
+        double[] xPositions = new double[n];
+        for (int i = 0; i < n; i++) {
+            xPositions[i] = rowLeft + i * (cardW + gap);
+        }
 
         for (int i = 0; i < cards.size(); i++) {
             Card card = cards.get(i);
+            double left = xPositions[i];
 
-            // Card background box
-            double cardW = scaleX(150) - scaleX(0);
-            double cardH = scaleY(80) - scaleY(0);
-            GRect cardBox = new GRect(xPositions[i], cardY - cardH + 8, cardW, cardH);
+            // Card background — top-aligned row (no more baseline/height mismatch)
+            GRect cardBox = new GRect(left, cardTop, cardW, cardH);
             cardBox.setFilled(true);
             cardBox.setFillColor(new Color(210, 195, 255));
             cardBox.setColor(new Color(130, 100, 200));
             contents.add(cardBox);
             mainScreen.add(cardBox);
+            cardRowObjects.add(cardBox);
+            cardHitRects.add(cardBox);
 
-            // Card name label
             GLabel cardBtn = new GLabel(card.getName(), 0, 0);
-            cardBtn.setFont(scaledFont(13));
+            cardBtn.setFont(scaledFont(14));
             cardBtn.setColor(new Color(40, 20, 80));
-            cardBtn.setLocation(xPositions[i] + (cardW - cardBtn.getWidth()) / 2, cardY);
+
+            GLabel typeLabel = new GLabel("[" + card.getType().name() + "]", 0, 0);
+            typeLabel.setFont(scaledFont(10));
+            typeLabel.setColor(new Color(100, 80, 150));
+
+            // Vertical stack centered inside the card (GLabel y = text baseline)
+            double gapBetween = scaleY(6) - scaleY(0);
+            double stackH = cardBtn.getHeight() + gapBetween + typeLabel.getHeight();
+            double nameBaseline = cardTop + (cardH - stackH) / 2.0 + cardBtn.getAscent();
+            double typeBaseline = nameBaseline - cardBtn.getAscent() + cardBtn.getHeight() + gapBetween + typeLabel.getAscent();
+
+            double nameX = left + (cardW - cardBtn.getWidth()) / 2.0;
+            double typeX = left + (cardW - typeLabel.getWidth()) / 2.0;
+
+            // Keep type tag fully inside the card (baseline math safety)
+            double typeBottom = typeBaseline - typeLabel.getAscent() + typeLabel.getHeight();
+            if (typeBottom > cardTop + cardH - 4) {
+                double shift = typeBottom - (cardTop + cardH - 4);
+                nameBaseline -= shift;
+                typeBaseline -= shift;
+            }
+
+            cardBtn.setLocation(nameX, nameBaseline);
+            typeLabel.setLocation(typeX, typeBaseline);
+
             contents.add(cardBtn);
             mainScreen.add(cardBtn);
-            cardButtons.add(cardBtn);
-            cardIndices.add(i);
-
-            // Card type label below name
-            GLabel typeLabel = new GLabel("[" + card.getType().name() + "]", 0, 0);
-            typeLabel.setFont(scaledFont(11));
-            typeLabel.setColor(new Color(100, 80, 150));
-            typeLabel.setLocation(xPositions[i] + (cardW - typeLabel.getWidth()) / 2, cardY + scaleY(20) - scaleY(0));
             contents.add(typeLabel);
             mainScreen.add(typeLabel);
+            cardRowObjects.add(cardBtn);
+            cardRowObjects.add(typeLabel);
+
+            cardButtons.add(cardBtn);
+            cardIndices.add(i);
         }
     }
 
@@ -155,18 +254,18 @@ public class CardPlayModal extends GraphicsPane {
      * Renders the no-cards state — warns the player and shows a continue button
      * that will trigger game over.
      */
-    private void renderNoCardsState() {
+    private void renderNoCardsState(double panelTop, double panelW) {
         GLabel warning = new GLabel("You have no cards left!", 0, 0);
         warning.setFont(scaledFont(16));
         warning.setColor(new Color(180, 30, 30));
-        warning.setLocation(centeredX(warning), scaleY(200));
+        warning.setLocation(centeredX(warning), panelTop + (scaleY(120) - scaleY(0)));
         contents.add(warning);
         mainScreen.add(warning);
 
         GLabel sub = new GLabel("You cannot face this obstacle.", 0, 0);
         sub.setFont(scaledFont(13));
         sub.setColor(Color.DARK_GRAY);
-        sub.setLocation(centeredX(sub), scaleY(240));
+        sub.setLocation(centeredX(sub), panelTop + (scaleY(155) - scaleY(0)));
         contents.add(sub);
         mainScreen.add(sub);
 
@@ -174,7 +273,7 @@ public class CardPlayModal extends GraphicsPane {
         continueButton = new GLabel("[ Game Over ]", 0, 0);
         continueButton.setFont(scaledFont(15));
         continueButton.setColor(new Color(180, 30, 30));
-        continueButton.setLocation(centeredX(continueButton), scaleY(380));
+        continueButton.setLocation(centeredX(continueButton), panelTop + (scaleY(300) - scaleY(0)));
         contents.add(continueButton);
         mainScreen.add(continueButton);
     }
@@ -195,12 +294,15 @@ public class CardPlayModal extends GraphicsPane {
             mainScreen.getPlayer().dealDamage(-outcome.getHealthDifference()); // negative = heal
         }
 
-        // Hide card buttons
-        for (GLabel btn : cardButtons) {
-            mainScreen.remove(btn);
-            contents.remove(btn);
+        // Remove entire card row (boxes, names, type tags)
+        for (GObject g : cardRowObjects) {
+            mainScreen.remove(g);
+            contents.remove(g);
         }
+        cardRowObjects.clear();
+        cardHitRects.clear();
         cardButtons.clear();
+        cardIndices.clear();
 
         // --- Show outcome text ---
         outcomeLabel = new GLabel(outcome.getText(), 0, 0);
@@ -253,21 +355,32 @@ public class CardPlayModal extends GraphicsPane {
         }
     }
 
+    private static boolean containsPoint(GObject g, double x, double y) {
+        return g != null && g.contains(x, y);
+    }
+
     /**
-     * Computes evenly-spaced X positions for card buttons based on count.
-     * @param count number of cards to display
-     * @return array of x positions
+     * Handles a left-button release using coordinates (not {@code getElementAt}),
+     * so hits work even when the scene was redrawn on top of the modal.
      */
-    private double[] computeCardXPositions(int count) {
-        double cardW = scaleX(150) - scaleX(0);
-        double gap = scaleX(20) - scaleX(0);
-        double totalW = count * cardW + (count - 1) * gap;
-        double startX = (mainScreen.getWidth() - totalW) / 2.0;
-        double[] positions = new double[count];
-        for (int i = 0; i < count; i++) {
-            positions[i] = startX + i * (cardW + gap);
+    public void handlePointer(double x, double y) {
+        if (continueButton != null && containsPoint(continueButton, x, y)) {
+            hideContent();
+            if (mainScreen.getPlayer().getHand().isEmpty() && !outcomeShowing) {
+                mainScreen.switchToGameOverScreen();
+            } else {
+                onComplete.run();
+            }
+            return;
         }
-        return positions;
+        if (!outcomeShowing) {
+            for (int i = 0; i < cardHitRects.size(); i++) {
+                if (containsPoint(cardHitRects.get(i), x, y)) {
+                    resolveAndShow(cardIndices.get(i));
+                    return;
+                }
+            }
+        }
     }
 
     @Override
@@ -278,34 +391,9 @@ public class CardPlayModal extends GraphicsPane {
         contents.clear();
         cardButtons.clear();
         cardIndices.clear();
+        cardRowObjects.clear();
+        cardHitRects.clear();
         outcomeShowing = false;
-    }
-
-    @Override
-    public void mouseClicked(MouseEvent e) {
-        GObject clicked = mainScreen.getElementAtLocation(e.getX(), e.getY());
-
-        // --- Continue button clicked ---
-        if (clicked == continueButton) {
-            hideContent();
-            if (mainScreen.getPlayer().getHand().isEmpty() && !outcomeShowing) {
-                // No cards case — game over
-                mainScreen.switchToGameOverScreen();
-            } else {
-                onComplete.run();
-            }
-            return;
-        }
-
-        // --- Card button clicked ---
-        if (!outcomeShowing) {
-            for (int i = 0; i < cardButtons.size(); i++) {
-                if (clicked == cardButtons.get(i)) {
-                    resolveAndShow(cardIndices.get(i));
-                    return;
-                }
-            }
-        }
     }
 
 }
