@@ -10,13 +10,14 @@ import javax.swing.SwingUtilities;
 
 public class MainApplication extends GraphicsProgram{
 	//Settings
-	public static final int WINDOW_WIDTH = 700; 
+	public static final int WINDOW_WIDTH = 700;
 	public static final int WINDOW_HEIGHT = 500;
 	/** Shown in the OS window title bar (replaces default “Graphics Window”). */
 	public static final String GAME_TITLE = "So There's This Wizard That's a Goat";
-	
+
 	private Player player;           // The player instance (holds hand + health)
 	private CardPlayModal cardPlayModal; // Reusable modal overlay for obstacle encounters
+	private PauseModal pauseModal; // Dim overlay + Paused Game menu (Settings / Main Menu / Exit)
 
 	//List of all the full screen panes
 	private TitleCardPane titleCardPane;
@@ -50,17 +51,28 @@ public class MainApplication extends GraphicsProgram{
 	public MainApplication() {
 		super();
 	}
-	
+
 	protected void setupInteractions() {
 		requestFocus();
 		addKeyListeners();
 		addMouseListeners();
+		getGCanvas().addMouseWheelListener(e -> {
+			if (cardPlayModal != null && !cardPlayModal.contents.isEmpty()) {
+				return;
+			}
+			if (pauseModal != null && !pauseModal.contents.isEmpty()) {
+				return;
+			}
+			if (currentScreen != null) {
+				currentScreen.mouseWheelMoved(e);
+			}
+		});
 	}
-	
+
 	public void init() {
 		setSize(WINDOW_WIDTH, WINDOW_HEIGHT);
 	}
-	
+
 	public void run() {
 		System.out.println("Lets' Begin!");
 		setupInteractions();
@@ -72,6 +84,7 @@ public class MainApplication extends GraphicsProgram{
 		});
 		player = new Player();
 		cardPlayModal = new CardPlayModal(this);
+		pauseModal = new PauseModal(this);
 
 		//Initialize all Panes
 		titleCardPane = new TitleCardPane(this);
@@ -114,16 +127,16 @@ public class MainApplication extends GraphicsProgram{
 		layoutWidth = getWidth();
 		layoutHeight = getHeight();
 	}
-	
+
 	public static void main(String[] args) {
 		new MainApplication().start();
 	}
-	
+
 	public void switchToDescriptionScreen() {
 		// Teacher's DescriptionPane entry point (kept only so the project compiles).
 		switchToStartMenuScreen();
 	}
-	
+
 	public void switchToWelcomeScreen() {
 		// Teacher's WelcomePane entry point (kept only so the project compiles).
 		switchToLandingScreen();
@@ -133,11 +146,11 @@ public class MainApplication extends GraphicsProgram{
 	public void switchToLandingScreen() {
 		switchToScreen(landingPane);
 	}
-	
+
 	public void switchToTitleCardScreen() {
 		switchToScreen(titleCardPane);
 	}
-	
+
 	public void switchToStartMenuScreen() {
 		switchToScreen(startMenuPane);
 	}
@@ -145,11 +158,11 @@ public class MainApplication extends GraphicsProgram{
 	public void switchToSettingsScreen() {
 		switchToScreen(settingsPane);
 	}
-	
+
 	public void switchToCharacterCreationScreen() {
 		switchToScreen(characterCreationPane);
 	}
-	
+
 	public void switchToSkyTransitionScreen() {
 		switchToScreen(skyTransitionPane);
 	}
@@ -157,55 +170,76 @@ public class MainApplication extends GraphicsProgram{
 	public void switchToScene1Screen() {
 		switchToScreen(scene1Pane);
 	}
-	
+
 	public void switchToScene2Screen() {
 		switchToScreen(scene2Pane);
 	}
-	
+
 	public void switchToTransitionLoading1Screen() {
 		switchToScreen(transitionLoading1Pane);
 	}
-	
+
 	public void switchToRestingScene1Screen() {
 		switchToScreen(restingScene1Pane);
 	}
-	
+
 	public void switchToScene3Screen() {
 		switchToScreen(scene3Pane);
 	}
-	
+
 	public void switchToScene4Screen() {
 		switchToScreen(scene4Pane);
 	}
-	
+
 	public void switchToRestingScene2Screen() {
 		switchToScreen(restingScene2Pane);
 	}
-	
+
 	public void switchToScene5Screen() {
 		switchToScreen(scene5Pane);
 	}
-	
+
 	public void switchToFinalRestingSceneScreen() {
 		switchToScreen(finalRestingScenePane);
 	}
-	
+
 	public void switchToScene6Screen() {
 		switchToScreen(scene6Pane);
 	}
-	
+
 	public void switchToEndingScreen() {
 		switchToScreen(endingPane);
 	}
-	
-	
+
+
 	protected void switchToScreen(GraphicsPane newScreen) {
 		syncLayoutToWindow();
-		if(currentScreen != null) {
+		if (pauseModal != null) {
+			pauseModal.hideContent();
+		}
+		if (currentScreen != null) {
 			currentScreen.hideContent();
 		}
 		newScreen.showContent();
 		currentScreen = newScreen;
+		updateMenuMusicForScreen(newScreen);
+	}
+
+	/**
+	 * Main menu theme on landing, start menu, and settings; journey theme on character quiz;
+	 * otherwise stop music during gameplay.
+	 */
+	private void updateMenuMusicForScreen(GraphicsPane newScreen) {
+		if (newScreen == landingPane || newScreen == startMenuPane || newScreen == settingsPane) {
+			GameMusic.stopJourneyBeginsMusic();
+			GameMusic.startMainMenuMusic();
+		} else if (newScreen == characterCreationPane) {
+			GameMusic.stopMainMenuMusic();
+			GameMusic.startJourneyBeginsMusic();
+		} else {
+			GameMusic.stopMainMenuMusic();
+			GameMusic.stopJourneyBeginsMusic();
+		}
 	}
 
 	private void refreshCurrentScreen() {
@@ -261,8 +295,11 @@ public class MainApplication extends GraphicsProgram{
 		if (cardPlayModal != null && !cardPlayModal.contents.isEmpty()) {
 			cardPlayModal.restackOnTop();
 		}
+		if (pauseModal != null && !pauseModal.contents.isEmpty()) {
+			pauseModal.restackOnTop();
+		}
 	}
-	
+
 	public Player getPlayer() {
 		return player;
 	}
@@ -279,6 +316,13 @@ public class MainApplication extends GraphicsProgram{
 		cardPlayModal.showObstacle(obstacle, onComplete);
 	}
 
+	/** Dims the screen and shows Settings / Main Menu / Exit (opened from the × corner button). */
+	public void showPauseModal() {
+		if (pauseModal != null) {
+			pauseModal.showPause();
+		}
+	}
+
 	/**
 	 * Switches to the game over screen.
 	 * Currently routes to the ending pane as a placeholder.
@@ -290,17 +334,20 @@ public class MainApplication extends GraphicsProgram{
 	public GObject getElementAtLocation(double x, double y) {
 		return getElementAt(x, y);
 	}
-	
+
 	@Override
 	public void mousePressed(MouseEvent e) {
 		if (cardPlayModal != null && !cardPlayModal.contents.isEmpty()) {
+			return;
+		}
+		if (pauseModal != null && !pauseModal.contents.isEmpty()) {
 			return;
 		}
 		if (currentScreen != null) {
 			currentScreen.mousePressed(e);
 		}
 	}
-	
+
 	@Override
 	public void mouseReleased(MouseEvent e) {
 		if (cardPlayModal != null && !cardPlayModal.contents.isEmpty()) {
@@ -309,58 +356,88 @@ public class MainApplication extends GraphicsProgram{
 			}
 			return;
 		}
+		if (pauseModal != null && !pauseModal.contents.isEmpty()) {
+			if (SwingUtilities.isLeftMouseButton(e)) {
+				pauseModal.handlePointer(e.getX(), e.getY());
+			}
+			return;
+		}
+		if (currentScreen != null && currentScreen.tryHandleSettingsCornerClick(e)) {
+			return;
+		}
 		if (currentScreen != null) {
 			currentScreen.mouseReleased(e);
 		}
 	}
-	
+
 	@Override
 	public void mouseClicked(MouseEvent e) {
 		if (cardPlayModal != null && !cardPlayModal.contents.isEmpty()) {
+			return;
+		}
+		if (pauseModal != null && !pauseModal.contents.isEmpty()) {
+			return;
+		}
+		if (currentScreen != null && currentScreen.tryHandleSettingsCornerClick(e)) {
 			return;
 		}
 		if (currentScreen != null) {
 			currentScreen.mouseClicked(e);
 		}
 	}
-	
+
 	@Override
 	public void mouseDragged(MouseEvent e) {
 		if (cardPlayModal != null && !cardPlayModal.contents.isEmpty()) {
+			return;
+		}
+		if (pauseModal != null && !pauseModal.contents.isEmpty()) {
 			return;
 		}
 		if (currentScreen != null) {
 			currentScreen.mouseDragged(e);
 		}
 	}
-	
+
 	@Override
 	public void mouseMoved(MouseEvent e) {
 		if (cardPlayModal != null && !cardPlayModal.contents.isEmpty()) {
+			return;
+		}
+		if (pauseModal != null && !pauseModal.contents.isEmpty()) {
 			return;
 		}
 		if (currentScreen != null) {
 			currentScreen.mouseMoved(e);
 		}
 	}
-	
+
 	@Override
 	public void keyPressed(KeyEvent e) {
-		if(currentScreen != null) {
+		if (pauseModal != null && !pauseModal.contents.isEmpty()) {
+			return;
+		}
+		if (currentScreen != null) {
 			currentScreen.keyPressed(e);
 		}
 	}
-	
+
 	@Override
 	public void keyReleased(KeyEvent e) {
-		if(currentScreen != null) {
+		if (pauseModal != null && !pauseModal.contents.isEmpty()) {
+			return;
+		}
+		if (currentScreen != null) {
 			currentScreen.keyReleased(e);
 		}
 	}
-	
+
 	@Override
 	public void keyTyped(KeyEvent e) {
-		if(currentScreen != null) {
+		if (pauseModal != null && !pauseModal.contents.isEmpty()) {
+			return;
+		}
+		if (currentScreen != null) {
 			currentScreen.keyTyped(e);
 		}
 	}

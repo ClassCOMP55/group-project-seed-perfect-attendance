@@ -28,6 +28,7 @@ public class Scene1Pane extends GraphicsPane {
     @Override
     public void showContent() {
         addSceneBackground();
+        addSettingsCornerButton();
         triggerObstacle();
     }
 

@@ -248,6 +248,7 @@ public class CharacterCreationPane extends GraphicsPane {
         drawDivider();          // glowing red divider strip
         drawLeftPanel();        // question + answer buttons
         drawRightPanel();       // card bars + mini card art
+        addSettingsCornerButton();
     }
 
     // =========================================================

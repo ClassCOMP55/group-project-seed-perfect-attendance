@@ -15,6 +15,7 @@ public class Scene5Pane extends GraphicsPane{
 	public void showContent() {
 		addPlaceholderText();
 		addNextButton();
+		addSettingsCornerButton();
 	}
 
 	@Override

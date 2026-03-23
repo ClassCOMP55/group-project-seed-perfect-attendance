@@ -12,6 +12,7 @@ public class DescriptionPane extends GraphicsPane{
 	public void showContent() {
 		addText();
 		addBackButton();
+		addSettingsCornerButton();
 	}
 
 	@Override

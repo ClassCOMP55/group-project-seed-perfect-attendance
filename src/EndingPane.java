@@ -12,6 +12,7 @@ public class EndingPane extends GraphicsPane{
 	@Override
 	public void showContent() {
 		addCreditsText();
+		addSettingsCornerButton();
 	}
 
 	@Override

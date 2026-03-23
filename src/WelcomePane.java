@@ -12,6 +12,7 @@ public class WelcomePane extends GraphicsPane{
 	public void showContent() {
 		addPicture();
 		addDescriptionButton();
+		addSettingsCornerButton();
 	}
 
 	@Override

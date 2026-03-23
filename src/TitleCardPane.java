@@ -81,6 +81,8 @@ public class TitleCardPane extends GraphicsPane {
         continueLabel.setColor(ink);
         centerLabelInRect(continueLabel, continueFrame);
         addBoth(continueLabel);
+
+        addSettingsCornerButton();
     }
 
     private void centerLabelInRect(GLabel g, GRect r) {

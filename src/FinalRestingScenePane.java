@@ -15,6 +15,7 @@ public class FinalRestingScenePane extends GraphicsPane{
 	public void showContent() {
 		addPlaceholderText();
 		addNextButton();
+		addSettingsCornerButton();
 	}
 
 	@Override

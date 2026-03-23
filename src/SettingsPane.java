@@ -190,6 +190,7 @@ public class SettingsPane extends NightScenePane {
         double knobX = cx - knobSize / 2;
         sliderKnob.setLocation(knobX, sliderY);
         refreshVolumeLabel();
+        GameMusic.refreshVolume();
     }
 
     private int volumeFromKnobCenterX(double cx) {
