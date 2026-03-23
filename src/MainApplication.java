@@ -24,6 +24,7 @@ public class MainApplication extends GraphicsProgram{
 	private StartMenuPane startMenuPane;
 	private SettingsPane settingsPane;
 	private CharacterCreationPane characterCreationPane;
+	private SkyTransitionPane skyTransitionPane;
 	private Scene1Pane scene1Pane;
 	private Scene2Pane scene2Pane;
 	private TransitionLoading1Pane transitionLoading1Pane;
@@ -79,6 +80,7 @@ public class MainApplication extends GraphicsProgram{
 		settingsPane = new SettingsPane(this);
 
 		characterCreationPane = new CharacterCreationPane(this);
+		skyTransitionPane = new SkyTransitionPane(this);
 		scene1Pane = new Scene1Pane(this);
 		scene2Pane = new Scene2Pane(this);
 		transitionLoading1Pane = new TransitionLoading1Pane(this);
@@ -148,6 +150,10 @@ public class MainApplication extends GraphicsProgram{
 		switchToScreen(characterCreationPane);
 	}
 	
+	public void switchToSkyTransitionScreen() {
+		switchToScreen(skyTransitionPane);
+	}
+
 	public void switchToScene1Screen() {
 		switchToScreen(scene1Pane);
 	}

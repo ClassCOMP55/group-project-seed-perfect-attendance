@@ -577,7 +577,7 @@ public class CharacterCreationPane extends GraphicsPane {
             renderScreen();
         } else {
             awardCards();
-            mainScreen.switchToScene1Screen();
+            mainScreen.switchToSkyTransitionScreen();
         }
     }
 
