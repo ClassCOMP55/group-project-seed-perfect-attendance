@@ -85,7 +85,7 @@ public class Scene1Pane extends GraphicsPane {
 
         // --- Build obstacle ---
         ObstacleScene obstacle = new ObstacleScene(
-            "The Overgrown Path",
+            "The Market Scene",
             "A thick wall of thorns blocks the road ahead.\nYou need to find a way through.",
             "Which card will you use to clear the path?",
             noCardOutcome
@@ -119,8 +119,8 @@ public class Scene1Pane extends GraphicsPane {
             -15
         ));
 
-        // Show the modal — on complete, go to Scene 2
-        mainScreen.showObstacle(obstacle, () -> mainScreen.switchToScene2Screen());
+        // Show the modal in tutorial mode — card is NOT consumed on complete, go to Scene 2
+        mainScreen.showObstacleTutorial(obstacle, () -> mainScreen.switchToScene2Screen());
     }
 
 }

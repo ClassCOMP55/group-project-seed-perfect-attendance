@@ -316,6 +316,14 @@ public class MainApplication extends GraphicsProgram{
 		cardPlayModal.showObstacle(obstacle, onComplete);
 	}
 
+	/**
+	 * Shows the card play modal in tutorial mode — the played card is NOT consumed.
+	 * Used for Scene 1 so the player keeps their card after the tutorial obstacle.
+	 */
+	public void showObstacleTutorial(ObstacleScene obstacle, Runnable onComplete) {
+		cardPlayModal.showObstacle(obstacle, onComplete, true);
+	}
+
 	/** Dims the screen and shows Settings / Main Menu / Exit (opened from the × corner button). */
 	public void showPauseModal() {
 		if (pauseModal != null) {

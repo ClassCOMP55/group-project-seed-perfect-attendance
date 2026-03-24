@@ -19,6 +19,7 @@ public class CardPlayModal extends GraphicsPane {
     private ObstacleScene currentObstacle; // The obstacle currently being resolved
     private Runnable onComplete;           // Called when the player clicks Continue
     private boolean outcomeShowing;        // True after a card has been played
+    private boolean keepCard;             // If true, card is not consumed after use (tutorial mode)
 
     // --- UI element lists ---
     private List<GLabel> cardButtons;      // One clickable label per card in hand
@@ -50,9 +51,14 @@ public class CardPlayModal extends GraphicsPane {
      * @param onComplete Runnable called when the player dismisses the modal
      */
     public void showObstacle(ObstacleScene obstacle, Runnable onComplete) {
+        showObstacle(obstacle, onComplete, false);
+    }
+
+    public void showObstacle(ObstacleScene obstacle, Runnable onComplete, boolean keepCard) {
         this.currentObstacle = obstacle;
         this.onComplete = onComplete;
         this.outcomeShowing = false;
+        this.keepCard = keepCard;
         cardButtons = new ArrayList<>();
         cardIndices = new ArrayList<>();
         cardRowObjects.clear();
@@ -285,8 +291,10 @@ public class CardPlayModal extends GraphicsPane {
      * @param cardIndex index of the card in the player's hand
      */
     private void resolveAndShow(int cardIndex) {
-        // Remove selected card from hand and resolve outcome
-        Card played = mainScreen.getPlayer().getHand().removeCard(cardIndex);
+        // Remove selected card from hand and resolve outcome (tutorial mode keeps the card)
+        Card played = keepCard
+            ? mainScreen.getPlayer().getHand().getCards().get(cardIndex)
+            : mainScreen.getPlayer().getHand().removeCard(cardIndex);
         Outcome outcome = currentObstacle.resolveCard(played);
 
         // Apply health change
