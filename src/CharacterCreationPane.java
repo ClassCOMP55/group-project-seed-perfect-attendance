@@ -640,69 +640,7 @@ public class CharacterCreationPane extends GraphicsPane {
     // HELPERS — factory / layout
     // =========================================================
 
-    /**
-     * Adds a GObject to both the contents tracking list and the canvas.
-     * @param obj the object to add
-     */
-    private void place(GObject obj) {
-        contents.add(obj);
-        mainScreen.add(obj);
-    }
-
-    /**
-     * Creates a GLabel in the pixel (Monospaced-BOLD) font.
-     * @param text  label string
-     * @param size  logical font size (scaled automatically)
-     * @param color text colour
-     * @return configured GLabel at (0, 0) — caller sets location
-     */
-    private GLabel pixelLabel(String text, int size, Color color) {
-        GLabel lbl = new GLabel(text, 0, 0);
-        lbl.setFont("Monospaced-BOLD-" + scaleFontSize(size));
-        lbl.setColor(color);
-        return lbl;
-    }
-
-    /**
-     * Creates a filled GRect using raw pixel coordinates.
-     * @param x      pixel X
-     * @param y      pixel Y
-     * @param w      pixel width
-     * @param h      pixel height
-     * @param fill   fill colour
-     * @param border border colour
-     * @return configured GRect (not yet added to canvas)
-     */
-    private GRect rect(double x, double y, double w, double h, Color fill, Color border) {
-        GRect r = new GRect(x, y, w, h);
-        r.setFilled(true);
-        r.setFillColor(fill);
-        r.setColor(border);
-        return r;
-    }
-
-    /**
-     * Creates a filled GRect using logical (700 x 500) coordinates,
-     * automatically scaled to pixel coordinates via scaleX / scaleY.
-     *
-     * @param lx     logical X of left edge
-     * @param ly     logical Y of top edge
-     * @param lw     logical width
-     * @param lh     logical height
-     * @param fill   fill colour
-     * @param border border colour
-     * @return configured GRect (not yet added to canvas)
-     */
-    private GRect srect(double lx, double ly, double lw, double lh, Color fill, Color border) {
-        return rect(
-            scaleX(lx),
-            scaleY(ly),
-            scaleX(lx + lw) - scaleX(lx),
-            scaleY(ly + lh) - scaleY(ly),
-            fill,
-            border
-        );
-    }
+    // place(), rect(), srect(), pixelLabel(), wrapText() are inherited from GraphicsPane.
 
     /**
      * Returns the pixel X that horizontally centres a label within a logical panel.
@@ -716,31 +654,5 @@ public class CharacterCreationPane extends GraphicsPane {
         double px = scaleX(panelLeft);
         double pw = scaleX(panelLeft + panelWidth) - px;
         return px + (pw - label.getWidth()) / 2.0;
-    }
-
-    /**
-     * Word-wraps a string into lines of at most {@code maxChars} characters,
-     * breaking only at spaces.
-     *
-     * @param text     the string to wrap
-     * @param maxChars maximum characters per line
-     * @return list of wrapped lines (never empty)
-     */
-    private List<String> wrapText(String text, int maxChars) {
-        List<String> lines   = new ArrayList<>();
-        String[]     words   = text.split(" ");
-        StringBuilder current = new StringBuilder();
-
-        for (String word : words) {
-            if (current.length() + word.length() + 1 > maxChars && current.length() > 0) {
-                lines.add(current.toString().trim());
-                current = new StringBuilder();
-            }
-            current.append(word).append(" ");
-        }
-        if (current.length() > 0) {
-            lines.add(current.toString().trim());
-        }
-        return lines;
     }
 }
