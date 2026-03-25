@@ -7,6 +7,12 @@ public class Player {
     private Hand hand;    // The cards currently held by the player
     private int health;   // The player's current health points
 
+    /** Display name used as [NAME] in dialogue. Set during character creation. */
+    private String name = "Adventurer";
+
+    /** Profession label used as [PROFESSION] in dialogue. Set during character creation. */
+    private String profession = "Wanderer";
+
     /**
      * Creates a new Player with a full hand and 100 health.
      */
@@ -42,6 +48,30 @@ public class Player {
      */
     public void dealDamage(int amount) {
         health -= amount;
+    }
+
+    /** Returns the player's display name. */
+    public String getName() {
+        return name;
+    }
+
+    /** Sets the player's display name (used as [NAME] in dialogue). */
+    public void setName(String name) {
+        if (name != null && !name.trim().isEmpty()) {
+            this.name = name.trim();
+        }
+    }
+
+    /** Returns the player's profession. */
+    public String getProfession() {
+        return profession;
+    }
+
+    /** Sets the player's profession (used as [PROFESSION] in dialogue). */
+    public void setProfession(String profession) {
+        if (profession != null && !profession.trim().isEmpty()) {
+            this.profession = profession.trim();
+        }
     }
 
 }

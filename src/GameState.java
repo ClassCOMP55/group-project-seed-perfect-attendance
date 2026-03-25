@@ -1,9 +1,13 @@
 import java.util.Arrays;
+import java.util.EnumMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 /**
- * Single session state: one {@link Player}, quiz progress, active save slot, and last scene for saves.
- * Owned by {@link MainApplication}; not tied to UI panes except through the app.
+ * Single session state owned by {@link MainApplication}: one {@link Player},
+ * quiz and save metadata, current scene, plus narrative data (archetype scores
+ * and story flags) updated by dialogue.
  */
 public class GameState {
 
@@ -21,6 +25,23 @@ public class GameState {
     private int personalityQuizQuestionIndex;
     /** Scores per {@link CardType#ordinal()} while the quiz is in progress. */
     private final int[] personalityQuizScores = new int[CardType.values().length];
+
+    /**
+     * Running archetype score per card type — seeded from the character quiz and
+     * incremented by dialogue choices.
+     */
+    private final Map<CardType, Integer> archetypeScores = new EnumMap<>(CardType.class);
+
+    /**
+     * Narrative flags (e.g. GOAT_TRUST, SCROLL_LOST). Duplicate {@link #setFlag} calls are harmless.
+     */
+    private final Set<String> flags = new HashSet<>();
+
+    public GameState() {
+        for (CardType t : CardType.values()) {
+            archetypeScores.put(t, 0);
+        }
+    }
 
     public Player getPlayer() {
         return player;
@@ -107,6 +128,7 @@ public class GameState {
         player = new Player();
         personalityQuizCompleted = false;
         resetPersonalityQuizProgress();
+        resetNarrativeState();
         currentScene = GameSceneId.CHARACTER_CREATION;
         activeSaveSlot = slot;
     }
@@ -120,10 +142,70 @@ public class GameState {
         this.personalityQuizCompleted = quizDone;
         this.currentScene = scene != null ? scene : GameSceneId.SCENE_1;
         this.activeSaveSlot = slot;
+        resetNarrativeState();
         if (quizDone) {
             resetPersonalityQuizProgress();
         } else {
             applyLoadedQuizProgress(quizQuestionIndex, quizScoresByOrdinal);
         }
+    }
+
+    private void resetNarrativeState() {
+        for (CardType t : CardType.values()) {
+            archetypeScores.put(t, 0);
+        }
+        flags.clear();
+    }
+
+    // --- Narrative: archetypes (post–quiz running totals) ---
+
+    public void addArchetypePoints(CardType type, int points) {
+        if (type == null) {
+            return;
+        }
+        archetypeScores.put(type, archetypeScores.getOrDefault(type, 0) + points);
+    }
+
+    public int getArchetypeScore(CardType type) {
+        return archetypeScores.getOrDefault(type, 0);
+    }
+
+    public void setFlag(String flag) {
+        if (flag != null) {
+            flags.add(flag);
+        }
+    }
+
+    public boolean hasFlag(String flag) {
+        return flags.contains(flag);
+    }
+
+    /** Delegates to {@link Player#getName()} for dialogue tokens. */
+    public String getPlayerName() {
+        return player.getName();
+    }
+
+    public void setPlayerName(String name) {
+        player.setName(name);
+    }
+
+    /** Delegates to {@link Player#getProfession()}. */
+    public String getPlayerProfession() {
+        return player.getProfession();
+    }
+
+    public void setPlayerProfession(String profession) {
+        player.setProfession(profession);
+    }
+
+    public void printDebugSummary() {
+        System.out.println("=== GameState Debug ===");
+        System.out.println("Player: " + getPlayerName() + " (" + getPlayerProfession() + ")");
+        System.out.println("Archetype scores:");
+        for (CardType type : CardType.values()) {
+            System.out.println("  " + type + ": " + getArchetypeScore(type));
+        }
+        System.out.println("Flags: " + flags);
+        System.out.println("=======================");
     }
 }
