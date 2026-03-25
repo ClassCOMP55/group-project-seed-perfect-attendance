@@ -35,6 +35,18 @@ public class DialogueNode {
     /** The player character — replaced with the player's chosen name at render time. */
     public static final String PLAYER     = "PLAYER";
 
+    /** Maret — road trader at the caravan camp (Scene 2, Location A). */
+    public static final String MARET      = "MARET";
+
+    /** Drev — back-alley information broker (Scene 2, Location B). */
+    public static final String DREV       = "DREV";
+
+    /** Innkeeper — city inn (Scene 2, Inn outcome). */
+    public static final String INNKEEPER  = "INNKEEPER";
+
+    /** Generic vendor — market vendors (Scene 2, Location D). */
+    public static final String VENDOR     = "VENDOR";
+
     // =========================================================
     // FIELDS
     // =========================================================

@@ -173,13 +173,14 @@ public class GameSavesPane extends NightScenePane {
         try {
             if (GameSaveIO.slotOccupied(slot)) {
                 GameSaveIO.loadIntoState(slot, mainScreen.getGameState());
-                mainScreen.switchToSceneFromSave(mainScreen.getGameState().getCurrentScene());
+                mainScreen.switchToSceneFromSave(mainScreen.getGameState().getResumeScene());
             } else {
                 mainScreen.getGameState().beginNewRunInSlot(slot);
                 mainScreen.switchToCharacterCreationScreen();
             }
         } catch (Exception ex) {
             System.err.println("Save slot " + slot + ": " + ex.getMessage());
+            ex.printStackTrace();
         }
     }
 }

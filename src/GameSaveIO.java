@@ -13,7 +13,7 @@ import java.util.List;
 public final class GameSaveIO {
 
     public static final int SAVE_COUNT = 3;
-    private static final int FORMAT_VERSION = 1;
+    private static final int FORMAT_VERSION = 2;
 
     private GameSaveIO() {
     }
@@ -44,9 +44,14 @@ public final class GameSaveIO {
     /** Removes the save file for this slot if it exists (no-op on failure). */
     public static void deleteSave(int slot) {
         try {
-            Files.deleteIfExists(savePath(slot));
+            boolean existed = Files.deleteIfExists(savePath(slot));
+            if (existed) {
+                System.out.println("[SaveIO] Deleted save slot " + slot + " (" + savePath(slot) + ")");
+            } else {
+                System.out.println("[SaveIO] Delete slot " + slot + " — file did not exist");
+            }
         } catch (IOException e) {
-            System.err.println("Could not delete save " + slot + ": " + e.getMessage());
+            System.err.println("[SaveIO] Could not delete save " + slot + ": " + e.getMessage());
         }
     }
 
@@ -58,7 +63,7 @@ public final class GameSaveIO {
         json.append("  \"version\": ").append(FORMAT_VERSION).append(",\n");
         json.append("  \"hp\": ").append(pl.getHP()).append(",\n");
         json.append("  \"personalityQuizCompleted\": ").append(state.isPersonalityQuizCompleted()).append(",\n");
-        json.append("  \"scene\": \"").append(state.getCurrentScene().name()).append("\",\n");
+        json.append("  \"scene\": \"").append(state.getResumeScene().name()).append("\",\n");
         if (!state.isPersonalityQuizCompleted()) {
             json.append("  \"quizQuestionIndex\": ").append(state.getPersonalityQuizQuestionIndex()).append(",\n");
             json.append("  \"quizScores\": [");
@@ -71,6 +76,7 @@ public final class GameSaveIO {
             }
             json.append("],\n");
         }
+        state.appendFormatV2SaveJson(json);
         json.append("  \"cards\": [\n");
         List<Card> cards = pl.getHand().getCards();
         for (int i = 0; i < cards.size(); i++) {
@@ -88,6 +94,8 @@ public final class GameSaveIO {
         }
         json.append("  ]\n}\n");
         Files.write(savePath(slot), json.toString().getBytes(StandardCharsets.UTF_8));
+        System.out.println("[SaveIO] Wrote save slot " + slot + " (" + savePath(slot)
+            + ") scene=" + state.getResumeScene() + " quiz=" + state.isPersonalityQuizCompleted());
     }
 
     public static void loadIntoState(int slot, GameState state) throws IOException {
@@ -100,8 +108,10 @@ public final class GameSaveIO {
             throw new IOException("Empty save file");
         }
         int hp = readIntField(raw, "hp", 100);
-        boolean quiz = readBoolField(raw, "personalityQuizCompleted", false);
         GameSceneId scene = parseScene(readStringField(raw, "scene", "SCENE_1"));
+        // Older saves may omit this field — default false only while still in character creation.
+        boolean quizDefault = scene != GameSceneId.CHARACTER_CREATION;
+        boolean quiz = readBoolField(raw, "personalityQuizCompleted", quizDefault);
         List<Card> cards = parseCards(readArraySection(raw, "cards"));
         int quizQ = readIntField(raw, "quizQuestionIndex", 0);
         int[] quizScores = readIntArrayField(raw, "quizScores", CardType.values().length);
@@ -112,7 +122,55 @@ public final class GameSaveIO {
         for (Card c : cards) {
             pl.getHand().addCard(c);
         }
-        state.applyLoadedSave(slot, pl, quiz, scene, quizQ, quizScores);
+        int[] arch = readIntArrayField(raw, "archetypeScores", CardType.values().length);
+        List<String> flags = readStringArrayField(raw, "flags");
+        String s1Node = readStringField(raw, "scene1NodeId", "");
+        int s1Line = readIntField(raw, "scene1LineIndex", 0);
+        boolean s1Choice = readBoolField(raw, "scene1ShowingChoice", false);
+        String s1Rejoin = readStringField(raw, "scene1RejoinId", "");
+
+        String s2Node = readStringField(raw, "scene2NodeId", "");
+        int s2Line = readIntField(raw, "scene2LineIndex", 0);
+        boolean s2Choice = readBoolField(raw, "scene2ShowingChoice", false);
+        String s2Rejoin = readStringField(raw, "scene2RejoinId", "");
+
+        state.applyLoadedSave(slot, pl, quiz, scene, quizQ, quizScores,
+            arch, flags.toArray(new String[0]),
+            s1Node, s1Line, s1Choice, s1Rejoin,
+            s2Node, s2Line, s2Choice, s2Rejoin);
+        System.out.println("[SaveIO] Loaded save slot " + slot + " (" + savePath(slot)
+            + ") scene=" + scene + " quiz=" + quiz + " cards=" + cards.size()
+            + " flags=" + flags.size());
+    }
+
+    /** Reads a JSON string array {@code ["a","b"]}; missing key yields empty list. */
+    private static List<String> readStringArrayField(String json, String key) {
+        List<String> out = new ArrayList<>();
+        String arr = readArraySection(json, key);
+        int j = 0;
+        while (j < arr.length()) {
+            int q = arr.indexOf('"', j);
+            if (q < 0) {
+                break;
+            }
+            q++;
+            StringBuilder sb = new StringBuilder();
+            while (q < arr.length()) {
+                char c = arr.charAt(q);
+                if (c == '\\' && q + 1 < arr.length()) {
+                    sb.append(arr.charAt(q + 1));
+                    q += 2;
+                } else if (c == '"') {
+                    break;
+                } else {
+                    sb.append(c);
+                    q++;
+                }
+            }
+            out.add(sb.toString());
+            j = q + 1;
+        }
+        return out;
     }
 
     private static String escape(String s) {
@@ -184,21 +242,31 @@ public final class GameSaveIO {
         }
     }
 
+    /**
+     * Reads a JSON boolean for {@code key}. Only the token immediately after {@code :} is used
+     * (avoids matching {@code true}/{@code false} inside later strings, e.g. card descriptions).
+     */
     private static boolean readBoolField(String json, String key, boolean def) {
         String k = "\"" + key + "\"";
-        int i = json.indexOf(k);
-        if (i < 0) {
+        int keyPos = json.indexOf(k);
+        if (keyPos < 0) {
             return def;
         }
-        int t = json.indexOf("true", i);
-        int f = json.indexOf("false", i);
-        if (t < 0 && f < 0) {
+        int colon = json.indexOf(':', keyPos + k.length());
+        if (colon < 0) {
             return def;
         }
-        if (t >= 0 && (f < 0 || t < f)) {
+        int j = colon + 1;
+        while (j < json.length() && Character.isWhitespace(json.charAt(j))) {
+            j++;
+        }
+        if (json.regionMatches(j, "true", 0, 4)) {
             return true;
         }
-        return false;
+        if (json.regionMatches(j, "false", 0, 5)) {
+            return false;
+        }
+        return def;
     }
 
     private static String readStringField(String json, String key, String def) {

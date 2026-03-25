@@ -9,6 +9,7 @@ public enum GameSceneId {
     CHARACTER_CREATION,
     SKY_TRANSITION,
     SCENE_1,
+    SCENE_1_TO_2_TRANSITION,
     SCENE_2,
     TRANSITION_LOADING_1,
     RESTING_1,

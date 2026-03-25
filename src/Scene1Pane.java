@@ -39,6 +39,10 @@ import acm.graphics.GRect;
  */
 public class Scene1Pane extends GraphicsPane {
 
+    /** Set {@code false} to hide the top-left scene banner. */
+    private static final boolean DEBUG_SCENE_BANNER = true;
+    private static final Color C_DEBUG_BANNER = new Color(100, 220, 160);
+
     // =========================================================
     // COLOUR PALETTE
     // =========================================================
@@ -70,6 +74,12 @@ public class Scene1Pane extends GraphicsPane {
     private static final Color C_BTN_HOVER   = new Color(52, 68, 118);
     private static final Color C_BTN_BORDER  = new Color(68, 82, 135);
     private static final Color C_BTN_TEXT    = new Color(210, 210, 230);
+
+    // Fade timing
+    private static final int FADE_IN_FRAMES = 40;
+    private static final int FADE_IN_FRAME_MS = 30;
+    private static final int FADE_OUT_FRAMES = 40;
+    private static final int FADE_OUT_FRAME_MS = 30;
 
     // -- Card type tag colours (same order as CardType enum) --
     private static final Color[] TYPE_COLORS = {
@@ -145,6 +155,13 @@ public class Scene1Pane extends GraphicsPane {
     // -- GObject references for elements that get updated frequently --
     /** All GObjects in the dialogue box area (cleared on each line advance). */
     private final List<GObject> dialogueElements = new ArrayList<>();
+
+    /** True while the fade-from-black overlay is animating on entry. */
+    private volatile boolean fadingIn = false;
+    /** True while the fade-to-black overlay is animating on exit. */
+    private volatile boolean fadingOut = false;
+    /** Full-screen overlay for fade transitions. */
+    private GRect fadeOverlay;
 
     // =========================================================
     // DIALOGUE DATA — all nodes and choices for the scene
@@ -765,20 +782,32 @@ public class Scene1Pane extends GraphicsPane {
     @Override
     public void showContent() {
         hoveredChoice = -1;
-        showingChoice = false;
         choiceBoxes.clear();
         dialogueElements.clear();
 
         drawBackground();
+        addSceneDebugBanner();
         drawDialogueBox();
         addSettingsCornerButton();
 
-        // Start the scene at the first node
-        advanceToNode("p1_opening");
+        GameState gs = mainScreen.getGameState();
+        String ck = gs.getScene1NodeId();
+        if (ck != null && !ck.isEmpty() && NODES.containsKey(ck)) {
+            restoreScene1FromGameState(gs);
+        } else {
+            currentRejoinId = null;
+            advanceToNode("p1_opening");
+            // Fade in from black on fresh entry (not save restore)
+            startFadeIn();
+        }
     }
 
     @Override
     public void hideContent() {
+        fadingIn = false;
+        fadingOut = false;
+        fadeOverlay = null;
+        syncScene1CheckpointToGameState();
         for (GObject item : contents) {
             mainScreen.remove(item);
         }
@@ -792,6 +821,15 @@ public class Scene1Pane extends GraphicsPane {
     // =========================================================
     // BACKGROUND & STATIC UI
     // =========================================================
+
+    private void addSceneDebugBanner() {
+        if (!DEBUG_SCENE_BANNER) {
+            return;
+        }
+        GLabel dbg = pixelLabel("[DEBUG] Scene #1", 10, C_DEBUG_BANNER);
+        dbg.setLocation(originX() + (scaleX(8) - scaleX(0)), scaleY(12));
+        place(dbg);
+    }
 
     /**
      * Draws the market background using placeholder rectangles.
@@ -964,6 +1002,8 @@ public class Scene1Pane extends GraphicsPane {
         GLabel cont = pixelLabel(">>>", 9, C_CONTINUE);
         cont.setLocation(scaleX(CONT_X), scaleY(CONT_Y));
         addDialogueElement(cont);
+
+        syncScene1CheckpointToGameState();
     }
 
     /**
@@ -1010,6 +1050,7 @@ public class Scene1Pane extends GraphicsPane {
             tagLbl.setLocation(bx + bw - tagLbl.getWidth() - (scaleX(8) - scaleX(0)), textY);
             addDialogueElement(tagLbl);
         }
+        syncScene1CheckpointToGameState();
     }
 
     // =========================================================
@@ -1101,6 +1142,8 @@ public class Scene1Pane extends GraphicsPane {
      */
     @Override
     public void mouseClicked(MouseEvent e) {
+        if (fadingIn || fadingOut) return;
+
         double x = e.getX(), y = e.getY();
 
         if (showingChoice) {
@@ -1177,8 +1220,65 @@ public class Scene1Pane extends GraphicsPane {
      */
     private void endScene() {
         System.out.println("[Scene 1] Scene complete!");
+        mainScreen.getGameState().clearScene1Checkpoint();
+        mainScreen.autosaveIfSlotActive();
+        currentNodeId = null;
         mainScreen.getGameState().printDebugSummary();
-        mainScreen.switchToScene2Screen();
+        startFadeOut();
+    }
+
+    /** Restores layout from {@link GameState} after load or window resize. */
+    private void restoreScene1FromGameState(GameState gs) {
+        String id = gs.getScene1NodeId();
+        DialogueNode node = NODES.get(id);
+        if (node == null) {
+            currentRejoinId = null;
+            advanceToNode("p1_opening");
+            return;
+        }
+        currentNodeId = id;
+        currentLineIndex = gs.getScene1LineIndex();
+        currentRejoinId = gs.getScene1RejoinId();
+
+        if (gs.isScene1ShowingChoice()) {
+            if (!CHOICES.containsKey(id)) {
+                currentRejoinId = null;
+                advanceToNode("p1_opening");
+                return;
+            }
+            showingChoice = false;
+            activeChoice = null;
+            choiceBoxes.clear();
+            updateNpcSprite(id);
+            showChoiceButtons(CHOICES.get(id));
+            return;
+        }
+
+        showingChoice = false;
+        activeChoice = null;
+        choiceBoxes.clear();
+        String[] lines = node.getLines();
+        if (lines.length > 0 && currentLineIndex >= lines.length) {
+            currentLineIndex = lines.length - 1;
+        }
+        if (lines.length == 0) {
+            currentLineIndex = 0;
+        }
+        updateNpcSprite(id);
+        renderDialogueLine();
+    }
+
+    private void syncScene1CheckpointToGameState() {
+        if (currentNodeId == null) {
+            return;
+        }
+        GameState gs = mainScreen.getGameState();
+        gs.updateScene1Checkpoint(
+            currentNodeId,
+            currentLineIndex,
+            showingChoice,
+            currentRejoinId != null ? currentRejoinId : "");
+        mainScreen.autosaveIfSlotActive();
     }
 
     // =========================================================
@@ -1206,6 +1306,75 @@ public class Scene1Pane extends GraphicsPane {
         dialogueElements.clear();
         choiceBoxes.clear();
     }
+
+    // =========================================================
+    // FADE TRANSITIONS
+    // =========================================================
+
+    private void startFadeIn() {
+        fadeOverlay = new GRect(0, 0, mainScreen.getWidth(), mainScreen.getHeight());
+        fadeOverlay.setFilled(true);
+        fadeOverlay.setFillColor(new Color(0, 0, 0, 255));
+        fadeOverlay.setColor(new Color(0, 0, 0, 0));
+        contents.add(fadeOverlay);
+        mainScreen.add(fadeOverlay);
+        fadingIn = true;
+
+        new Thread(() -> {
+            try {
+                Thread.sleep(200);
+                for (int frame = 1; frame <= FADE_IN_FRAMES; frame++) {
+                    if (!fadingIn) return;
+                    double t = (double) frame / FADE_IN_FRAMES;
+                    int alpha = (int) ((1.0 - t) * 255);
+                    Color c = new Color(0, 0, 0, alpha);
+                    fadeOverlay.setFillColor(c);
+                    fadeOverlay.setColor(new Color(0, 0, 0, 0));
+                    Thread.sleep(FADE_IN_FRAME_MS);
+                }
+                if (fadingIn) {
+                    mainScreen.remove(fadeOverlay);
+                    contents.remove(fadeOverlay);
+                    fadeOverlay = null;
+                    fadingIn = false;
+                }
+            } catch (InterruptedException e) { /* clean exit */ }
+        }).start();
+    }
+
+    private void startFadeOut() {
+        fadeOverlay = new GRect(0, 0, mainScreen.getWidth(), mainScreen.getHeight());
+        fadeOverlay.setFilled(true);
+        fadeOverlay.setFillColor(new Color(0, 0, 0, 0));
+        fadeOverlay.setColor(new Color(0, 0, 0, 0));
+        contents.add(fadeOverlay);
+        mainScreen.add(fadeOverlay);
+        fadingOut = true;
+
+        new Thread(() -> {
+            try {
+                for (int frame = 1; frame <= FADE_OUT_FRAMES; frame++) {
+                    if (!fadingOut) return;
+                    double t = (double) frame / FADE_OUT_FRAMES;
+                    int alpha = (int) (t * 255);
+                    Color c = new Color(0, 0, 0, alpha);
+                    fadeOverlay.setFillColor(c);
+                    fadeOverlay.setColor(new Color(0, 0, 0, 0));
+                    Thread.sleep(FADE_OUT_FRAME_MS);
+                }
+                if (!fadingOut) return;
+                Thread.sleep(300);
+                if (fadingOut) {
+                    fadingOut = false;
+                    mainScreen.switchToScene1To2TransitionScreen();
+                }
+            } catch (InterruptedException e) { /* clean exit */ }
+        }).start();
+    }
+
+    // =========================================================
+    // HELPERS
+    // =========================================================
 
     /**
      * Returns the display name for a speaker constant.

@@ -31,6 +31,7 @@ public class MainApplication extends GraphicsProgram{
 	private CharacterCreationPane characterCreationPane;
 	private SkyTransitionPane skyTransitionPane;
 	private Scene1Pane scene1Pane;
+	private Scene1To2TransitionPane scene1To2TransitionPane;
 	private Scene2Pane scene2Pane;
 	private TransitionLoading1Pane transitionLoading1Pane;
 	private RestingScene1Pane restingScene1Pane;
@@ -106,6 +107,7 @@ public class MainApplication extends GraphicsProgram{
 		characterCreationPane = new CharacterCreationPane(this);
 		skyTransitionPane = new SkyTransitionPane(this);
 		scene1Pane = new Scene1Pane(this);
+		scene1To2TransitionPane = new Scene1To2TransitionPane(this);
 		scene2Pane = new Scene2Pane(this);
 		transitionLoading1Pane = new TransitionLoading1Pane(this);
 		restingScene1Pane = new RestingScene1Pane(this);
@@ -187,6 +189,10 @@ public class MainApplication extends GraphicsProgram{
 		switchToScreen(scene1Pane);
 	}
 
+	public void switchToScene1To2TransitionScreen() {
+		switchToScreen(scene1To2TransitionPane);
+	}
+
 	public void switchToScene2Screen() {
 		switchToScreen(scene2Pane);
 	}
@@ -236,9 +242,14 @@ public class MainApplication extends GraphicsProgram{
 		if (currentScreen != null) {
 			currentScreen.hideContent();
 		}
+		// Before showContent so panes that autosave (e.g. Scene 1 dialogue) persist the correct scene id.
+		GameSceneId sid = sceneIdFor(newScreen);
+		gameState.setCurrentScene(sid);
+		if (!GameState.isShellMenuScene(sid)) {
+			gameState.setResumeScene(sid);
+		}
 		newScreen.showContent();
 		currentScreen = newScreen;
-		gameState.setCurrentScene(sceneIdFor(newScreen));
 		updateMenuMusicForScreen(newScreen);
 		autosaveIfSlotActive();
 	}
@@ -293,6 +304,9 @@ public class MainApplication extends GraphicsProgram{
 			case SCENE_1:
 				switchToScreen(scene1Pane);
 				break;
+			case SCENE_1_TO_2_TRANSITION:
+				switchToScreen(scene1To2TransitionPane);
+				break;
 			case SCENE_2:
 				switchToScreen(scene2Pane);
 				break;
@@ -333,7 +347,7 @@ public class MainApplication extends GraphicsProgram{
 	 * If the personality quiz was already finished, skip re-rolling cards — continue the stored journey.
 	 */
 	public void resumeAfterQuizIfAlreadyComplete() {
-		GameSceneId s = gameState.getCurrentScene();
+		GameSceneId s = gameState.getResumeScene();
 		if (s == GameSceneId.CHARACTER_CREATION || s == GameSceneId.SKY_TRANSITION) {
 			switchToSkyTransitionScreen();
 			return;
@@ -380,6 +394,9 @@ public class MainApplication extends GraphicsProgram{
 		}
 		if (p == scene1Pane) {
 			return GameSceneId.SCENE_1;
+		}
+		if (p == scene1To2TransitionPane) {
+			return GameSceneId.SCENE_1_TO_2_TRANSITION;
 		}
 		if (p == scene2Pane) {
 			return GameSceneId.SCENE_2;

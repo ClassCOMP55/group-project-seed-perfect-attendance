@@ -91,6 +91,11 @@ public class SkyTransitionPane extends GraphicsPane {
      */
     private static final double PAN_DISTANCE = 500;
 
+    /** Frames for fade-to-black at the end. */
+    private static final int FADE_OUT_FRAMES = 40;
+    /** Milliseconds per fade frame. */
+    private static final int FADE_FRAME_MS = 30;
+
     /** Number of stars in the sky section. */
     private static final int STAR_COUNT = 90;
 
@@ -116,6 +121,9 @@ public class SkyTransitionPane extends GraphicsPane {
 
     /** Brightness per star: 0 = dim, 1 = med, 2 = bright. */
     private final List<Integer> starBrightness = new ArrayList<>();
+
+    /** Full-screen black overlay for fade-to-black. */
+    private GRect fadeOverlay;
 
     /** Accumulated pixel shift applied to all objects (for tracking). */
     private double currentShiftPx = 0;
@@ -180,6 +188,11 @@ public class SkyTransitionPane extends GraphicsPane {
         buildGroundSection();   // visible at start (logical Y 0–500)
         buildSkySection();      // above viewport (logical Y -500 to 0)
 
+        // Fade overlay (on top, starts transparent — used for fade-to-black at end)
+        fadeOverlay = rect(0, 0, mainScreen.getWidth(), mainScreen.getHeight(),
+            new Color(0, 0, 0, 0), new Color(0, 0, 0, 0));
+        place(fadeOverlay);
+
         cinematicRunId++;
         final int runId = cinematicRunId;
         new Thread(() -> resumeCinematic(runId, PHASE_START)).start();
@@ -226,6 +239,9 @@ public class SkyTransitionPane extends GraphicsPane {
 
         buildGroundSection();
         buildSkySection();
+        fadeOverlay = rect(0, 0, mainScreen.getWidth(), mainScreen.getHeight(),
+            new Color(0, 0, 0, 0), new Color(0, 0, 0, 0));
+        place(fadeOverlay);
         for (GObject obj : contents) {
             obj.move(0, newShift);
         }
@@ -482,6 +498,25 @@ public class SkyTransitionPane extends GraphicsPane {
             if (resumePhase <= PHASE_END) {
                 cinematicPhase = PHASE_END;
                 Thread.sleep(600);
+                if (!still(runId)) {
+                    return;
+                }
+
+                // Fade to black
+                for (int frame = 1; frame <= FADE_OUT_FRAMES && still(runId); frame++) {
+                    double t = (double) frame / FADE_OUT_FRAMES;
+                    int alpha = (int) (t * 255);
+                    Color c = new Color(0, 0, 0, alpha);
+                    fadeOverlay.setFillColor(c);
+                    fadeOverlay.setColor(c);
+                    Thread.sleep(FADE_FRAME_MS);
+                }
+                if (!still(runId)) {
+                    return;
+                }
+
+                // Brief hold on full black
+                Thread.sleep(300);
                 if (!still(runId)) {
                     return;
                 }
