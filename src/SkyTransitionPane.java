@@ -559,7 +559,7 @@ public class SkyTransitionPane extends GraphicsPane {
      * Adds a GObject to both the contents list and the canvas.
      * @param obj the object to add
      */
-    private void place(GObject obj) {
+    protected void place(GObject obj) {
         contents.add(obj);
         mainScreen.add(obj);
     }
@@ -571,7 +571,7 @@ public class SkyTransitionPane extends GraphicsPane {
      * @param color text colour
      * @return configured GLabel at (0, 0)
      */
-    private GLabel pixelLabel(String text, int size, Color color) {
+    protected GLabel pixelLabel(String text, int size, Color color) {
         GLabel lbl = new GLabel(text, 0, 0);
         lbl.setFont("Monospaced-BOLD-" + scaleFontSize(size));
         lbl.setColor(color);
@@ -588,7 +588,7 @@ public class SkyTransitionPane extends GraphicsPane {
      * @param border border colour
      * @return configured GRect
      */
-    private GRect rect(double x, double y, double w, double h, Color fill, Color border) {
+    protected GRect rect(double x, double y, double w, double h, Color fill, Color border) {
         GRect r = new GRect(x, y, w, h);
         r.setFilled(true);
         r.setFillColor(fill);
@@ -607,7 +607,7 @@ public class SkyTransitionPane extends GraphicsPane {
      * @param border border colour
      * @return configured GRect
      */
-    private GRect srect(double lx, double ly, double lw, double lh, Color fill, Color border) {
+    protected GRect srect(double lx, double ly, double lw, double lh, Color fill, Color border) {
         return rect(
             scaleX(lx),
             scaleY(ly),
