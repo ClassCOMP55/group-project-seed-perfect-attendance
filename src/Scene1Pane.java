@@ -1,4 +1,5 @@
 import java.awt.Color;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -1207,6 +1208,19 @@ public class Scene1Pane extends GraphicsPane {
             for (int i = 0; i < choiceBoxes.size(); i++) {
                 choiceBoxes.get(i).setFillColor(i == hoveredChoice ? C_BTN_HOVER : C_BTN_BG);
             }
+        }
+    }
+
+    /**
+     * Space bar advances dialogue, but is ignored when a choice is showing
+     * (choices must be selected by clicking a card button).
+     */
+    @Override
+    public void keyPressed(KeyEvent e) {
+        if (e.getKeyCode() == KeyEvent.VK_SPACE && !showingChoice) {
+            mouseClicked(new MouseEvent(
+                e.getComponent(), MouseEvent.MOUSE_CLICKED, e.getWhen(),
+                0, 0, 0, 1, false));
         }
     }
 
