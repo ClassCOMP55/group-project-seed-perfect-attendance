@@ -238,11 +238,13 @@ public class SettingsPane extends NightScenePane {
         if (hit == arrowLeft) {
             GameSettings.setVolumePercent(GameSettings.getVolumePercent() - 5);
             positionKnobFromVolume();
+            SettingsIO.persist();
             return;
         }
         if (hit == arrowRight) {
             GameSettings.setVolumePercent(GameSettings.getVolumePercent() + 5);
             positionKnobFromVolume();
+            SettingsIO.persist();
         }
     }
 
@@ -258,6 +260,7 @@ public class SettingsPane extends NightScenePane {
             draggingSlider = true;
             GameSettings.setVolumePercent(volumeFromKnobCenterX(x));
             positionKnobFromVolume();
+            SettingsIO.persist();
         }
     }
 
@@ -281,6 +284,9 @@ public class SettingsPane extends NightScenePane {
 
     @Override
     public void mouseReleased(MouseEvent e) {
+        if (draggingSlider) {
+            SettingsIO.persist();
+        }
         draggingSlider = false;
     }
 }

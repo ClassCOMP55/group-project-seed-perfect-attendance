@@ -2,11 +2,15 @@ import acm.graphics.GObject;
 import acm.program.*;
 
 
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
+import java.io.IOException;
 
 import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
+import javax.swing.Timer;
 
 public class MainApplication extends GraphicsProgram{
 	//Settings
@@ -15,7 +19,7 @@ public class MainApplication extends GraphicsProgram{
 	/** Shown in the OS window title bar (replaces default “Graphics Window”). */
 	public static final String GAME_TITLE = "So There's This Wizard That's a Goat";
 
-	private Player player;           // The player instance (holds hand + health)
+	private GameState gameState;     // One run: player, quiz flag, scene, save slot
 	private CardPlayModal cardPlayModal; // Reusable modal overlay for obstacle encounters
 	private PauseModal pauseModal; // Dim overlay + Paused Game menu (Settings / Main Menu / Exit)
 
@@ -37,15 +41,17 @@ public class MainApplication extends GraphicsProgram{
 	private FinalRestingScenePane finalRestingScenePane;
 	private Scene6Pane scene6Pane;
 	private EndingPane endingPane;
+	private GameSavesPane gameSavesPane;
 	private GraphicsPane currentScreen;
 	private int lastKnownWidth;
 	private int lastKnownHeight;
-	/** Virtual canvas size used for layout (animates toward window size on resize). */
+	/** Virtual canvas size tracks the window (single step on resize — no animation loop). */
 	private double layoutWidth;
 	private double layoutHeight;
 
-	private static final int RESIZE_ANIM_STEP_MS = 20;
-	private static final int RESIZE_ANIM_DURATION_MS = 280;
+	/** Fires once after resize events go quiet so we do not rebuild the scene on every drag tick. */
+	private Timer resizeDebounceTimer;
+	private static final int RESIZE_DEBOUNCE_MS = 120;
 
 
 	public MainApplication() {
@@ -76,13 +82,18 @@ public class MainApplication extends GraphicsProgram{
 	public void run() {
 		System.out.println("Lets' Begin!");
 		setupInteractions();
+		try {
+			SettingsIO.loadOrCreate();
+		} catch (IOException e) {
+			System.err.println("Settings load: " + e.getMessage());
+		}
 		SwingUtilities.invokeLater(() -> {
 			java.awt.Window w = SwingUtilities.getWindowAncestor(getGCanvas());
 			if (w instanceof JFrame) {
 				((JFrame) w).setTitle(GAME_TITLE);
 			}
 		});
-		player = new Player();
+		gameState = new GameState();
 		cardPlayModal = new CardPlayModal(this);
 		pauseModal = new PauseModal(this);
 
@@ -105,12 +116,13 @@ public class MainApplication extends GraphicsProgram{
 		finalRestingScenePane = new FinalRestingScenePane(this);
 		scene6Pane = new Scene6Pane(this);
 		endingPane = new EndingPane(this);
+		gameSavesPane = new GameSavesPane(this);
 
 		// Landing splash → then main menu (Start / Options / Quit)
 		switchToScreen(landingPane);
 		lastKnownWidth = (int) getWidth();
 		lastKnownHeight = (int) getHeight();
-		monitorResizeAndRefresh();
+		installResizeHandler();
 	}
 
 	/** Width used for scaling layout (may animate during resize). */
@@ -153,6 +165,10 @@ public class MainApplication extends GraphicsProgram{
 
 	public void switchToStartMenuScreen() {
 		switchToScreen(startMenuPane);
+	}
+
+	public void switchToGameSavesScreen() {
+		switchToScreen(gameSavesPane);
 	}
 
 	public void switchToSettingsScreen() {
@@ -222,7 +238,183 @@ public class MainApplication extends GraphicsProgram{
 		}
 		newScreen.showContent();
 		currentScreen = newScreen;
+		gameState.setCurrentScene(sceneIdFor(newScreen));
 		updateMenuMusicForScreen(newScreen);
+		autosaveIfSlotActive();
+	}
+
+	/** Writes JSON when a save slot is in use (no manual save button). */
+	public void autosaveIfSlotActive() {
+		int s = gameState.getActiveSaveSlot();
+		if (s < 1 || s > GameSaveIO.SAVE_COUNT) {
+			return;
+		}
+		try {
+			GameSaveIO.ensureGameDirectory();
+			GameSaveIO.writeSave(s, gameState);
+		} catch (IOException e) {
+			System.err.println("Autosave failed: " + e.getMessage());
+		}
+	}
+
+	/**
+	 * Resume play from a loaded save’s scene id.
+	 * If the personality quiz is not finished, always open character creation — the stored
+	 * {@code scene} may be START_MENU or another screen from leaving mid-quiz, which would
+	 * otherwise strand the player away from the quiz on load.
+	 */
+	public void switchToSceneFromSave(GameSceneId id) {
+		if (!gameState.isPersonalityQuizCompleted()) {
+			switchToScreen(characterCreationPane);
+			return;
+		}
+		if (id == null) {
+			id = GameSceneId.SCENE_1;
+		}
+		switch (id) {
+			case LANDING:
+				switchToScreen(landingPane);
+				break;
+			case START_MENU:
+				switchToScreen(startMenuPane);
+				break;
+			case GAME_SAVES:
+				switchToScreen(gameSavesPane);
+				break;
+			case SETTINGS:
+				switchToScreen(settingsPane);
+				break;
+			case CHARACTER_CREATION:
+				switchToScreen(characterCreationPane);
+				break;
+			case SKY_TRANSITION:
+				switchToScreen(skyTransitionPane);
+				break;
+			case SCENE_1:
+				switchToScreen(scene1Pane);
+				break;
+			case SCENE_2:
+				switchToScreen(scene2Pane);
+				break;
+			case TRANSITION_LOADING_1:
+				switchToScreen(transitionLoading1Pane);
+				break;
+			case RESTING_1:
+				switchToScreen(restingScene1Pane);
+				break;
+			case SCENE_3:
+				switchToScreen(scene3Pane);
+				break;
+			case SCENE_4:
+				switchToScreen(scene4Pane);
+				break;
+			case RESTING_2:
+				switchToScreen(restingScene2Pane);
+				break;
+			case SCENE_5:
+				switchToScreen(scene5Pane);
+				break;
+			case FINAL_RESTING:
+				switchToScreen(finalRestingScenePane);
+				break;
+			case SCENE_6:
+				switchToScreen(scene6Pane);
+				break;
+			case ENDING:
+				switchToScreen(endingPane);
+				break;
+			default:
+				switchToScreen(scene1Pane);
+				break;
+		}
+	}
+
+	/**
+	 * If the personality quiz was already finished, skip re-rolling cards — continue the stored journey.
+	 */
+	public void resumeAfterQuizIfAlreadyComplete() {
+		GameSceneId s = gameState.getCurrentScene();
+		if (s == GameSceneId.CHARACTER_CREATION || s == GameSceneId.SKY_TRANSITION) {
+			switchToSkyTransitionScreen();
+			return;
+		}
+		switchToSceneFromSave(s);
+	}
+
+	public GameState getGameState() {
+		return gameState;
+	}
+
+	/** Writes the active slot (defaults to 1 if unset). */
+	public void saveGameNow() {
+		int s = gameState.getActiveSaveSlot();
+		if (s < 1 || s > GameSaveIO.SAVE_COUNT) {
+			s = 1;
+			gameState.setActiveSaveSlot(1);
+		}
+		try {
+			GameSaveIO.writeSave(s, gameState);
+		} catch (IOException e) {
+			System.err.println("Save failed: " + e.getMessage());
+		}
+	}
+
+	private GameSceneId sceneIdFor(GraphicsPane p) {
+		if (p == landingPane) {
+			return GameSceneId.LANDING;
+		}
+		if (p == startMenuPane) {
+			return GameSceneId.START_MENU;
+		}
+		if (p == gameSavesPane) {
+			return GameSceneId.GAME_SAVES;
+		}
+		if (p == settingsPane) {
+			return GameSceneId.SETTINGS;
+		}
+		if (p == characterCreationPane) {
+			return GameSceneId.CHARACTER_CREATION;
+		}
+		if (p == skyTransitionPane) {
+			return GameSceneId.SKY_TRANSITION;
+		}
+		if (p == scene1Pane) {
+			return GameSceneId.SCENE_1;
+		}
+		if (p == scene2Pane) {
+			return GameSceneId.SCENE_2;
+		}
+		if (p == transitionLoading1Pane) {
+			return GameSceneId.TRANSITION_LOADING_1;
+		}
+		if (p == restingScene1Pane) {
+			return GameSceneId.RESTING_1;
+		}
+		if (p == scene3Pane) {
+			return GameSceneId.SCENE_3;
+		}
+		if (p == scene4Pane) {
+			return GameSceneId.SCENE_4;
+		}
+		if (p == restingScene2Pane) {
+			return GameSceneId.RESTING_2;
+		}
+		if (p == scene5Pane) {
+			return GameSceneId.SCENE_5;
+		}
+		if (p == finalRestingScenePane) {
+			return GameSceneId.FINAL_RESTING;
+		}
+		if (p == scene6Pane) {
+			return GameSceneId.SCENE_6;
+		}
+		if (p == endingPane) {
+			return GameSceneId.ENDING;
+		}
+		if (p == titleCardPane) {
+			return GameSceneId.START_MENU;
+		}
+		return GameSceneId.SCENE_1;
 	}
 
 	/**
@@ -242,66 +434,54 @@ public class MainApplication extends GraphicsProgram{
 		}
 	}
 
-	private void refreshCurrentScreen() {
-		if (currentScreen == null) {
+	private void installResizeHandler() {
+		resizeDebounceTimer = new Timer(RESIZE_DEBOUNCE_MS, e -> {
+			resizeDebounceTimer.stop();
+			applyLayoutToCanvasSize();
+		});
+		resizeDebounceTimer.setRepeats(false);
+		getGCanvas().addComponentListener(new ComponentAdapter() {
+			@Override
+			public void componentResized(ComponentEvent e) {
+				resizeDebounceTimer.restart();
+			}
+		});
+	}
+
+	/** One layout pass: sync logical size to the window, re-scale the pane, then modals. */
+	private void applyLayoutToCanvasSize() {
+		int w = (int) getWidth();
+		int h = (int) getHeight();
+		if (w <= 0 || h <= 0) {
 			return;
 		}
-		currentScreen.hideContent();
-		currentScreen.showContent();
+		if (w == lastKnownWidth && h == lastKnownHeight) {
+			return;
+		}
+		lastKnownWidth = w;
+		lastKnownHeight = h;
+		syncLayoutToWindow();
+		if (currentScreen != null) {
+			currentScreen.refreshLayout();
+		}
+		refreshModalsOnResize();
 	}
 
-	private void monitorResizeAndRefresh() {
-		while (true) {
-			pause(100);
-			int currentWidth = (int) getWidth();
-			int currentHeight = (int) getHeight();
-			if (currentWidth != lastKnownWidth || currentHeight != lastKnownHeight) {
-				lastKnownWidth = currentWidth;
-				lastKnownHeight = currentHeight;
-				animateLayoutToTarget(currentWidth, currentHeight);
-			}
+	private void refreshModalsOnResize() {
+		if (pauseModal != null && !pauseModal.contents.isEmpty()) {
+			pauseModal.refreshForResize();
 		}
-	}
-
-	/**
-	 * Smoothly interpolates layout size from current to target so UI scales in
-	 * rather than jumping (ease-out cubic).
-	 */
-	private void animateLayoutToTarget(double targetW, double targetH) {
-		double startW = layoutWidth;
-		double startH = layoutHeight;
-		int steps = Math.max(1, RESIZE_ANIM_DURATION_MS / RESIZE_ANIM_STEP_MS);
-		for (int i = 1; i <= steps; i++) {
-			double t = (double) i / steps;
-			// ease-out cubic: fast start, gentle finish
-			t = 1 - (1 - t) * (1 - t) * (1 - t);
-			layoutWidth = startW + (targetW - startW) * t;
-			layoutHeight = startH + (targetH - startH) * t;
-			refreshCurrentScreen();
-			restackModalIfVisible();
-			pause(RESIZE_ANIM_STEP_MS);
+		if (cardPlayModal != null && !cardPlayModal.contents.isEmpty()) {
+			cardPlayModal.refreshLayout();
 		}
-		layoutWidth = targetW;
-		layoutHeight = targetH;
-		refreshCurrentScreen();
-		restackModalIfVisible();
 	}
 
 	/**
 	 * Scene refresh re-adds objects on top of the canvas; the obstacle modal would
 	 * otherwise sit underneath and getElementAt would hit the scene instead of buttons.
 	 */
-	private void restackModalIfVisible() {
-		if (cardPlayModal != null && !cardPlayModal.contents.isEmpty()) {
-			cardPlayModal.restackOnTop();
-		}
-		if (pauseModal != null && !pauseModal.contents.isEmpty()) {
-			pauseModal.restackOnTop();
-		}
-	}
-
 	public Player getPlayer() {
-		return player;
+		return gameState.getPlayer();
 	}
 
 	/**

@@ -123,8 +123,33 @@ public class SkyTransitionPane extends GraphicsPane {
     /** True while the animation thread should keep running. */
     private volatile boolean animating = false;
 
-    /** RNG for stars and twinkling. */
+    /** Bumped to invalidate the cinematic thread (resize / hide). */
+    private volatile int cinematicRunId = 0;
+
+    /** Rough phase for resuming after a resize (see constants below). */
+    private volatile int cinematicPhase = 0;
+
+    private static final int PHASE_START = 0;
+    private static final int PHASE_PAN_UP = 1;
+    private static final int PHASE_TWINKLE = 2;
+    private static final int PHASE_PAUSE_SKY = 3;
+    private static final int PHASE_PAN_DOWN = 4;
+    private static final int PHASE_END = 5;
+
+    /**
+     * Full pan distance in pixels at the scale used when the scene was built
+     * ({@code scaleY(PAN_DISTANCE) - scaleY(0)}).
+     */
+    private double builtPanTargetPx;
+
+    /** RNG for twinkling only — must not affect star positions on rebuild. */
     private final Random rng = new Random();
+
+    /**
+     * Fixed seed so every {@link #generateStars()} produces the same logical layout;
+     * resize rebuilds then only rescale pixels and stars no longer jump.
+     */
+    private static final long STAR_LAYOUT_SEED = 0x535459534C41594FL;
 
     // =========================================================
     // CONSTRUCTOR
@@ -146,16 +171,23 @@ public class SkyTransitionPane extends GraphicsPane {
     public void showContent() {
         animating = true;
         currentShiftPx = 0;
+        cinematicPhase = PHASE_START;
         stars.clear();
         starBrightness.clear();
 
+        builtPanTargetPx = scaleY(PAN_DISTANCE) - scaleY(0);
+
         buildGroundSection();   // visible at start (logical Y 0–500)
         buildSkySection();      // above viewport (logical Y -500 to 0)
-        startCinematic();
+
+        cinematicRunId++;
+        final int runId = cinematicRunId;
+        new Thread(() -> resumeCinematic(runId, PHASE_START)).start();
     }
 
     @Override
     public void hideContent() {
+        cinematicRunId++;
         animating = false;
         for (GObject item : contents) {
             mainScreen.remove(item);
@@ -163,6 +195,46 @@ public class SkyTransitionPane extends GraphicsPane {
         contents.clear();
         stars.clear();
         starBrightness.clear();
+    }
+
+    /**
+     * Rebuilds ground + sky at the new scale, rescales the current camera shift, and resumes the cinematic.
+     */
+    @Override
+    public void refreshLayout() {
+        int phaseSnap = cinematicPhase;
+        cinematicRunId++;
+        animating = false;
+
+        double savedShift = currentShiftPx;
+        double oldTarget = builtPanTargetPx;
+        if (oldTarget < 1e-3) {
+            oldTarget = Math.max(1e-3, scaleY(PAN_DISTANCE) - scaleY(0));
+        }
+
+        for (GObject item : contents) {
+            mainScreen.remove(item);
+        }
+        contents.clear();
+        stars.clear();
+        starBrightness.clear();
+
+        builtPanTargetPx = scaleY(PAN_DISTANCE) - scaleY(0);
+        double ratio = oldTarget > 1e-6 ? (builtPanTargetPx / oldTarget) : 1.0;
+        double newShift = savedShift * ratio;
+        currentShiftPx = 0;
+
+        buildGroundSection();
+        buildSkySection();
+        for (GObject obj : contents) {
+            obj.move(0, newShift);
+        }
+        currentShiftPx = newShift;
+
+        cinematicRunId++;
+        final int runId = cinematicRunId;
+        animating = true;
+        new Thread(() -> resumeCinematic(runId, phaseSnap)).start();
     }
 
     // =========================================================
@@ -298,21 +370,31 @@ public class SkyTransitionPane extends GraphicsPane {
      * but start off-screen; they become visible when the camera pans up.
      */
     private void generateStars() {
+        Random layoutRng = new Random(STAR_LAYOUT_SEED);
         for (int i = 0; i < STAR_COUNT; i++) {
-            double lx = rng.nextDouble() * 680 + 10;
-            double ly = -480 + rng.nextDouble() * 440;  // Y -480 to -40
+            double lx = layoutRng.nextDouble() * 680 + 10;
+            double ly = -480 + layoutRng.nextDouble() * 440;  // Y -480 to -40
 
             // Size: mostly 2x2, some 3x3, rare 4x4
-            int roll = rng.nextInt(10);
+            int roll = layoutRng.nextInt(10);
             double size = (roll < 6) ? 2 : (roll < 9) ? 3 : 4;
 
-            int brightness = rng.nextInt(3);
+            int brightness = layoutRng.nextInt(3);
             starBrightness.add(brightness);
 
-            Color col = starColor(brightness);
+            Color col = starColorForLayout(brightness, layoutRng);
             GRect star = srect(lx, ly, size, size, col, col);
             stars.add(star);
             place(star);   // on canvas but off-screen above
+        }
+    }
+
+    /** Initial star colour from layout RNG (stable across resize rebuilds). */
+    private Color starColorForLayout(int level, Random layoutRng) {
+        switch (level) {
+            case 0:  return C_STAR_DIM;
+            case 1:  return C_STAR_MED;
+            default: return (layoutRng.nextInt(4) == 0) ? C_STAR_BLUE : C_STAR_BRIGHT;
         }
     }
 
@@ -333,81 +415,108 @@ public class SkyTransitionPane extends GraphicsPane {
     // CINEMATIC ANIMATION
     // =========================================================
 
-    /**
-     * Runs the full cinematic sequence in a background thread:
-     *   1. Brief pause at ground level
-     *   2. Smooth pan UP to the sky (ease-in-out)
-     *   3. Stars twinkle at the sky
-     *   4. Smooth pan DOWN back to ground (ease-in-out)
-     *   5. Auto-advance to Scene 1
-     */
-    private void startCinematic() {
-        new Thread(() -> {
-            try {
-                // --- Pause at ground level ---
-                Thread.sleep(1200);
-                if (!animating) return;
-
-                // --- Pan UP (shift all objects DOWN by PAN_DISTANCE) ---
-                double targetPx = scaleY(PAN_DISTANCE) - scaleY(0);
-                panSmooth(targetPx, PAN_UP_FRAMES);
-                if (!animating) return;
-
-                // --- Twinkle at the sky ---
-                for (int c = 0; c < TWINKLE_CYCLES && animating; c++) {
-                    twinkleStars();
-                    Thread.sleep(TWINKLE_MS);
-                }
-                if (!animating) return;
-
-                // --- Pause with narrative visible ---
-                Thread.sleep(1000);
-                if (!animating) return;
-
-                // --- Pan DOWN (shift all objects UP by PAN_DISTANCE) ---
-                panSmooth(-targetPx, PAN_DOWN_FRAMES);
-                if (!animating) return;
-
-                // --- Brief pause at ground, then advance ---
-                Thread.sleep(600);
-                if (!animating) return;
-
-                // Auto-advance to Scene 1 (Market)
-                mainScreen.switchToScene1Screen();
-
-            } catch (InterruptedException e) {
-                // Thread interrupted — clean exit
-            }
-        }).start();
+    private boolean still(int runId) {
+        return animating && runId == cinematicRunId;
     }
 
     /**
-     * Smoothly shifts all objects by {@code totalPx} pixels over
-     * {@code frames} steps, using ease-in-out cubic interpolation.
-     *
-     * @param totalPx total pixel distance to shift (positive = down, negative = up)
-     * @param frames  number of animation frames
-     * @throws InterruptedException if the thread is interrupted
+     * Runs or resumes the cinematic from {@code resumePhase} (0 = full run from the start wait).
      */
-    private void panSmooth(double totalPx, int frames) throws InterruptedException {
-        double moved = 0;
-        for (int i = 1; i <= frames && animating; i++) {
-            // Ease-in-out cubic: smooth acceleration and deceleration
+    private void resumeCinematic(int runId, int resumePhase) {
+        try {
+            double tgt = builtPanTargetPx;
+            if (tgt < 1e-3) {
+                tgt = scaleY(PAN_DISTANCE) - scaleY(0);
+                builtPanTargetPx = tgt;
+            }
+
+            if (resumePhase <= PHASE_START) {
+                cinematicPhase = PHASE_START;
+                Thread.sleep(1200);
+                if (!still(runId)) {
+                    return;
+                }
+            }
+
+            if (resumePhase <= PHASE_PAN_UP) {
+                cinematicPhase = PHASE_PAN_UP;
+                if (currentShiftPx < tgt - 0.5) {
+                    int frames = Math.max(6, (int) Math.round(PAN_UP_FRAMES * (tgt - currentShiftPx) / tgt));
+                    panSmoothToward(runId, tgt, frames);
+                }
+                if (!still(runId)) {
+                    return;
+                }
+            }
+
+            if (resumePhase <= PHASE_TWINKLE) {
+                cinematicPhase = PHASE_TWINKLE;
+                for (int c = 0; c < TWINKLE_CYCLES && still(runId); c++) {
+                    twinkleStars();
+                    Thread.sleep(TWINKLE_MS);
+                }
+                if (!still(runId)) {
+                    return;
+                }
+            }
+
+            if (resumePhase <= PHASE_PAUSE_SKY) {
+                cinematicPhase = PHASE_PAUSE_SKY;
+                Thread.sleep(1000);
+                if (!still(runId)) {
+                    return;
+                }
+            }
+
+            if (resumePhase <= PHASE_PAN_DOWN) {
+                cinematicPhase = PHASE_PAN_DOWN;
+                if (currentShiftPx > 0.5) {
+                    int frames = Math.max(6, (int) Math.round(PAN_DOWN_FRAMES * (currentShiftPx / tgt)));
+                    panSmoothToward(runId, 0, frames);
+                }
+                if (!still(runId)) {
+                    return;
+                }
+            }
+
+            if (resumePhase <= PHASE_END) {
+                cinematicPhase = PHASE_END;
+                Thread.sleep(600);
+                if (!still(runId)) {
+                    return;
+                }
+            }
+
+            if (still(runId)) {
+                mainScreen.switchToScene1Screen();
+            }
+        } catch (InterruptedException e) {
+            // clean exit
+        }
+    }
+
+    /**
+     * Ease-in-out move from {@link #currentShiftPx} toward {@code endShift} over {@code frames} steps.
+     */
+    private void panSmoothToward(int runId, double endShift, int frames) throws InterruptedException {
+        double startShift = currentShiftPx;
+        double totalPx = endShift - startShift;
+        if (Math.abs(totalPx) < 0.25) {
+            return;
+        }
+        double movedAlong = 0;
+        for (int i = 1; i <= frames && still(runId); i++) {
             double t = (double) i / frames;
             double eased = t < 0.5
                 ? 4 * t * t * t
                 : 1 - Math.pow(-2 * t + 2, 3) / 2;
-
-            double target = totalPx * eased;
-            double delta = target - moved;
-            moved = target;
-
-            // Shift every object on the canvas
+            double targetPos = startShift + totalPx * eased;
+            double delta = targetPos - startShift - movedAlong;
+            movedAlong = targetPos - startShift;
             for (GObject obj : contents) {
                 obj.move(0, delta);
             }
             currentShiftPx += delta;
-
             Thread.sleep(PAN_FRAME_MS);
         }
     }

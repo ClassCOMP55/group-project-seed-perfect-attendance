@@ -205,11 +205,41 @@ public class CharacterCreationPane extends GraphicsPane {
 
     @Override
     public void showContent() {
-        currentQuestion = 0;
-        hoveredButton   = -1;
+        if (mainScreen.getGameState().isPersonalityQuizCompleted()) {
+            mainScreen.resumeAfterQuizIfAlreadyComplete();
+            return;
+        }
+        GameState gs = mainScreen.getGameState();
+        int q = gs.getPersonalityQuizQuestionIndex();
+        if (q < 0) {
+            q = 0;
+        }
+        if (q > QUESTIONS.length) {
+            q = QUESTIONS.length;
+        }
+        currentQuestion = q;
+        hoveredButton = -1;
         scores = new EnumMap<>(CardType.class);
         for (CardType type : CardType.values()) {
-            scores.put(type, 0);
+            scores.put(type, gs.getPersonalityQuizScore(type));
+        }
+
+        // Last answer was saved before award (e.g. quit right after final click) — finish once.
+        if (currentQuestion >= QUESTIONS.length) {
+            awardCards();
+            gs.setPersonalityQuizCompleted(true);
+            gs.resetPersonalityQuizProgress();
+            gs.setCurrentScene(GameSceneId.SKY_TRANSITION);
+            mainScreen.switchToSkyTransitionScreen();
+            return;
+        }
+        renderScreen();
+    }
+
+    @Override
+    public void refreshLayout() {
+        if (mainScreen.getGameState().isPersonalityQuizCompleted()) {
+            return;
         }
         renderScreen();
     }
@@ -574,12 +604,23 @@ public class CharacterCreationPane extends GraphicsPane {
         scores.put(chosen, scores.get(chosen) + 1);
         currentQuestion++;
 
+        syncQuizProgressToGameState();
+        mainScreen.autosaveIfSlotActive();
+
         if (currentQuestion < QUESTIONS.length) {
             renderScreen();
         } else {
             awardCards();
+            GameState gs = mainScreen.getGameState();
+            gs.setPersonalityQuizCompleted(true);
+            gs.resetPersonalityQuizProgress();
+            gs.setCurrentScene(GameSceneId.SKY_TRANSITION);
             mainScreen.switchToSkyTransitionScreen();
         }
+    }
+
+    private void syncQuizProgressToGameState() {
+        mainScreen.getGameState().setPersonalityQuizProgress(currentQuestion, scores);
     }
 
     // =========================================================
@@ -621,7 +662,7 @@ public class CharacterCreationPane extends GraphicsPane {
             CARD_REWARDS[index][1],
             type
         );
-        mainScreen.getPlayer().getHand().addCard(card);
+        mainScreen.getGameState().getPlayer().getHand().addCard(card);
     }
 
     /**

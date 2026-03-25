@@ -81,7 +81,7 @@ public class StartMenuPane extends NightScenePane {
     public void mouseClicked(MouseEvent e) {
         GObject hit = mainScreen.getElementAtLocation(e.getX(), e.getY());
         if (hit == startLabel || hit == startFrame) {
-            mainScreen.switchToCharacterCreationScreen();
+            mainScreen.switchToGameSavesScreen();
             return;
         }
         if (hit == optionsLabel || hit == optionsFrame) {

@@ -53,4 +53,9 @@ public class Hand {
         return cards.size();
     }
 
+    /** Removes all cards (e.g. when loading a save). */
+    public void clear() {
+        cards.clear();
+    }
+
 }

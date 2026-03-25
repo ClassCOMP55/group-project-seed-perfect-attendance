@@ -18,6 +18,7 @@ public class PauseModal extends GraphicsPane {
     private GLabel settingsLabel;
     private GRoundRect mainMenuFrame;
     private GLabel mainMenuLabel;
+
     private GRoundRect exitFrame;
     private GLabel exitLabel;
 
@@ -105,6 +106,14 @@ public class PauseModal extends GraphicsPane {
         addBoth(exitLabel);
 
         restackOnTop();
+    }
+
+    /** Rebuild at the new window size while keeping the pause menu open. */
+    public void refreshForResize() {
+        if (contents.isEmpty()) {
+            return;
+        }
+        showPause();
     }
 
     private void centerLabelInButton(GLabel g, GRoundRect r) {

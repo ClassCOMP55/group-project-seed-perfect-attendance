@@ -1,3 +1,5 @@
+game/*.json
+
 /bin
 src/*.class
 *.class

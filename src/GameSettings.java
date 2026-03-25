@@ -33,6 +33,19 @@ public final class GameSettings {
     private GameSettings() {
     }
 
+    /**
+     * Sets volume during startup from {@link SettingsIO} only — does not write the file.
+     */
+    public static void applyStartupVolume(int percent) {
+        if (percent < 0) {
+            volumePercent = 0;
+        } else if (percent > 100) {
+            volumePercent = 100;
+        } else {
+            volumePercent = percent;
+        }
+    }
+
     public static GraphicsTemplate getGraphicsTemplate() {
         return graphicsTemplate;
     }

@@ -31,6 +31,11 @@ public class Player {
         return health;
     }
 
+    /** Sets current health (e.g. when loading a save). */
+    public void setHP(int hp) {
+        health = Math.max(0, hp);
+    }
+
     /**
      * Reduces the player's health by the given amount.
      * @param amount the damage to deal

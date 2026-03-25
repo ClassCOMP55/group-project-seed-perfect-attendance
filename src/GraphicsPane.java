@@ -24,6 +24,15 @@ public class GraphicsPane {
 	public void showContent() {
 	}
 
+	/**
+	 * Re-layout at the current window size without switching screens.
+	 * Default rebuilds the pane (stateless menus). Panes with progress override.
+	 */
+	public void refreshLayout() {
+		hideContent();
+		showContent();
+	}
+
 	public void hideContent() {
 	}
 

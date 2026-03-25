@@ -20,6 +20,8 @@ public class CardPlayModal extends GraphicsPane {
     private Runnable onComplete;           // Called when the player clicks Continue
     private boolean outcomeShowing;        // True after a card has been played
     private boolean keepCard;             // If true, card is not consumed after use (tutorial mode)
+    /** When {@link #outcomeShowing}, preserved so resize can redraw the outcome step. */
+    private Outcome outcomeSnapshot;
 
     // --- UI element lists ---
     private List<GLabel> cardButtons;      // One clickable label per card in hand
@@ -64,6 +66,31 @@ public class CardPlayModal extends GraphicsPane {
         cardRowObjects.clear();
         cardHitRects.clear();
         renderModal();
+        restackOnTop();
+    }
+
+    /**
+     * Redraws the obstacle modal at the new size. If the player already chose a card,
+     * restores the outcome view without changing hand or HP.
+     */
+    public void refreshLayout() {
+        if (currentObstacle == null || contents.isEmpty()) {
+            return;
+        }
+        Outcome snap = outcomeSnapshot;
+        ObstacleScene obs = currentObstacle;
+        Runnable oc = onComplete;
+        boolean kc = keepCard;
+        hideContent();
+        currentObstacle = obs;
+        onComplete = oc;
+        keepCard = kc;
+        if (snap != null) {
+            outcomeSnapshot = snap;
+            renderModalAfterOutcome(snap);
+        } else {
+            showObstacle(obs, oc, kc);
+        }
         restackOnTop();
     }
 
@@ -121,6 +148,44 @@ public class CardPlayModal extends GraphicsPane {
         } else {
             renderCardSelectionState(boxX, boxY, boxW, boxH);
         }
+    }
+
+    /** Rebuilds dim + panel + story + outcome text (after a card was already played). */
+    private void renderModalAfterOutcome(Outcome outcome) {
+        double pad = 14;
+        double boxX = pad;
+        double boxY = pad;
+        double boxW = mainScreen.getWidth() - 2 * pad;
+        double boxH = mainScreen.getHeight() - 2 * pad;
+
+        dimOverlay = new GRect(0, 0, mainScreen.getWidth(), mainScreen.getHeight());
+        dimOverlay.setFilled(true);
+        dimOverlay.setFillColor(new Color(0, 0, 0, 140));
+        dimOverlay.setColor(new Color(0, 0, 0, 0));
+        contents.add(dimOverlay);
+        mainScreen.add(dimOverlay);
+
+        modalBox = new GRect(boxX, boxY, boxW, boxH);
+        modalBox.setFilled(true);
+        modalBox.setFillColor(new Color(245, 240, 255));
+        modalBox.setColor(new Color(100, 80, 140));
+        contents.add(modalBox);
+        mainScreen.add(modalBox);
+
+        GLabel title = new GLabel(currentObstacle.getTitle(), 0, 0);
+        title.setFont(scaledFont(20));
+        title.setColor(new Color(60, 20, 100));
+        double titleY = boxY + (scaleY(28) - scaleY(0));
+        title.setLocation(boxX + (boxW - title.getWidth()) / 2.0, titleY);
+        contents.add(title);
+        mainScreen.add(title);
+
+        double descY = titleY + (scaleY(36) - scaleY(0));
+        addWrappedDescriptionLines(boxX, boxW, descY, currentObstacle.getDescription());
+
+        mountOutcomeLabels(outcome);
+        outcomeShowing = true;
+        outcomeSnapshot = outcome;
     }
 
     /**
@@ -312,7 +377,16 @@ public class CardPlayModal extends GraphicsPane {
         cardButtons.clear();
         cardIndices.clear();
 
-        // --- Show outcome text ---
+        mountOutcomeLabels(outcome);
+        outcomeSnapshot = outcome;
+        outcomeShowing = true;
+
+        System.out.println("Card played: " + played.getName()
+            + " | Outcome: " + outcome.getType()
+            + " | HP change: " + outcome.getHealthDifference());
+    }
+
+    private void mountOutcomeLabels(Outcome outcome) {
         outcomeLabel = new GLabel(outcome.getText(), 0, 0);
         outcomeLabel.setFont(scaledFont(14));
         outcomeLabel.setColor(outcomeColor(outcome.getType()));
@@ -320,7 +394,6 @@ public class CardPlayModal extends GraphicsPane {
         contents.add(outcomeLabel);
         mainScreen.add(outcomeLabel);
 
-        // Health change label
         if (outcome.getHealthDifference() != 0) {
             String hpText = outcome.getHealthDifference() > 0
                 ? "+" + outcome.getHealthDifference() + " HP"
@@ -333,21 +406,16 @@ public class CardPlayModal extends GraphicsPane {
             healthLabel.setLocation(centeredX(healthLabel), scaleY(260));
             contents.add(healthLabel);
             mainScreen.add(healthLabel);
+        } else {
+            healthLabel = null;
         }
 
-        // Continue button
         continueButton = new GLabel("[ Continue ]", 0, 0);
         continueButton.setFont(scaledFont(15));
         continueButton.setColor(new Color(60, 20, 100));
         continueButton.setLocation(centeredX(continueButton), scaleY(380));
         contents.add(continueButton);
         mainScreen.add(continueButton);
-
-        outcomeShowing = true;
-
-        System.out.println("Card played: " + played.getName()
-            + " | Outcome: " + outcome.getType()
-            + " | HP change: " + outcome.getHealthDifference());
     }
 
     /**
@@ -374,6 +442,10 @@ public class CardPlayModal extends GraphicsPane {
     public void handlePointer(double x, double y) {
         if (continueButton != null && containsPoint(continueButton, x, y)) {
             hideContent();
+            if (mainScreen.getPlayer().getHP() <= 0) {
+                mainScreen.switchToGameOverScreen();
+                return;
+            }
             if (mainScreen.getPlayer().getHand().isEmpty() && !outcomeShowing) {
                 mainScreen.switchToGameOverScreen();
             } else {
@@ -402,6 +474,7 @@ public class CardPlayModal extends GraphicsPane {
         cardRowObjects.clear();
         cardHitRects.clear();
         outcomeShowing = false;
+        outcomeSnapshot = null;
     }
 
 }
