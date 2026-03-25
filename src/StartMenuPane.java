@@ -36,13 +36,13 @@ public class StartMenuPane extends NightScenePane {
         addTitleBanner();
 
         wizardSprite = new GLabel("\uD83E\uDDD9", 0, 0);
-        wizardSprite.setFont(displayFont(72));
+        wizardSprite.setFont(emojiDisplayFont(72));
         wizardSprite.setColor(NIGHT_CREAM);
         wizardSprite.setLocation(scaleX(48), scaleY(228));
         addGraphic(wizardSprite);
 
         goatSprite = new GLabel("\uD83D\uDC10", 0, 0);
-        goatSprite.setFont(displayFont(72));
+        goatSprite.setFont(emojiDisplayFont(72));
         goatSprite.setColor(NIGHT_CREAM);
         goatSprite.setLocation(scaleX(560), scaleY(228));
         addGraphic(goatSprite);

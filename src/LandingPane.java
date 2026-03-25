@@ -34,13 +34,13 @@ public class LandingPane extends NightScenePane {
         addTitleBanner();
 
         wizardEmoji = new GLabel("\uD83E\uDDD9", 0, 0);
-        wizardEmoji.setFont(displayFont(72));
+        wizardEmoji.setFont(emojiDisplayFont(72));
         wizardEmoji.setColor(NIGHT_CREAM);
         wizardEmoji.setLocation(scaleX(48), scaleY(255));
         addGraphic(wizardEmoji);
 
         goatEmoji = new GLabel("\uD83D\uDC10", 0, 0);
-        goatEmoji.setFont(displayFont(72));
+        goatEmoji.setFont(emojiDisplayFont(72));
         goatEmoji.setColor(NIGHT_CREAM);
         goatEmoji.setLocation(scaleX(560), scaleY(255));
         addGraphic(goatEmoji);
@@ -60,7 +60,7 @@ public class LandingPane extends NightScenePane {
         addGraphic(ctaLabel);
 
         hintLabel = new GLabel("\u2728", 0, 0);
-        hintLabel.setFont(displayFont(20));
+        hintLabel.setFont(emojiDisplayFont(20));
         hintLabel.setColor(new Color(255, 230, 150));
         hintLabel.setLocation(centeredX(hintLabel), scaleY(434));
         addGraphic(hintLabel);
