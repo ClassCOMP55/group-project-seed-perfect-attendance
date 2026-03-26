@@ -307,6 +307,13 @@ public class GraphicsPane {
 		contents.add(hudPanel);
 		mainScreen.add(hudPanel);
 
+		// TODO Angel / Roberto [GRAPHICS]: Replace this placeholder circle + initial label with the player's
+		// actual character portrait/icon. The icon should be a circular-cropped sprite that
+		// matches the character the player is playing as. Remove hudIcon, hudIconLabel, and
+		// the sendToFront calls for both once the real asset is in place.
+		// Bounding box (pixel coords): scaleX(HUD_ICON_X), scaleY(HUD_ICON_Y),
+		//   width = scaleX(HUD_ICON_X + HUD_ICON_D) - scaleX(HUD_ICON_X)
+		//   height = scaleY(HUD_ICON_Y + HUD_ICON_D) - scaleY(HUD_ICON_Y)
 		// Circle avatar icon
 		hudIcon = new GOval(
 			scaleX(HUD_ICON_X), scaleY(HUD_ICON_Y),
