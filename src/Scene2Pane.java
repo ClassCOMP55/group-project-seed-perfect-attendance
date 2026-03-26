@@ -1485,6 +1485,7 @@ public class Scene2Pane extends GraphicsPane {
         addSceneDebugBanner();
         drawDialogueBox();
         addSettingsCornerButton();
+        showPlayerHUD(mainScreen.getGameState().getPlayer());
 
         GameState gs = mainScreen.getGameState();
 

@@ -7,6 +7,7 @@ import java.util.List;
 
 import acm.graphics.GLabel;
 import acm.graphics.GObject;
+import acm.graphics.GOval;
 import acm.graphics.GRect;
 import acm.graphics.GRoundRect;
 
@@ -241,6 +242,186 @@ public class GraphicsPane {
 			lines.add("");
 		}
 		return lines;
+	}
+
+	// =========================================================
+	// PLAYER HUD — top-left health bar, name, and icon
+	// =========================================================
+
+	/** HUD background panel. */
+	private GRect hudPanel;
+	/** Circle avatar placeholder. */
+	private GOval hudIcon;
+	/** First-initial label centred in the avatar circle. */
+	private GLabel hudIconLabel;
+	/** Player name label. */
+	private GLabel hudNameLabel;
+	/** Health bar background. */
+	private GRect hudHealthBg;
+	/** Health bar fill (width updated by updatePlayerHUD). */
+	private GRect hudHealthFill;
+	/** HP numeric label. */
+	private GLabel hudHpLabel;
+
+	// Logical layout constants for the HUD
+	private static final double HUD_X      = 8;
+	private static final double HUD_Y      = 8;
+	private static final double HUD_W      = 165;
+	private static final double HUD_H      = 62;
+	private static final double HUD_ICON_X = 14;
+	private static final double HUD_ICON_Y = 12;
+	private static final double HUD_ICON_D = 44;   // diameter (circle)
+	private static final double HUD_TEXT_X = 66;
+	private static final double HUD_BAR_X  = 66;
+	private static final double HUD_BAR_Y  = 40;
+	private static final double HUD_BAR_W  = 98;
+	private static final double HUD_BAR_H  = 10;
+
+	private static final Color HUD_BG_COLOR     = new Color(10, 8, 20, 200);
+	private static final Color HUD_BORDER_COLOR = new Color(255, 215, 120);
+	private static final Color HUD_ICON_COLOR   = new Color(90, 100, 130);
+	private static final Color HUD_NAME_COLOR   = new Color(220, 220, 235);
+	private static final Color HUD_BAR_BG_COLOR = new Color(35, 35, 52);
+	private static final Color HUD_BAR_FULL     = new Color(80, 200, 100);
+	private static final Color HUD_BAR_MID      = new Color(230, 180, 50);
+	private static final Color HUD_BAR_LOW      = new Color(220, 70, 70);
+	private static final Color HUD_HP_COLOR     = new Color(180, 180, 200);
+
+	/**
+	 * Draws the player HUD in the top-left corner.
+	 * Shows a circle avatar placeholder, the player's name, and a health bar.
+	 * Call at the end of {@link #showContent()} in gameplay panes.
+	 *
+	 * @param player the Player whose data to display
+	 */
+	protected void showPlayerHUD(Player player) {
+		hidePlayerHUD();
+
+		// Background panel
+		hudPanel = new GRect(scaleX(HUD_X), scaleY(HUD_Y),
+			scaleX(HUD_X + HUD_W) - scaleX(HUD_X),
+			scaleY(HUD_Y + HUD_H) - scaleY(HUD_Y));
+		hudPanel.setFilled(true);
+		hudPanel.setFillColor(HUD_BG_COLOR);
+		hudPanel.setColor(HUD_BORDER_COLOR);
+		contents.add(hudPanel);
+		mainScreen.add(hudPanel);
+
+		// Circle avatar icon
+		hudIcon = new GOval(
+			scaleX(HUD_ICON_X), scaleY(HUD_ICON_Y),
+			scaleX(HUD_ICON_X + HUD_ICON_D) - scaleX(HUD_ICON_X),
+			scaleY(HUD_ICON_Y + HUD_ICON_D) - scaleY(HUD_ICON_Y));
+		hudIcon.setFilled(true);
+		hudIcon.setFillColor(HUD_ICON_COLOR);
+		hudIcon.setColor(HUD_BORDER_COLOR);
+		contents.add(hudIcon);
+		mainScreen.add(hudIcon);
+
+		// First-initial label centred in the avatar circle
+		String initials = player.getName().isEmpty() ? "?" :
+			String.valueOf(player.getName().charAt(0)).toUpperCase();
+		hudIconLabel = pixelLabel(initials, 16, HUD_NAME_COLOR);
+		double iconCx = scaleX(HUD_ICON_X) + (scaleX(HUD_ICON_X + HUD_ICON_D) - scaleX(HUD_ICON_X)
+			- hudIconLabel.getWidth()) / 2.0;
+		double iconCy = scaleY(HUD_ICON_Y) + (scaleY(HUD_ICON_Y + HUD_ICON_D) - scaleY(HUD_ICON_Y)
+			+ hudIconLabel.getAscent()) / 2.0 - hudIconLabel.getDescent() / 2.0;
+		hudIconLabel.setLocation(iconCx, iconCy);
+		contents.add(hudIconLabel);
+		mainScreen.add(hudIconLabel);
+
+		// Player name label
+		String displayName = player.getName();
+		if (displayName.length() > 14) {
+			displayName = displayName.substring(0, 13) + ".";
+		}
+		hudNameLabel = pixelLabel(displayName, 11, HUD_NAME_COLOR);
+		hudNameLabel.setLocation(scaleX(HUD_TEXT_X), scaleY(HUD_ICON_Y + 16));
+		contents.add(hudNameLabel);
+		mainScreen.add(hudNameLabel);
+
+		// Health bar background
+		hudHealthBg = new GRect(
+			scaleX(HUD_BAR_X), scaleY(HUD_BAR_Y),
+			scaleX(HUD_BAR_X + HUD_BAR_W) - scaleX(HUD_BAR_X),
+			scaleY(HUD_BAR_Y + HUD_BAR_H) - scaleY(HUD_BAR_Y));
+		hudHealthBg.setFilled(true);
+		hudHealthBg.setFillColor(HUD_BAR_BG_COLOR);
+		hudHealthBg.setColor(HUD_BORDER_COLOR);
+		contents.add(hudHealthBg);
+		mainScreen.add(hudHealthBg);
+
+		// Health bar fill
+		int hp = player.getHP();
+		double fillFraction = Math.max(0, Math.min(1, hp / 100.0));
+		double barMaxW = scaleX(HUD_BAR_X + HUD_BAR_W) - scaleX(HUD_BAR_X);
+		Color barColor = hp > 60 ? HUD_BAR_FULL : hp > 30 ? HUD_BAR_MID : HUD_BAR_LOW;
+		hudHealthFill = new GRect(
+			scaleX(HUD_BAR_X), scaleY(HUD_BAR_Y),
+			barMaxW * fillFraction,
+			scaleY(HUD_BAR_Y + HUD_BAR_H) - scaleY(HUD_BAR_Y));
+		hudHealthFill.setFilled(true);
+		hudHealthFill.setFillColor(barColor);
+		hudHealthFill.setColor(barColor);
+		contents.add(hudHealthFill);
+		mainScreen.add(hudHealthFill);
+
+		// HP label
+		hudHpLabel = pixelLabel("HP: " + hp, 9, HUD_HP_COLOR);
+		hudHpLabel.setLocation(scaleX(HUD_BAR_X), scaleY(HUD_BAR_Y + HUD_BAR_H + 8));
+		contents.add(hudHpLabel);
+		mainScreen.add(hudHpLabel);
+
+		// Send HUD to front so it isn't obscured
+		hudPanel.sendToFront();
+		hudIcon.sendToFront();
+		hudIconLabel.sendToFront();
+		hudNameLabel.sendToFront();
+		hudHealthBg.sendToFront();
+		hudHealthFill.sendToFront();
+		hudHpLabel.sendToFront();
+	}
+
+	/**
+	 * Updates the health bar and HP label without fully re-rendering the HUD.
+	 * Call this after any health change in the scene.
+	 *
+	 * @param player the Player with current HP
+	 */
+	protected void updatePlayerHUD(Player player) {
+		if (hudHealthFill == null || hudHealthBg == null || hudHpLabel == null) {
+			return;
+		}
+		int hp = player.getHP();
+		double fillFraction = Math.max(0, Math.min(1, hp / 100.0));
+		double barMaxW = scaleX(HUD_BAR_X + HUD_BAR_W) - scaleX(HUD_BAR_X);
+		Color barColor = hp > 60 ? HUD_BAR_FULL : hp > 30 ? HUD_BAR_MID : HUD_BAR_LOW;
+		hudHealthFill.setSize(barMaxW * fillFraction,
+			scaleY(HUD_BAR_Y + HUD_BAR_H) - scaleY(HUD_BAR_Y));
+		hudHealthFill.setFillColor(barColor);
+		hudHealthFill.setColor(barColor);
+		hudHpLabel.setLabel("HP: " + hp);
+	}
+
+	/**
+	 * Removes all HUD elements from the canvas and tracking list.
+	 */
+	protected void hidePlayerHUD() {
+		GObject[] hudObjects = {hudPanel, hudIcon, hudIconLabel, hudHealthBg, hudHealthFill,
+			hudNameLabel, hudHpLabel};
+		for (GObject obj : hudObjects) {
+			if (obj != null) {
+				mainScreen.remove(obj);
+				contents.remove(obj);
+			}
+		}
+		hudPanel = null;
+		hudIcon = null;
+		hudIconLabel = null;
+		hudHealthBg = null;
+		hudHealthFill = null;
+		hudNameLabel = null;
+		hudHpLabel = null;
 	}
 
 	/**

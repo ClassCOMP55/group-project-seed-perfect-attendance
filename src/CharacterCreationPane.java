@@ -1,4 +1,5 @@
 import java.awt.Color;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -187,6 +188,12 @@ public class CharacterCreationPane extends GraphicsPane {
     /** Index of the currently hovered answer button, or -1 if none. */
     private int hoveredButton = -1;
 
+    /** True while the name entry screen is showing (before the quiz). */
+    private boolean enteringName = false;
+
+    /** Current text typed into the name input field. */
+    private String nameInput = "";
+
     // =========================================================
     // CONSTRUCTOR
     // =========================================================
@@ -233,12 +240,25 @@ public class CharacterCreationPane extends GraphicsPane {
             mainScreen.switchToSkyTransitionScreen();
             return;
         }
+
+        // Show name entry on a fresh start (quiz not yet begun, name still default)
+        if (currentQuestion == 0 && "Adventurer".equals(gs.getPlayer().getName())) {
+            enteringName = true;
+            nameInput = "";
+            renderNameEntry();
+            return;
+        }
+
         renderScreen();
     }
 
     @Override
     public void refreshLayout() {
         if (mainScreen.getGameState().isPersonalityQuizCompleted()) {
+            return;
+        }
+        if (enteringName) {
+            renderNameEntry();
             return;
         }
         renderScreen();
@@ -257,6 +277,97 @@ public class CharacterCreationPane extends GraphicsPane {
     // =========================================================
     // MAIN RENDER
     // =========================================================
+
+    // =========================================================
+    // NAME ENTRY
+    // =========================================================
+
+    /**
+     * Draws the name entry screen shown before the quiz.
+     * The player types their character name and presses ENTER.
+     */
+    private void renderNameEntry() {
+        for (GObject item : contents) {
+            mainScreen.remove(item);
+        }
+        contents.clear();
+        buttonBoxes.clear();
+
+        // Reuse the same background layers as the quiz
+        drawFullBackground();
+        drawBrickPattern();
+        drawTorches();
+        drawPanelOverlays();
+        drawDivider();
+        addSettingsCornerButton();
+
+        // Title
+        GLabel title = pixelLabel("** WHO ARE YOU? **", 14, C_ACCENT);
+        title.setLocation(centeredInPanel(title, 0, LEFT_W), scaleY(60));
+        place(title);
+
+        GLabel sub = pixelLabel("Enter your character's name:", 11, C_TEXT);
+        sub.setLocation(centeredInPanel(sub, 0, LEFT_W), scaleY(100));
+        place(sub);
+
+        // Input box
+        double bx = scaleX(BTN_X);
+        double by = scaleY(155);
+        double bw = scaleX(BTN_X + BTN_W) - bx;
+        double bh = scaleY(155 + BTN_H) - by;
+        place(rect(bx - 2, by - 2, bw + 4, bh + 4, C_BTN_BORDER, C_BTN_BORDER));
+        place(rect(bx, by, bw, bh, C_BTN_BG, C_BTN_BG));
+
+        // Current typed text with blinking-cursor placeholder
+        String display = nameInput + "|";
+        GLabel nameDisplay = pixelLabel(display, 13, C_TEXT);
+        double textY = by + (bh + nameDisplay.getAscent()) / 2.0 - nameDisplay.getDescent() / 2.0;
+        nameDisplay.setLocation(bx + (scaleX(14) - scaleX(0)), textY);
+        place(nameDisplay);
+
+        // Hint lines
+        GLabel hint1 = pixelLabel("ENTER to confirm", 9, C_DIM);
+        hint1.setLocation(centeredInPanel(hint1, 0, LEFT_W), scaleY(225));
+        place(hint1);
+
+        GLabel hint2 = pixelLabel("Leave blank for default: Adventurer", 9, C_DIM);
+        hint2.setLocation(centeredInPanel(hint2, 0, LEFT_W), scaleY(245));
+        place(hint2);
+
+        // Right panel shows the card information
+        drawRightPanel();
+    }
+
+    /**
+     * Handles keyboard input during name entry.
+     * Printable characters append to nameInput; BACKSPACE deletes; ENTER confirms.
+     */
+    @Override
+    public void keyTyped(KeyEvent e) {
+        if (!enteringName) {
+            return;
+        }
+        char c = e.getKeyChar();
+        if (c == KeyEvent.VK_ENTER || c == '\n' || c == '\r') {
+            // Confirm name and start quiz
+            String trimmed = nameInput.trim();
+            if (!trimmed.isEmpty()) {
+                mainScreen.getGameState().getPlayer().setName(trimmed);
+            }
+            enteringName = false;
+            nameInput = "";
+            renderScreen();
+        } else if (c == KeyEvent.VK_BACK_SPACE) {
+            if (!nameInput.isEmpty()) {
+                nameInput = nameInput.substring(0, nameInput.length() - 1);
+                renderNameEntry();
+            }
+        } else if (c >= 32 && c < 127 && nameInput.length() < 24) {
+            // Printable ASCII only, max 24 chars
+            nameInput += c;
+            renderNameEntry();
+        }
+    }
 
     /**
      * Clears and fully redraws the screen.

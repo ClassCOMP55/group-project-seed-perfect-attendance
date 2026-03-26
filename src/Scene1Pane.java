@@ -790,6 +790,7 @@ public class Scene1Pane extends GraphicsPane {
         addSceneDebugBanner();
         drawDialogueBox();
         addSettingsCornerButton();
+        showPlayerHUD(mainScreen.getGameState().getPlayer());
 
         GameState gs = mainScreen.getGameState();
         String ck = gs.getScene1NodeId();
