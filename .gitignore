@@ -8,3 +8,6 @@ src/*.class
 .idea/
 *.iml
 out/
+
+# Claude
+.claude
