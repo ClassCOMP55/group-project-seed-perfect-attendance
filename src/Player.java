@@ -5,7 +5,7 @@
 public class Player {
 
     private Hand hand;    // The cards currently held by the player
-    private int health;   // The player's current health points
+    private int health;   // The player's current hearts (0–3)
 
     /** Display name used as [NAME] in dialogue. Set during character creation. */
     private String name = "Adventurer";
@@ -14,11 +14,11 @@ public class Player {
     private String profession = "Wanderer";
 
     /**
-     * Creates a new Player with a full hand and 100 health.
+     * Creates a new Player with a full hand and 3 hearts.
      */
     public Player() {
         hand = new Hand();
-        health = 100;
+        health = 3;
     }
 
     /**
@@ -37,9 +37,9 @@ public class Player {
         return health;
     }
 
-    /** Sets current health (e.g. when loading a save). */
+    /** Sets current hearts (clamped 0–3, e.g. when loading a save). */
     public void setHP(int hp) {
-        health = Math.max(0, hp);
+        health = Math.max(0, Math.min(3, hp));
     }
 
     /**
