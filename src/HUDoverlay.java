@@ -1,6 +1,6 @@
 /*
 Roberto: health HUD class 
-RIG: [whoever] calls show / update / hide. 
+RIG: [whoever] calls show / update / hide / etc. 
 Does not own Player or combat
 */
 
@@ -15,7 +15,12 @@ public class HUDoverlay
   private static final int DEFAULT_HEART_SEGMENTS = 6;
   private static final int UPGRADED_HEART_SEGMENTS = 12;
   private static final int HEARTS_ON_SCREEN = 3;
-
+        //size of one half-segment
+  private static final double HEART_SEGMENT_WIDTH = 10;
+  private static final double HEART_SEGMENT_HEIGHT = 12;
+        //location of the start of the 3 hearts on screen
+  private static final double HEART_ROW_X = 12;
+  private static final double HEART_ROW_Y = 12;
 
   private GRect[] hearts;
   //private GImage[] heartIcons;
@@ -76,16 +81,58 @@ within this class
    * building the HUD the first time.
    *
    * @param pane          host pane (canvas + {@code contents} list)
-   * @param currentHeart  how many segments are filled (0–{@value #DEFAULT_HEART_SEGMENTS}); game passes current value, not damage delt
+   * @param currentHeart  how many segments are filled (0–{@value #DEFAULT_HEART_SEGMENTS}); game passes current value, not damage dealt with a hit
    * @param relicBool     reserved for pivot “upgraded heart” / quarter-step mode when implemented
    */
   public void showHearts(GraphicsPane pane, int currentHeart, boolean relicBool)
   {
-    GRect tempHeart = new GRect(0,0,10,12);
-    tempHeart.setColor(Color.BLACK);
-    tempHeart.setFilled(true);
-    tempHeart.setFillColor(Color.RED);
-    placeOnScreen(pane, tempHeart);
+    //remove old rects so calling showHearts again does not leave orphans on the screen behind the new hearts
+    if (hearts != null) 
+    {
+      for (GRect h : hearts) 
+      {
+        if (h != null) 
+        {
+          removeFromScreen(pane, h);
+        }
+      }
+      hearts = null;
+    }
+
+    //How many segments should look “filled” (red). 
+    //clamped 0 to 6 so a bad caller cannot break the HUD.
+    int filled = Math.max(0, Math.min(DEFAULT_HEART_SEGMENTS, currentHeart));
+
+    hearts = new GRect[DEFAULT_HEART_SEGMENTS];
+
+    double x = HEART_ROW_X;
+
+    for (int i = 0; i < DEFAULT_HEART_SEGMENTS; i++) 
+    {
+      double px = x;
+      double py = HEART_ROW_Y;
+      double pw = HEART_SEGMENT_WIDTH;
+      double ph = HEART_SEGMENT_HEIGHT;
+
+      //draws the heart segments
+      GRect heartsegment = new GRect(px, py, pw, ph);
+      heartsegment.setColor(Color.BLACK);
+      heartsegment.setFilled(true);
+      heartsegment.setFillColor(i < filled ? Color.RED : Color.LIGHT_GRAY);
+
+      placeOnScreen(pane, heartsegment);
+      hearts[i] = heartsegment;
+
+      //offset and gap between the heart segments
+      double gapBetweenHearts = HEART_SEGMENT_WIDTH * 2;
+
+      x += HEART_SEGMENT_WIDTH;
+
+      if (i % 2 == 1 && i < DEFAULT_HEART_SEGMENTS - 1) 
+      {
+        x += gapBetweenHearts;
+      }
+    }
 
   }
 
@@ -210,6 +257,16 @@ within this class
 		pane.mainScreen.add(obj);
 	}
 
+  /** Opposite of {@link #placeOnScreen} — use when rebuilding a piece of the HUD. */
+  private static void removeFromScreen(GraphicsPane pane, GObject obj) 
+  {
+    if (obj != null) 
+    {
+      pane.mainScreen.remove(obj);
+      pane.contents.remove(obj);
+    }
+  }
+
   /**
    * One-shot build: calls the {@code show…} pieces in order, then {@code sendToFront} in the
    * correct stacking order (backgrounds under icons under text). Rigger: call when entering a mode
@@ -229,16 +286,22 @@ within this class
     
   }
 
-  	/** LOCAL TEST: Run this class from the IDE to preview the HUD. 
-     * Remove before turn-in if required. */
+	/**
+	 * Local TEST only Run this class from the IDE to preview the HUD. 
+   * assumes the window is exactly {@code TEST_W}×{@code TEST_H} and that
+	 * {@code HEART_*} constants are authored as pixels for that size. 
+   * Not for resize or other resolutions.
+	 */
 	public static void main(String[] args) 
   {
+		final int TEST_W = 1280;
+		final int TEST_H = 720;
 		class Sandbox extends MainApplication 
     {
 			@Override
 			public void run() 
       {
-				setSize(1280, 720);
+				setSize(TEST_W, TEST_H);
 				setupInteractions();
 				class Host extends GraphicsPane 
         {
@@ -247,7 +310,7 @@ within this class
 						mainScreen = Sandbox.this;
 					}
 				}
-				new HUDoverlay().showAll(new Host());
+				new HUDoverlay().showHearts(new Host(), 6, false);
 			}
 		}
 		new Sandbox().start();
