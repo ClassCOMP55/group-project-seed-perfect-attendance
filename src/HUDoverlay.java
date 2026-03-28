@@ -42,7 +42,6 @@ public class HUDoverlay
   //private GImage SWDicon;
   private GLabel SWDbutton = new GLabel("J");
 
-  /** Intangible <em>ability</em> button (like sword key hint), not the small relic-row icon. */
   private GOval intangibleAbilityBackground;
   private GRect tempIntangibleAbilityIcon;
   //private GImage intangibleAbilityIcon;
@@ -81,7 +80,8 @@ within this class
    * building the HUD the first time.
    *
    * @param pane          host pane (canvas + {@code contents} list)
-   * @param currentHeart  how many segments are filled (0–{@value #DEFAULT_HEART_SEGMENTS}); game passes current value, not damage dealt with a hit
+   * @param currentHeart  how many segments are filled (0–{@value #DEFAULT_HEART_SEGMENTS}); 
+   * game passes current value, not damage dealt with a hit
    * @param relicBool     reserved for pivot “upgraded heart” / quarter-step mode when implemented
    */
   public void showHearts(GraphicsPane pane, int currentHeart, boolean relicBool)
@@ -105,6 +105,7 @@ within this class
 
     hearts = new GRect[DEFAULT_HEART_SEGMENTS];
 
+    double gapBetweenHearts = HEART_SEGMENT_WIDTH * 2;
     double x = HEART_ROW_X;
 
     for (int i = 0; i < DEFAULT_HEART_SEGMENTS; i++) 
@@ -124,8 +125,6 @@ within this class
       hearts[i] = heartsegment;
 
       //offset and gap between the heart segments
-      double gapBetweenHearts = HEART_SEGMENT_WIDTH * 2;
-
       x += HEART_SEGMENT_WIDTH;
 
       if (i % 2 == 1 && i < DEFAULT_HEART_SEGMENTS - 1) 
@@ -143,25 +142,88 @@ within this class
    *
    * @param pane          host pane
    * @param currentHeart  filled segment count (0–{@value #UPGRADED_HEART_SEGMENTS})
-   * @param relicBool     gate or extra flag when design locks how upgrade is unlocked
+   * @param relicBool     gate or extra flag when design locks how upgrade is unlocked (unused for now)
    */
   public void showUpgradedHearts(GraphicsPane pane, int currentHeart, boolean relicBool)
-{
+  {
+    if (hearts != null)
+    {
+      for (GRect h : hearts)
+      {
+        if (h != null)
+        {
+          removeFromScreen(pane, h);
+        }
+      }
+      hearts = null;
+    }
 
-}
+    int filled = Math.max(0, Math.min(UPGRADED_HEART_SEGMENTS, currentHeart));
+
+    hearts = new GRect[UPGRADED_HEART_SEGMENTS];
+
+    double quarterW = HEART_SEGMENT_WIDTH / 2.0;
+    double gapBetweenHearts = HEART_SEGMENT_WIDTH * 2;
+
+    double x = HEART_ROW_X;
+
+    for (int i = 0; i < UPGRADED_HEART_SEGMENTS; i++)
+    {
+      double px = x;
+      double py = HEART_ROW_Y;
+      double pw = quarterW;
+      double ph = HEART_SEGMENT_HEIGHT;
+
+      GRect heartsegment = new GRect(px, py, pw, ph);
+      heartsegment.setColor(Color.BLACK);
+      heartsegment.setFilled(true);
+      heartsegment.setFillColor(i < filled ? Color.RED : Color.LIGHT_GRAY);
+
+      placeOnScreen(pane, heartsegment);
+      hearts[i] = heartsegment;
+
+      //offset and gap between the heart segments
+      x += quarterW;
+
+      if (i % 4 == 3 && i < UPGRADED_HEART_SEGMENTS - 1)
+      {
+        x += gapBetweenHearts;
+      }
+    }
+  }
 
   /**
    * Updates heart segment colors only (no full rebuild). Use for both heal and damage: pass the
    * <em>new</em> filled segment count. Does not own combat logic—whoever owns {@code Player} / game
    * state computes the number and calls this.
+   * <p>
+   * Uses {@link #hearts}{@code .length} (6 or 12) so this matches whichever bar
+   * {@link #showHearts} or {@link #showUpgradedHearts} last built—no separate mode flag.
    *
-   * @param pane          host pane
-   * @param currentHeart  filled segments after the change (0–max for current mode)
+   * @param pane          host pane (reserved for future use, e.g. repaint hints)
+   * @param currentHeart  filled segments after the change (0–{@code hearts.length})
    */
   public void updateHearts(GraphicsPane pane, int currentHeart)
   {
+    if (hearts == null)
+    {
+      return;
+    }
+
+    int filled = Math.max(0, Math.min(hearts.length, currentHeart));
+
+    
+    for (int i = 0; i < hearts.length; i++)
+    {
+      if (hearts[i] != null)
+      {
+        hearts[i].setFillColor(i < filled ? Color.RED : Color.LIGHT_GRAY);
+      }
+    }
+
 
   }
+  
   /**
    * Places the coin display (top-right area per pivot). First-time setup; pair with {@link #updateCoins}.
    *
@@ -310,7 +372,10 @@ within this class
 						mainScreen = Sandbox.this;
 					}
 				}
-				new HUDoverlay().showHearts(new Host(), 6, false);
+        Host host = new Host();
+				HUDoverlay hud = new HUDoverlay();
+				hud.showHearts(host, 6, false);
+				hud.updateHearts(host, 3);
 			}
 		}
 		new Sandbox().start();
