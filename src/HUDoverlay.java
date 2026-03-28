@@ -22,6 +22,13 @@ public class HUDoverlay
   private static final double HEART_ROW_X = 12;
   private static final double HEART_ROW_Y = 12;
 
+  //Gap from the right edge of the window to the coin cluster 
+  //(pixels; matches heart margin distance).
+  private static final double COINS_MARGIN_RIGHT = 32;
+  //Placeholder “coin” circle until a {@code GImage} is wired.
+  private static final double COINS_ICON_SIZE = 10;
+  private static final double COINS_ICON_LABEL_GAP = 4;
+
   private GRect[] hearts;
   //private GImage[] heartIcons;
 
@@ -225,15 +232,41 @@ within this class
   }
   
   /**
-   * Places the coin display (top-right area per pivot). First-time setup; pair with {@link #updateCoins}.
+   * Places the coin display (top-right area per pivot). 
+   * First-time setup; pair with {@link #updateCoins}.
    *
    * @param pane         host pane
    * @param currentCoins wallet value to show when the HUD appears
    */
   public void showCoins(GraphicsPane pane, int currentCoins)
   {
+    removeFromScreen(pane, coinslabel);
+    removeFromScreen(pane, coins);
+
+    int displayCoins = Math.max(0, currentCoins);
+
+    coinslabel.setLabel(String.valueOf(displayCoins));
+    coinslabel.setFont("SansSerif-BOLD-14");
+
+    double w = pane.mainScreen.getWidth();
+    double labelW = coinslabel.getWidth();
+    double iconLeft = w - COINS_MARGIN_RIGHT - COINS_ICON_SIZE - COINS_ICON_LABEL_GAP - labelW;
+    double iconTop = HEART_ROW_Y + (HEART_SEGMENT_HEIGHT - COINS_ICON_SIZE) / 2;
+
+    coins = new GOval(iconLeft, iconTop, COINS_ICON_SIZE, COINS_ICON_SIZE);
+    coins.setColor(Color.BLACK);
+    coins.setFilled(true);
+    coins.setFillColor(Color.YELLOW);
     
+
+    double labelX = iconLeft + COINS_ICON_SIZE + COINS_ICON_LABEL_GAP;
+    double labelBaseline = HEART_ROW_Y + HEART_SEGMENT_HEIGHT - 2;
+    coinslabel.setLocation(labelX, labelBaseline);
+
+    placeOnScreen(pane, coins);
+    placeOnScreen(pane, coinslabel);
   }
+  
   /**
    * Refreshes the coin label (or icon) when the count changes. Numbers in, display only out.
    *
@@ -242,8 +275,9 @@ within this class
    */
   public void updateCoins(GraphicsPane pane, int currentCoins)
   {
-
+    
   }
+
   /**
    * Relic row — <b>Intangible</b> (pivot). Show only when {@code ownedIntangible}; otherwise no-op.
    * Rigger: pass from save / {@code Player} when the player owns Intangible.
@@ -375,6 +409,7 @@ within this class
         Host host = new Host();
 				HUDoverlay hud = new HUDoverlay();
 				hud.showHearts(host, 6, false);
+        hud.showCoins(host, 42);
 				hud.updateHearts(host, 3);
 			}
 		}
