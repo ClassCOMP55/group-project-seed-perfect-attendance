@@ -14,7 +14,7 @@ public class HUDoverlay
   //constants for the HUDoverlay
   private static final int DEFAULT_HEART_SEGMENTS = 6;
   private static final int UPGRADED_HEART_SEGMENTS = 12;
-  private static final int HEARTS_ON_SCREEN = 3;
+  //private static final int HEARTS_ON_SCREEN = 3; wasn't used lol
         //size of one half-segment
   private static final double HEART_SEGMENT_WIDTH = 10;
   private static final double HEART_SEGMENT_HEIGHT = 12;
