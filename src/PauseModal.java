@@ -22,9 +22,13 @@ THE PLAN FOR THE NEW PAUSE MENU
 TEAM CONTRACT (who owns what)
 - MainApplication owns "is the game paused?" (flag / lifecycle). Document there when implemented.
   PauseModal does not set global pause by itself; it is shown/hidden from MainApplication.
-- PauseModal only READS data: Player (inventory items, relic flags, facing for portrait) and
-  current settings (same source as SettingsPane / SettingsIO — keep one source of truth).
-- PauseModal does not own combat, save files, or world update rules.
+- PauseModal displays from Player + settings: inventory, relic flags, facing for portrait,
+  coins, health/hearts for the pause panel. Single source of truth for health is Player — HUD
+  reads the same; using HealingBread here updates Player once, then refresh hearts in this menu;
+  after unpause HUD matches because it also reads Player.
+- Current settings: same source as SettingsPane / SettingsIO (one source of truth).
+- PauseModal does not own combat or world update rules. Consumable "use" delegates to Player
+  (or a thin helper), not a duplicate inventory/hearts copy.
 
 OPEN / CLOSE / STACKING
 - Open with ESC during gameplay. No on-screen X button on the game HUD for pause.
@@ -54,12 +58,27 @@ TABS / CONTENT
 - Two tabs: default = Inventory (items + relic display + player sprite facing Player direction),
   other = Settings (volume, window presets + fullscreen, return to game, main menu, quit).
 - Inventory: static description area for the focused item; "use" only for consumables; relics read-only.
+- Active tab indicator (mockup): combine (1) light rectangle fill behind the active tab label and
+  (2) a thicker bottom border on the active tab so it visually connects to the panel body.
+
+HEALTH IN PAUSE
+- Show hearts (or equivalent) in the inventory tab; values always from Player — same truth as HUDoverlay.
+
+SAVE REMINDER (soft nudge)
+- Include UI space for "last saved" / periodic reminder to save (see mockup). Full timer + persistence
+  wiring comes with SaveManager + SaveData + SavePoint (next major Person 4 chunk per pivot doc).
+  Until then, stub text or placeholder is OK.
+
+BUILD ORDER (pivot doc)
+- Finish PauseMenu + InventoryMenu + DialogueBox before SaveManager + SaveData + SavePoint.
+  This file is the pause menu piece; keep save-heavy logic out until that milestone unless stubbing.
 
 */
 
 
 /**
- * Full-screen dim overlay with a "Paused Game" panel: Settings, Return to Main Menu, Exit Game.
+ * Full-screen dim pause overlay — inventory + settings tabs (see plan block above). Legacy button
+ * UI may remain until the new layout replaces it.
  */
 public class PauseModal extends GraphicsPane {
 
@@ -230,4 +249,16 @@ public class PauseModal extends GraphicsPane {
         exitFrame = null;
         exitLabel = null;
     }
+
+
+    //when ESC is pressed in the Pause Menu
+    @Override
+    public void keyPressed(KeyEvent e)
+    {
+        if (e.getKeyCode() == KeyEvent.VK_ESCAPE)
+        {
+            hideContent();
+        }
+    }
+
 }

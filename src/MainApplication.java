@@ -622,18 +622,53 @@ public class MainApplication extends GraphicsProgram{
 		}
 	}
 
+	/**
+	 * Deny-list guard: ESC must not open {@link PauseModal} on these full-screen shells (menus,
+	 * splash, settings, saves, character flow, cinematic transitions). Any other
+	 * {@link #currentScreen} may open pause. Add new menu-style panes here when you create them.
+	 * <p>
+	 * <b>Reminder:</b> Come back and revise this list once the pivot gameplay screen(s) are
+	 * operational and {@code currentScreen} wiring is final — e.g. add future menu panes, or deny
+	 * pause on cutscene-only panes if needed.
+	 */
+	private boolean escPauseMenuDeniedForCurrentScreen() {
+		if (currentScreen == null) 
+		{
+			return true;
+		}
+		return currentScreen instanceof LandingPane
+				|| currentScreen instanceof StartMenuPane
+				|| currentScreen instanceof SettingsPane
+				|| currentScreen instanceof TitleCardPane
+				|| currentScreen instanceof GameSavesPane
+				|| currentScreen instanceof CharacterCreationPane
+				|| currentScreen instanceof SkyTransitionPane
+				|| currentScreen instanceof TransitionLoading1Pane;
+	}
+
 	@Override
-	public void keyPressed(KeyEvent e) {
-		if (pauseModal != null && !pauseModal.contents.isEmpty()) {
+	public void keyPressed(KeyEvent e) 
+	{
+		if (pauseModal != null && !pauseModal.contents.isEmpty()) 
+		{
+			pauseModal.keyPressed(e);
 			return;
 		}
-		if (currentScreen != null) {
+		// Pressing ESC opens/shows the pause menu when not on a denied (menu/splash) screen.
+		if (pauseModal != null && e.getKeyCode() == KeyEvent.VK_ESCAPE && !escPauseMenuDeniedForCurrentScreen())
+		{
+			showPauseModal();
+			return;
+		}
+		if (currentScreen != null) 
+		{
 			currentScreen.keyPressed(e);
 		}
 	}
 
 	@Override
-	public void keyReleased(KeyEvent e) {
+	public void keyReleased(KeyEvent e) 
+	{
 		if (pauseModal != null && !pauseModal.contents.isEmpty()) {
 			return;
 		}
