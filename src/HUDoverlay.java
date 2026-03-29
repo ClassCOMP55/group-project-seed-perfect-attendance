@@ -32,6 +32,12 @@ public class HUDoverlay
   //need to apply the same cap to actual "wallet" wherever that will be kept
   private static final int COINS_DISPLAY_MAX = 999;
 
+  
+  //Horizontal gap between relic slots in the row <em>below</em> the hearts 
+  //(side by side, left to* right). 
+  // //Each relic has a fixed slot index so spacing does not depend on which relics you own.
+  private static final double RELIC_SLOT_GAP_X = 6;
+
   private GRect[] hearts;
   //private GImage[] heartIcons;
 
@@ -83,6 +89,7 @@ a way to "fade the color" to show it's on cooldown.
 Boolean in, image adjustments out. 
 -I need a way to operate this class on it's own so that I can test the position of everything from
 within this class
+-we will not have a pause icon on screen at this time. pause will be triggered by pressing ESC.
 */
 
   /**
@@ -291,7 +298,36 @@ within this class
    */
   public void showRelicIntangible(GraphicsPane pane, boolean ownedIntangible)
   {
+    removeFromScreen(pane, relicIntangibleBackground);
+    removeFromScreen(pane, tempRelicIntangibleIcon);
+    relicIntangibleBackground = null;
+    tempRelicIntangibleIcon = null;
 
+    if (!ownedIntangible)
+    {
+      return;
+    }
+
+    double slotSize = 16;
+    double rowY = HEART_ROW_Y + HEART_SEGMENT_HEIGHT + 6;
+    int column = 0;
+    double x = HEART_ROW_X + column * (slotSize + RELIC_SLOT_GAP_X);
+    double y = rowY;
+
+    relicIntangibleBackground = new GOval(x, y, slotSize, slotSize);
+    relicIntangibleBackground.setFilled(true);
+    relicIntangibleBackground.setColor(Color.BLACK);
+    relicIntangibleBackground.setFillColor(Color.LIGHT_GRAY);
+
+    double inset = 4;
+    tempRelicIntangibleIcon =
+        new GRect(x + inset, y + inset, slotSize - 2 * inset, slotSize - 2 * inset);
+    tempRelicIntangibleIcon.setColor(Color.BLACK);
+    tempRelicIntangibleIcon.setFilled(true);
+    tempRelicIntangibleIcon.setFillColor(Color.MAGENTA);
+
+    placeOnScreen(pane, relicIntangibleBackground);
+    placeOnScreen(pane, tempRelicIntangibleIcon);
   }
 
   /**
@@ -303,7 +339,36 @@ within this class
    */
   public void showRelicHalfDamage(GraphicsPane pane, boolean ownedHalfDamage)
   {
+    removeFromScreen(pane, relicHalfDamageBackground);
+    removeFromScreen(pane, tempRelicHalfDamageIcon);
+    relicHalfDamageBackground = null;
+    tempRelicHalfDamageIcon = null;
 
+    if (!ownedHalfDamage)
+    {
+      return;
+    }
+
+    double slotSize = 16;
+    double rowY = HEART_ROW_Y + HEART_SEGMENT_HEIGHT + 6;
+    int column = 1;
+    double x = HEART_ROW_X + column * (slotSize + RELIC_SLOT_GAP_X);
+    double y = rowY;
+
+    relicHalfDamageBackground = new GOval(x, y, slotSize, slotSize);
+    relicHalfDamageBackground.setFilled(true);
+    relicHalfDamageBackground.setColor(Color.BLACK);
+    relicHalfDamageBackground.setFillColor(Color.LIGHT_GRAY);
+
+    double inset = 4;
+    tempRelicHalfDamageIcon =
+        new GRect(x + inset, y + inset, slotSize - 2 * inset, slotSize - 2 * inset);
+    tempRelicHalfDamageIcon.setColor(Color.BLACK);
+    tempRelicHalfDamageIcon.setFilled(true);
+    tempRelicHalfDamageIcon.setFillColor(Color.ORANGE);
+
+    placeOnScreen(pane, relicHalfDamageBackground);
+    placeOnScreen(pane, tempRelicHalfDamageIcon);
   }
 
   /**
@@ -315,16 +380,44 @@ within this class
    */
   public void showRelicReflect(GraphicsPane pane, boolean ownedReflect)
   {
+    removeFromScreen(pane, relicReflectBackground);
+    removeFromScreen(pane, tempRelicReflectIcon);
+    relicReflectBackground = null;
+    tempRelicReflectIcon = null;
 
+    if (!ownedReflect)
+    {
+      return;
+    }
+
+    double slotSize = 16;
+    double rowY = HEART_ROW_Y + HEART_SEGMENT_HEIGHT + 6;
+    int column = 2;
+    double x = HEART_ROW_X + column * (slotSize + RELIC_SLOT_GAP_X);
+    double y = rowY;
+
+    relicReflectBackground = new GOval(x, y, slotSize, slotSize);
+    relicReflectBackground.setFilled(true);
+    relicReflectBackground.setColor(Color.BLACK);
+    relicReflectBackground.setFillColor(Color.LIGHT_GRAY);
+
+    double inset = 4;
+    tempRelicReflectIcon =
+        new GRect(x + inset, y + inset, slotSize - 2 * inset, slotSize - 2 * inset);
+    tempRelicReflectIcon.setColor(Color.BLACK);
+    tempRelicReflectIcon.setFilled(true);
+    tempRelicReflectIcon.setFillColor(Color.CYAN);
+
+    placeOnScreen(pane, relicReflectBackground);
+    placeOnScreen(pane, tempRelicReflectIcon);
   }
-
 
   /**
    * Attack hint (e.g. {@code "J"}) and sword icon area, bottom-right per design notes.
    */
   public void showSwordButton(GraphicsPane pane)
   {
-
+    
   }
 
   /**
@@ -337,8 +430,8 @@ within this class
   }
 
   /**
-   * Cooldown / “faded” state for the Intangible <em>ability</em> button. Boolean in, visual only out.
-   *
+   * Cooldown / “faded” state for the Intangible <em>ability</em> button. 
+   * Boolean in, visual only out.
    * @param pane         host pane
    * @param onCooldown   {@code true} if Intangible cannot be used yet (show faded / disabled look)
    */
@@ -416,6 +509,9 @@ within this class
         hud.showCoins(host, 42);
 				hud.updateHearts(host, 3);
         hud.updateCoins(host, 999);
+        hud.showRelicIntangible(host, true);
+        hud.showRelicHalfDamage(host, true);
+        hud.showRelicReflect(host, true);
 			}
 		}
 		new Sandbox().start();
