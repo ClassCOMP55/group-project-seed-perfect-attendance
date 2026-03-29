@@ -513,7 +513,21 @@ within this class
    */
   public void updateIntangibleAbilityButton(GraphicsPane pane, boolean onCooldown)
   {
+    if (intangibleAbilityBackground == null || tempIntangibleAbilityIcon == null)
+    {
+      return;
+    }
 
+    if (onCooldown)
+    {
+      intangibleAbilityBackground.setFillColor(Color.GRAY);
+      tempIntangibleAbilityIcon.setFillColor(Color.DARK_GRAY);
+    }
+    else
+    {
+      intangibleAbilityBackground.setFillColor(Color.LIGHT_GRAY);
+      tempIntangibleAbilityIcon.setFillColor(Color.GREEN);
+    }
   }
 
   /**
@@ -590,6 +604,7 @@ within this class
         hud.showRelicReflect(host, true);
         hud.showSwordButton(host);
         hud.showIntangibleAbilityButton(host);
+        hud.updateIntangibleAbilityButton(host, true);
 			}
 		}
 		new Sandbox().start();
