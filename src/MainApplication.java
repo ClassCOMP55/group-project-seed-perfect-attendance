@@ -21,7 +21,12 @@ public class MainApplication extends GraphicsProgram{
 
 	private GameState gameState;     // One run: player, quiz flag, scene, save slot
 	private CardPlayModal cardPlayModal; // Reusable modal overlay for obstacle encounters
-	private PauseModal pauseModal; // Dim overlay + Paused Game menu (Settings / Main Menu / Exit)
+	/**
+	 * Pause overlay (inventory + settings tabs). This class is the place to own {@code isPaused}
+	 * (or equivalent): open/close pause from ESC, block gameplay updates while open, show/hide
+	 * {@link PauseModal}. See plan comments in {@link PauseModal}.
+	 */
+	private PauseModal pauseModal;
 
 	//List of all the full screen panes
 	private TitleCardPane titleCardPane;
@@ -521,7 +526,7 @@ public class MainApplication extends GraphicsProgram{
 		cardPlayModal.showObstacle(obstacle, onComplete, true);
 	}
 
-	/** Dims the screen and shows Settings / Main Menu / Exit (opened from the × corner button). */
+	/** Shows pause overlay. Will be driven by ESC in gameplay (not only the × corner on some panes). */
 	public void showPauseModal() {
 		if (pauseModal != null) {
 			pauseModal.showPause();

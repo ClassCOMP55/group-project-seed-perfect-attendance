@@ -1,9 +1,62 @@
 import java.awt.Color;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseEvent;
+import java.util.ArrayList;
+import java.util.List;
+import acm.graphics.*;
 
-import acm.graphics.GLabel;
-import acm.graphics.GObject;
-import acm.graphics.GRect;
-import acm.graphics.GRoundRect;
+/*
+(a lot fo this was set up by Charles/Gorge before the pivot on 03/27/26 )
+Roberto: PauseModal/Pause Menu
+Who RIGs it: TBD
+Does not own Player or combat
+Extends GraphicsPane
+*/
+
+
+/*
+================================
+THE PLAN FOR THE NEW PAUSE MENU
+================================
+
+TEAM CONTRACT (who owns what)
+- MainApplication owns "is the game paused?" (flag / lifecycle). Document there when implemented.
+  PauseModal does not set global pause by itself; it is shown/hidden from MainApplication.
+- PauseModal only READS data: Player (inventory items, relic flags, facing for portrait) and
+  current settings (same source as SettingsPane / SettingsIO — keep one source of truth).
+- PauseModal does not own combat, save files, or world update rules.
+
+OPEN / CLOSE / STACKING
+- Open with ESC during gameplay. No on-screen X button on the game HUD for pause.
+- Cannot open pause during room transition or loading-style moments (enforce in MainApplication).
+- Pause stacks on top of everything (including dialogue if both exist — order TBD; this menu draws last).
+- ESC closes pause from anywhere in this menu. Destructive actions (exit to menu, quit game) always
+  need a second confirmation. (Game no longer autosave — only designated save points.)
+
+GAME FREEZE VS AUDIO
+- While pause is open: stop gameplay updates (enemies, damage, room logic, etc.).
+- Background music keeps playing (do not pause the music track).
+- Menu UI still plays small SFX (chimes, navigation, using bread from inventory, etc.).
+
+SETTINGS TAB
+- Duplicate the same controls/values as SettingsPane so main-menu and pause never disagree.
+- Settings apply immediately when changed (no staged values / no separate Apply for volume etc.).
+  If resolution/fullscreen needs a moment to apply, handle that in the same write path as SettingsPane.
+
+INPUT (ship in layers: keyboard first)
+- W/A/S/D = move focus up/left/down/right in the grid; no wrap — stays if no neighbor.
+- J/K = left tab / right tab (gameplay uses for attack/dodge are disabled while this menu is open).
+- SPACEBAR = use selected consumable (e.g. HealingBread) when focus is on a usable item.
+- Mouse: clicks should work; keyboard navigation is required for first playable. Later: mouse hover
+  moves focus in the inventory list (mouseMoved) — implement after keyboard path is solid.
+
+TABS / CONTENT
+- Two tabs: default = Inventory (items + relic display + player sprite facing Player direction),
+  other = Settings (volume, window presets + fullscreen, return to game, main menu, quit).
+- Inventory: static description area for the focused item; "use" only for consumables; relics read-only.
+
+*/
+
 
 /**
  * Full-screen dim overlay with a "Paused Game" panel: Settings, Return to Main Menu, Exit Game.
