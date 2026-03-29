@@ -1,8 +1,6 @@
 import java.awt.Color;
 import java.awt.event.KeyEvent;
-import java.awt.event.MouseEvent;
-import java.util.ArrayList;
-import java.util.List;
+
 import acm.graphics.*;
 
 /*
@@ -77,188 +75,269 @@ BUILD ORDER (pivot doc)
 
 
 /**
- * Full-screen dim pause overlay — inventory + settings tabs (see plan block above). Legacy button
- * UI may remain until the new layout replaces it.
+ * Full-screen dim pause overlay. inventory + settings tabs (see plan block above).
+ * Intent: dim everything, bring up main panel with two tab headers 
+ * (Inventory active, Settings inactive by default)
+ * and a single body placeholder. Legacy three-button pause UI removed.
+ * click actions come in a
+ * later step.
  */
-public class PauseModal extends GraphicsPane {
+public class PauseModal extends GraphicsPane
+{
+    //CONSTANTS
 
-    private GRect dimOverlay;
-    private GRoundRect panel;
-    private GLabel titleLabel;
+    //Layout measurement 
+    //(pixels from current window size; pivot targets fixed 16:9 presets, no more scaleX/scaleY at this time) 
+  private static final double PAUSE_PANEL_WIDTH_RATIO = 0.78;
+  private static final double PAUSE_PANEL_HEIGHT_RATIO = 0.72;
+  private static final double PAUSE_PANEL_TOP_MARGIN_RATIO = 0.08;
+  private static final double TAB_BUTTON_HEIGHT = 36;
+  private static final double TAB_PAD_X_INDENT = 10;
+  private static final double TAB_GAP = 6;
+  //Pixels for the thick “active tab connects to body” accent under the "in use" tab.
+  private static final double ACTIVE_TAB_BOTTOM_BAR = 4;
 
-    private GRoundRect settingsFrame;
-    private GLabel settingsLabel;
-    private GRoundRect mainMenuFrame;
-    private GLabel mainMenuLabel;
+  private GRect dimOverlay;
+  private GRoundRect panel;
 
-    private GRoundRect exitFrame;
-    private GLabel exitLabel;
+  //Background for the Inventory tab (active on open).
+  private GRect inventoryTabBg;
+  //Background for the Settings tab (inactive on open).
+  private GRect settingsTabBg;
+  //Thick line under the active tab so it reads attached to the panel body.
+  private GRect inventoryTabBottomAccent;
+  private GLabel inventoryTabLabel;
+  private GLabel settingsTabLabel;
+  private GLabel tabKeysHintLabel;
+  //Stub until inventory/settings bodies are built.
+  private GLabel bodyPlaceholderLabel;
 
-    private static final Color PANEL_FILL = new Color(28, 32, 62);
-    private static final Color PANEL_BORDER = new Color(255, 215, 120);
-    private static final Color BTN_FILL = new Color(35, 40, 75);
-    private static final Color TEXT_GOLD = new Color(255, 215, 120);
-    private static final Color TITLE_CREAM = new Color(255, 248, 220);
+  public PauseModal(MainApplication mainScreen)
+  {
+    this.mainScreen = mainScreen;
+  }
 
-    public PauseModal(MainApplication mainScreen) {
-        this.mainScreen = mainScreen;
-    }
+  /**
+   * Builds dim overlay & main pause panel, then tab strip (Inventory / Settings) and a placeholder line.
+   * Uses the window’s width and height from {@code mainScreen} only — no {@code scaleX}/{@code scaleY}.
+   */
+  public void showPause()
+  {
+    hideContent();
 
-    /**
-     * Shows dimmed background and the pause panel on top of the current scene.
-     */
-    public void showPause() {
-        hideContent();
+    double fw = mainScreen.getWidth();
+    double fh = mainScreen.getHeight();
+    dimOverlay = new GRect(0, 0, fw, fh);
+    dimOverlay.setFilled(true);
+    dimOverlay.setFillColor(new Color(0, 0, 0, 160));
+    dimOverlay.setColor(new Color(0, 0, 0, 0));
+    addBoth(dimOverlay);
 
-        double fw = mainScreen.getWidth();
-        double fh = mainScreen.getHeight();
-        dimOverlay = new GRect(0, 0, fw, fh);
-        dimOverlay.setFilled(true);
-        dimOverlay.setFillColor(new Color(0, 0, 0, 160));
-        dimOverlay.setColor(new Color(0, 0, 0, 0));
-        addBoth(dimOverlay);
+    double panelW = fw * PAUSE_PANEL_WIDTH_RATIO;
+    double panelH = fh * PAUSE_PANEL_HEIGHT_RATIO;
+    double px = (fw - panelW) / 2.0;
+    double py = fh * PAUSE_PANEL_TOP_MARGIN_RATIO;
+    double arc = Math.min(18, panelW * 0.02);
 
-        double lw = mainScreen.getLayoutWidth();
-        double ox = originX();
-        double panelW = Math.min(scaleX(380) - scaleX(0), lw * 0.82);
-        double panelH = scaleY(260) - scaleY(0);
-        double px = ox + (lw - panelW) / 2;
-        double py = scaleY(100);
-        double arc = Math.min(scaleX(14) - scaleX(0), scaleY(14) - scaleY(0));
+    panel = new GRoundRect(px, py, panelW, panelH, arc, arc);
+    panel.setFilled(true);
+    panel.setFillColor(Color.DARK_GRAY);
+    panel.setColor(Color.WHITE);
+    addBoth(panel);
 
-        panel = new GRoundRect(px, py, panelW, panelH, arc, arc);
-        panel.setFilled(true);
-        panel.setFillColor(PANEL_FILL);
-        panel.setColor(PANEL_BORDER);
-        addBoth(panel);
+    double tabY = py + 8;
+    double tabInnerW = (panelW - 2 * TAB_PAD_X_INDENT - TAB_GAP) / 2.0;
 
-        titleLabel = new GLabel("Paused Game", 0, 0);
-        titleLabel.setFont("SansSerif-BOLD-" + Math.max(14, scaleFontSize(22)));
-        titleLabel.setColor(TITLE_CREAM);
-        titleLabel.setLocation(px + (panelW - titleLabel.getWidth()) / 2, py + scaleY(28));
-        addBoth(titleLabel);
+    inventoryTabBg = new GRect(px + TAB_PAD_X_INDENT, tabY, tabInnerW, TAB_BUTTON_HEIGHT);
+    inventoryTabBg.setFilled(true);
+    inventoryTabBg.setFillColor(Color.LIGHT_GRAY);
+    inventoryTabBg.setColor(Color.BLACK);
+    addBoth(inventoryTabBg);
 
-        double bw = Math.min(scaleX(280) - scaleX(0), panelW - scaleX(40));
-        double bh = scaleY(36) - scaleY(0);
-        double gap = scaleY(10) - scaleY(0);
-        double btnLeft = px + (panelW - bw) / 2;
-        double y0 = py + scaleY(58);
+    settingsTabBg = new GRect(px + TAB_PAD_X_INDENT + tabInnerW + TAB_GAP, tabY, tabInnerW, TAB_BUTTON_HEIGHT);
+    settingsTabBg.setFilled(true);
+    settingsTabBg.setFillColor(Color.GRAY);
+    settingsTabBg.setColor(Color.BLACK);
+    addBoth(settingsTabBg);
 
-        settingsFrame = new GRoundRect(btnLeft, y0, bw, bh, arc, arc);
-        settingsFrame.setFilled(true);
-        settingsFrame.setFillColor(BTN_FILL);
-        settingsFrame.setColor(PANEL_BORDER);
-        addBoth(settingsFrame);
-        settingsLabel = new GLabel("Settings", 0, 0);
-        settingsLabel.setFont("SansSerif-BOLD-" + Math.max(12, scaleFontSize(16)));
-        settingsLabel.setColor(TEXT_GOLD);
-        centerLabelInButton(settingsLabel, settingsFrame);
-        addBoth(settingsLabel);
+    inventoryTabBottomAccent =
+        new GRect(px + TAB_PAD_X_INDENT, tabY + TAB_BUTTON_HEIGHT, tabInnerW, ACTIVE_TAB_BOTTOM_BAR);
+    inventoryTabBottomAccent.setFilled(true);
+    inventoryTabBottomAccent.setFillColor(Color.BLACK);
+    addBoth(inventoryTabBottomAccent);
 
-        mainMenuFrame = new GRoundRect(btnLeft, y0 + bh + gap, bw, bh, arc, arc);
-        mainMenuFrame.setFilled(true);
-        mainMenuFrame.setFillColor(BTN_FILL);
-        mainMenuFrame.setColor(PANEL_BORDER);
-        addBoth(mainMenuFrame);
-        mainMenuLabel = new GLabel("Return to Main Menu", 0, 0);
-        mainMenuLabel.setFont("SansSerif-BOLD-" + Math.max(12, scaleFontSize(16)));
-        mainMenuLabel.setColor(TEXT_GOLD);
-        centerLabelInButton(mainMenuLabel, mainMenuFrame);
-        addBoth(mainMenuLabel);
+    inventoryTabLabel = new GLabel("Inventory", 0, 0);
+    inventoryTabLabel.setFont("SansSerif-BOLD-16");
+    inventoryTabLabel.setColor(Color.BLACK);
+    centerLabelInRect(inventoryTabLabel, inventoryTabBg);
+    addBoth(inventoryTabLabel);
 
-        exitFrame = new GRoundRect(btnLeft, y0 + 2 * (bh + gap), bw, bh, arc, arc);
-        exitFrame.setFilled(true);
-        exitFrame.setFillColor(BTN_FILL);
-        exitFrame.setColor(PANEL_BORDER);
-        addBoth(exitFrame);
-        exitLabel = new GLabel("Exit Game", 0, 0);
-        exitLabel.setFont("SansSerif-BOLD-" + Math.max(12, scaleFontSize(16)));
-        exitLabel.setColor(TEXT_GOLD);
-        centerLabelInButton(exitLabel, exitFrame);
-        addBoth(exitLabel);
+    settingsTabLabel = new GLabel("Settings", 0, 0);
+    settingsTabLabel.setFont("SansSerif-BOLD-16");
+    settingsTabLabel.setColor(Color.BLACK);
+    centerLabelInRect(settingsTabLabel, settingsTabBg);
+    addBoth(settingsTabLabel);
 
-        restackOnTop();
-    }
+    tabKeysHintLabel = new GLabel("J = Inventory tab   K = Settings tab", 0, 0);
+    tabKeysHintLabel.setFont("SansSerif-PLAIN-12");
+    tabKeysHintLabel.setColor(Color.LIGHT_GRAY);
+    tabKeysHintLabel.setLocation(px + TAB_PAD_X_INDENT, tabY + TAB_BUTTON_HEIGHT + ACTIVE_TAB_BOTTOM_BAR + 18);
+    addBoth(tabKeysHintLabel);
 
-    /** Rebuild at the new window size while keeping the pause menu open. */
-    public void refreshForResize() {
-        if (contents.isEmpty()) {
-            return;
-        }
-        showPause();
-    }
+    bodyPlaceholderLabel =
+        new GLabel("Pause layout — step 1: tab shell only (inventory / settings bodies next).", 0, 0);
+    bodyPlaceholderLabel.setFont("SansSerif-PLAIN-14");
+    bodyPlaceholderLabel.setColor(Color.WHITE);
+    bodyPlaceholderLabel.setLocation(px + TAB_PAD_X_INDENT , py + TAB_BUTTON_HEIGHT + ACTIVE_TAB_BOTTOM_BAR + 48);
+    addBoth(bodyPlaceholderLabel);
 
-    private void centerLabelInButton(GLabel g, GRoundRect r) {
-        double x = r.getX() + (r.getWidth() - g.getWidth()) / 2;
-        double y = r.getY() + (r.getHeight() + g.getAscent()) / 2;
-        g.setLocation(x, y);
-    }
+    restackOnTop();
+  }
 
-    private void addBoth(GObject g) {
-        contents.add(g);
-        mainScreen.add(g);
-    }
-
-    /**
-     * Re-adds all objects on top after a canvas refresh (resize).
-     */
-    public void restackOnTop() {
-        java.util.ArrayList<GObject> snapshot = new java.util.ArrayList<>(contents);
-        for (GObject g : snapshot) {
-            mainScreen.remove(g);
-            mainScreen.add(g);
-        }
-    }
-
-    private static boolean containsPoint(GObject g, double x, double y) {
-        return g != null && g.contains(x, y);
-    }
-
-    /**
-     * Left-button release handler (same pattern as {@link CardPlayModal}).
-     */
-    public void handlePointer(double x, double y) {
-        if (containsPoint(settingsFrame, x, y) || containsPoint(settingsLabel, x, y)) {
-            hideContent();
-            mainScreen.switchToSettingsScreen();
-            return;
-        }
-        if (containsPoint(mainMenuFrame, x, y) || containsPoint(mainMenuLabel, x, y)) {
-            hideContent();
-            mainScreen.switchToStartMenuScreen();
-            return;
-        }
-        if (containsPoint(exitFrame, x, y) || containsPoint(exitLabel, x, y)) {
-            System.exit(0);
-        }
-    }
-
-    @Override
-    public void hideContent() {
-        for (GObject item : contents) {
-            mainScreen.remove(item);
-        }
-        contents.clear();
-        dimOverlay = null;
-        panel = null;
-        titleLabel = null;
-        settingsFrame = null;
-        settingsLabel = null;
-        mainMenuFrame = null;
-        mainMenuLabel = null;
-        exitFrame = null;
-        exitLabel = null;
-    }
-
-
-    //when ESC is pressed in the Pause Menu
-    @Override
-    public void keyPressed(KeyEvent e)
+  /** Rebuild at the new window size while keeping the pause menu open. */
+  public void refreshForResize()
+  {
+    if (contents.isEmpty())
     {
+      return;
+    }
+    showPause();
+  }
+
+  /** Centers {@code g} inside {@code r} (tab cell). */
+  private void centerLabelInRect(GLabel g, GRect r)
+  {
+    double lx = r.getX() + (r.getWidth() - g.getWidth()) / 2;
+    double ly = r.getY() + (r.getHeight() + g.getAscent()) / 2;
+    g.setLocation(lx, ly);
+  }
+
+  private void addBoth(GObject g)
+  {
+    contents.add(g);
+    mainScreen.add(g);
+  }
+
+  /**
+   * Re-adds all objects on top after a canvas refresh (resize).
+   */
+  public void restackOnTop()
+  {
+    java.util.ArrayList<GObject> snapshot = new java.util.ArrayList<>(contents);
+    for (GObject g : snapshot)
+    {
+      mainScreen.remove(g);
+      mainScreen.add(g);
+    }
+  }
+
+  /**
+   * Mouse release on pause UI. Step 1: no click targets wired (tabs + buttons come next).
+   */
+  public void handlePointer(double x, double y)
+  {
+    // Intentionally empty until tab hit-tests and settings/inventory actions are added.
+  }
+
+  @Override
+  public void hideContent()
+  {
+    for (GObject item : contents)
+    {
+      mainScreen.remove(item);
+    }
+    contents.clear();
+    dimOverlay = null;
+    panel = null;
+    inventoryTabBg = null;
+    settingsTabBg = null;
+    inventoryTabBottomAccent = null;
+    inventoryTabLabel = null;
+    settingsTabLabel = null;
+    tabKeysHintLabel = null;
+    bodyPlaceholderLabel = null;
+  }
+
+  /**
+   * ESC closes the pause overlay.
+   */
+  @Override
+  public void keyPressed(KeyEvent e)
+  {
+    if (e.getKeyCode() == KeyEvent.VK_ESCAPE)
+    {
+      hideContent();
+    }
+  }
+
+  /**
+   * Local TEST only. Run this class from the IDE: 1280×720 window with a fake {@link HUDoverlay}
+   * (same stub as {@link HUDoverlay#main(String[])}), then <b>ESC</b> opens/closes {@link PauseModal}
+   * on top so you can check dimming over the HUD. Nothing here is wired into the real game loop.
+   */
+  public static void main(String[] args)
+  {
+    class Sandbox extends MainApplication
+    {
+      private static final int TEST_PREVIEW_W = 1280;
+      private static final int TEST_PREVIEW_H = 720;
+
+      private final PauseModal sandboxPause = new PauseModal(this);
+
+      @Override
+      public void run()
+      {
+        setSize(TEST_PREVIEW_W, TEST_PREVIEW_H);
+        setupInteractions();
+        // Preview HUD only inside this test harness (mirrors HUDoverlay#main Host + showAll).
+        class Host extends GraphicsPane
+        {
+          Host()
+          {
+            mainScreen = Sandbox.this;
+          }
+        }
+        Host host = new Host();
+        HUDoverlay hud = new HUDoverlay();
+        HUDoverlay.HudSnapshot snap =
+            new HUDoverlay.HudSnapshot(3, false, false, 999, true, true, true, true);
+        hud.showAll(host, snap);
+        requestFocus();
+      }
+
+      @Override
+      public void keyPressed(KeyEvent e)
+      {
+        if (!sandboxPause.contents.isEmpty())
+        {
+          sandboxPause.keyPressed(e);
+          return;
+        }
         if (e.getKeyCode() == KeyEvent.VK_ESCAPE)
         {
-            hideContent();
+          sandboxPause.showPause();
         }
+      }
+
+      @Override
+      public void keyReleased(KeyEvent e)
+      {
+        if (!sandboxPause.contents.isEmpty())
+        {
+          return;
+        }
+      }
+
+      @Override
+      public void keyTyped(KeyEvent e)
+      {
+        if (!sandboxPause.contents.isEmpty())
+        {
+          return;
+        }
+      }
     }
+    new Sandbox().start();
+  }
 
 }
