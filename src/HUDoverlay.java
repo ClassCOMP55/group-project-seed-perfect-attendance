@@ -33,10 +33,16 @@ public class HUDoverlay
   private static final int COINS_DISPLAY_MAX = 999;
 
   
-  //Horizontal gap between relic slots in the row <em>below</em> the hearts 
-  //(side by side, left to* right). 
+  //Horizontal gap between relic slots in the row below the hearts 
+  //(side by side, left to right). 
   // //Each relic has a fixed slot index so spacing does not depend on which relics you own.
   private static final double RELIC_SLOT_GAP_X = 6;
+
+  //Relic slot size is 16px; ability buttons use 3× that.
+  private static final double ABILITY_BUTTON_SIZE = 48;
+  private static final double ABILITY_BUTTON_GAP = 12;
+  private static final double ABILITY_HUD_FROM_EDGE = 32;
+  private static final double ABILITY_BUTTON_FROM_BOTTOM = 16;
 
   private GRect[] hearts;
   //private GImage[] heartIcons;
@@ -57,6 +63,7 @@ public class HUDoverlay
   private GRect tempSWDicon;
   //private GImage SWDicon;
   private GLabel SWDbutton = new GLabel("J");
+  private GLabel intangibleAbilityButton = new GLabel("K");
 
   private GOval intangibleAbilityBackground;
   private GRect tempIntangibleAbilityIcon;
@@ -417,7 +424,42 @@ within this class
    */
   public void showSwordButton(GraphicsPane pane)
   {
-    
+    removeFromScreen(pane, SWDbackground);
+    removeFromScreen(pane, tempSWDicon);
+    removeFromScreen(pane, SWDbutton);
+    SWDbackground = null;
+    tempSWDicon = null;
+
+    double w = pane.mainScreen.getWidth();
+    double h = pane.mainScreen.getHeight();
+    double intangibleX = w - ABILITY_HUD_FROM_EDGE - ABILITY_BUTTON_SIZE;
+    double x = intangibleX - ABILITY_BUTTON_GAP - ABILITY_BUTTON_SIZE;
+    double y = h - ABILITY_HUD_FROM_EDGE - ABILITY_BUTTON_SIZE - ABILITY_BUTTON_FROM_BOTTOM;
+
+    SWDbackground = new GOval(x, y, ABILITY_BUTTON_SIZE, ABILITY_BUTTON_SIZE);
+    SWDbackground.setFilled(true);
+    SWDbackground.setColor(Color.BLACK);
+    SWDbackground.setFillColor(Color.LIGHT_GRAY);
+
+    double inset = 12;
+    tempSWDicon =
+        new GRect(
+            x + inset,
+            y + inset,
+            ABILITY_BUTTON_SIZE - 2 * inset,
+            ABILITY_BUTTON_SIZE - 2 * inset);
+    tempSWDicon.setFilled(true);
+    tempSWDicon.setColor(Color.BLACK);
+    tempSWDicon.setFillColor(Color.GREEN);
+
+    SWDbutton.setFont("SansSerif-BOLD-18");
+    double lx = x + 8;
+    double ly = y + ABILITY_BUTTON_SIZE - 10;
+    SWDbutton.setLocation(lx, ly);
+
+    placeOnScreen(pane, SWDbackground);
+    placeOnScreen(pane, tempSWDicon);
+    placeOnScreen(pane, SWDbutton);
   }
 
   /**
@@ -426,16 +468,50 @@ within this class
    */
   public void showIntangibleAbilityButton(GraphicsPane pane)
   {
+    removeFromScreen(pane, intangibleAbilityBackground);
+    removeFromScreen(pane, tempIntangibleAbilityIcon);
+    removeFromScreen(pane, intangibleAbilityButton);
+    intangibleAbilityBackground = null;
+    tempIntangibleAbilityIcon = null;
 
+    double w = pane.mainScreen.getWidth();
+    double h = pane.mainScreen.getHeight();
+    double x = w - ABILITY_HUD_FROM_EDGE - ABILITY_BUTTON_SIZE;
+    double y = h - ABILITY_HUD_FROM_EDGE - ABILITY_BUTTON_SIZE - ABILITY_BUTTON_FROM_BOTTOM;
+
+    intangibleAbilityBackground = new GOval(x, y, ABILITY_BUTTON_SIZE, ABILITY_BUTTON_SIZE);
+    intangibleAbilityBackground.setFilled(true);
+    intangibleAbilityBackground.setColor(Color.BLACK);
+    intangibleAbilityBackground.setFillColor(Color.LIGHT_GRAY);
+
+    double inset = 12;
+    tempIntangibleAbilityIcon =
+        new GRect(
+            x + inset,
+            y + inset,
+            ABILITY_BUTTON_SIZE - 2 * inset,
+            ABILITY_BUTTON_SIZE - 2 * inset);
+    tempIntangibleAbilityIcon.setFilled(true);
+    tempIntangibleAbilityIcon.setColor(Color.BLACK);
+    tempIntangibleAbilityIcon.setFillColor(Color.GREEN);
+
+    intangibleAbilityButton.setFont("SansSerif-BOLD-18");
+    double lx = x + 8;
+    double ly = y + ABILITY_BUTTON_SIZE - 10;
+    intangibleAbilityButton.setLocation(lx, ly);
+
+    placeOnScreen(pane, intangibleAbilityBackground);
+    placeOnScreen(pane, tempIntangibleAbilityIcon);
+    placeOnScreen(pane, intangibleAbilityButton);
   }
 
   /**
-   * Cooldown / “faded” state for the Intangible <em>ability</em> button. 
-   * Boolean in, visual only out.
+   * Cooldown / “faded” state for the Intangible <em>ability</em> button. Boolean in, visual only out.
+   *
    * @param pane         host pane
    * @param onCooldown   {@code true} if Intangible cannot be used yet (show faded / disabled look)
    */
-  public void updateIntangibleAbility(GraphicsPane pane, boolean onCooldown)
+  public void updateIntangibleAbilityButton(GraphicsPane pane, boolean onCooldown)
   {
 
   }
@@ -512,6 +588,8 @@ within this class
         hud.showRelicIntangible(host, true);
         hud.showRelicHalfDamage(host, true);
         hud.showRelicReflect(host, true);
+        hud.showSwordButton(host);
+        hud.showIntangibleAbilityButton(host);
 			}
 		}
 		new Sandbox().start();
