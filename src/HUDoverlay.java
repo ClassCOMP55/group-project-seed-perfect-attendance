@@ -44,6 +44,45 @@ public class HUDoverlay
   private static final double ABILITY_HUD_FROM_EDGE = 32;
   private static final double ABILITY_BUTTON_FROM_BOTTOM = 16;
 
+  /** 
+   * THIS CAN BE IT'S OWN CLASS. I LEAVE IT UP TO THE GROUP
+   * Values needed to draw the full HUD in one pass. The game / {@code Player} / save builds this;
+   * {@link HUDoverlay} only reads it. Rename or move to its own file later if the team prefers.
+   */
+  public static final class HudSnapshot
+  {
+    public final int currentHeartSegments;
+    /** {@code true} → {@link HUDoverlay#showUpgradedHearts}; {@code false} → {@link HUDoverlay#showHearts}. */
+    public final boolean useUpgradedHeartBar;
+    /** Passed through to heart {@code show*} (reserved for relic-gated heart mode). */
+    public final boolean relicBoolHeart;
+    public final int currentCoins;
+    public final boolean ownedIntangible;
+    public final boolean ownedHalfDamage;
+    public final boolean ownedReflect;
+    public final boolean intangibleAbilityOnCooldown;
+
+    public HudSnapshot(
+        int currentHeartSegments,
+        boolean useUpgradedHeartBar,
+        boolean relicBoolHeart,
+        int currentCoins,
+        boolean ownedIntangible,
+        boolean ownedHalfDamage,
+        boolean ownedReflect,
+        boolean intangibleAbilityOnCooldown)
+    {
+      this.currentHeartSegments = currentHeartSegments;
+      this.useUpgradedHeartBar = useUpgradedHeartBar;
+      this.relicBoolHeart = relicBoolHeart;
+      this.currentCoins = currentCoins;
+      this.ownedIntangible = ownedIntangible;
+      this.ownedHalfDamage = ownedHalfDamage;
+      this.ownedReflect = ownedReflect;
+      this.intangibleAbilityOnCooldown = intangibleAbilityOnCooldown;
+    }
+  }
+
   private GRect[] hearts;
   //private GImage[] heartIcons;
 
@@ -540,7 +579,9 @@ within this class
 		pane.mainScreen.add(obj);
 	}
 
-  /** Opposite of {@link #placeOnScreen} — use when rebuilding a piece of the HUD. */
+  /** Opposite of {@link #placeOnScreen}
+   *  use when rebuilding a piece of the HUD. 
+  */
   private static void removeFromScreen(GraphicsPane pane, GObject obj) 
   {
     if (obj != null) 
@@ -551,22 +592,77 @@ within this class
   }
 
   /**
-   * One-shot build: calls the {@code show…} pieces in order, then {@code sendToFront} in the
-   * correct stacking order (backgrounds under icons under text). Rigger: call when entering a mode
-   * that needs the full HUD; pass ownership flags into relic methods from {@code Player} / save.
+   * One-shot build: draws the full HUD from {@link HudSnapshot}. Call when entering a mode that
+   * needs the HUD (rigger builds the snapshot from {@code Player} / save).
    */
-  public void showAll(GraphicsPane pane)
+  public void showAll(GraphicsPane pane, HudSnapshot data)
   {
-    
+    if (data.useUpgradedHeartBar)
+    {
+      showUpgradedHearts(pane, data.currentHeartSegments, data.relicBoolHeart);
+    }
+    else
+    {
+      showHearts(pane, data.currentHeartSegments, data.relicBoolHeart);
+    }
+    showCoins(pane, data.currentCoins);
+    showRelicIntangible(pane, data.ownedIntangible);
+    showRelicHalfDamage(pane, data.ownedHalfDamage);
+    showRelicReflect(pane, data.ownedReflect);
+    showSwordButton(pane);
+    showIntangibleAbilityButton(pane);
+    updateIntangibleAbilityButton(pane, data.intangibleAbilityOnCooldown);
   }
 
   /**
    * Removes every HUD {@link GObject} this overlay added (hearts, relics, coins, sword, etc.) from
    * {@code pane.contents} and the canvas. Call on transitions where the HUD should disappear.
+   * Clears field references so shapes can be garbage-collected.
    */
   public void hideAll(GraphicsPane pane)
   {
-    
+    if (hearts != null)
+    {
+      for (GRect h : hearts)
+      {
+        if (h != null)
+        {
+          removeFromScreen(pane, h);
+        }
+      }
+      hearts = null;
+    }
+
+    removeFromScreen(pane, coinslabel);
+    removeFromScreen(pane, coins);
+    coins = null;
+
+    removeFromScreen(pane, relicIntangibleBackground);
+    removeFromScreen(pane, tempRelicIntangibleIcon);
+    relicIntangibleBackground = null;
+    tempRelicIntangibleIcon = null;
+
+    removeFromScreen(pane, relicHalfDamageBackground);
+    removeFromScreen(pane, tempRelicHalfDamageIcon);
+    relicHalfDamageBackground = null;
+    tempRelicHalfDamageIcon = null;
+
+    removeFromScreen(pane, relicReflectBackground);
+    removeFromScreen(pane, tempRelicReflectIcon);
+    relicReflectBackground = null;
+    tempRelicReflectIcon = null;
+
+    removeFromScreen(pane, SWDbackground);
+    removeFromScreen(pane, tempSWDicon);
+    removeFromScreen(pane, SWDbutton);
+    SWDbackground = null;
+    tempSWDicon = null;
+
+    removeFromScreen(pane, intangibleAbilityBackground);
+    removeFromScreen(pane, tempIntangibleAbilityIcon);
+    removeFromScreen(pane, intangibleAbilityButton);
+    intangibleAbilityBackground = null;
+    tempIntangibleAbilityIcon = null;
   }
 
 	/**
@@ -595,16 +691,18 @@ within this class
 				}
         Host host = new Host();
 				HUDoverlay hud = new HUDoverlay();
-				hud.showHearts(host, 6, false);
-        hud.showCoins(host, 42);
-				hud.updateHearts(host, 3);
-        hud.updateCoins(host, 999);
-        hud.showRelicIntangible(host, true);
-        hud.showRelicHalfDamage(host, true);
-        hud.showRelicReflect(host, true);
-        hud.showSwordButton(host);
-        hud.showIntangibleAbilityButton(host);
-        hud.updateIntangibleAbilityButton(host, true);
+        HUDoverlay.HudSnapshot snap =
+            new HUDoverlay.HudSnapshot(
+                3,
+                false,
+                false,
+                999,
+                true,
+                true,
+                true,
+                true);
+        hud.showAll(host, snap);
+        //hud.hideAll(host);
 			}
 		}
 		new Sandbox().start();
