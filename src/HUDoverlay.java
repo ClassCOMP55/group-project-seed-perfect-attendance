@@ -28,6 +28,9 @@ public class HUDoverlay
   //Placeholder “coin” circle until a {@code GImage} is wired.
   private static final double COINS_ICON_SIZE = 10;
   private static final double COINS_ICON_LABEL_GAP = 4;
+  //HUD shows at most this many coins (3 digits); higher values are capped for display purposes
+  //need to apply the same cap to actual "wallet" wherever that will be kept
+  private static final int COINS_DISPLAY_MAX = 999;
 
   private GRect[] hearts;
   //private GImage[] heartIcons;
@@ -243,7 +246,7 @@ within this class
     removeFromScreen(pane, coinslabel);
     removeFromScreen(pane, coins);
 
-    int displayCoins = Math.max(0, currentCoins);
+    int displayCoins = Math.max(0, Math.min(COINS_DISPLAY_MAX, currentCoins));
 
     coinslabel.setLabel(String.valueOf(displayCoins));
     coinslabel.setFont("SansSerif-BOLD-14");
@@ -275,7 +278,8 @@ within this class
    */
   public void updateCoins(GraphicsPane pane, int currentCoins)
   {
-    
+    int displayCoins = Math.max(0, Math.min(COINS_DISPLAY_MAX, currentCoins));
+    coinslabel.setLabel(String.valueOf(displayCoins));
   }
 
   /**
@@ -411,6 +415,7 @@ within this class
 				hud.showHearts(host, 6, false);
         hud.showCoins(host, 42);
 				hud.updateHearts(host, 3);
+        hud.updateCoins(host, 999);
 			}
 		}
 		new Sandbox().start();
