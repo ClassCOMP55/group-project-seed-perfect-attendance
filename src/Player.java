@@ -1,13 +1,12 @@
-import acm.graphics.*;
 
 /**
  * Represents the player in the game.
  *
  * Extends Entity for combat (position, hitbox, tile-aware movement, facing,
- * health) and also carries card-game state (hand, name, profession).
+ * health).
  *
  * Two constructors:
- *   Player()                    — card-game / save-load use (no TileMap needed).
+ *   Player()                    — no TileMap (e.g. save-load use).
  *                                 Do NOT call move() on a Player created this way.
  *   Player(x, y, tileMap)      — combat / action-scene use.
  *
@@ -17,7 +16,6 @@ public class Player extends Entity {
 
     private static final double PLAYER_SPEED = 100.0; // pixels per second
 
-    private Hand   hand;
     private String name       = "Adventurer";
     private String profession = "Wanderer";
 
@@ -26,13 +24,12 @@ public class Player extends Entity {
     // ==========================================================
 
     /**
-     * Creates a Player for the card-game / dialogue layer.
-     * Health = 3, position = (0,0), tileMap = null.
+     * Creates a Player with no TileMap (e.g. for save-load use).
+     * Health = 3, position = (0,0).
      * Do NOT call move() on a Player created this way.
      */
     public Player() {
         super(0, 0, "assets/player.png", null, 3, PLAYER_SPEED);
-        hand = new Hand();
     }
 
     /**
@@ -44,7 +41,6 @@ public class Player extends Entity {
      */
     public Player(double x, double y, TileMap tileMap) {
         super(x, y, "assets/player.png", tileMap, 3, PLAYER_SPEED);
-        hand = new Hand();
     }
 
     // ==========================================================
@@ -72,13 +68,8 @@ public class Player extends Entity {
     }
 
     // ==========================================================
-    // CARD-GAME / DIALOGUE ACCESSORS
+    // HEALTH ACCESSORS
     // ==========================================================
-
-    /** Returns the player's hand of cards. */
-    public Hand getHand() {
-        return hand;
-    }
 
     /** Returns the player's current health. Alias for Entity.getHealth(). */
     public int getHP() {
