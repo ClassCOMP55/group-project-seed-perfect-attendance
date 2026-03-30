@@ -79,8 +79,7 @@ BUILD ORDER (pivot doc)
  * Intent: dim everything, bring up main panel with two tab headers 
  * (Inventory active, Settings inactive by default)
  * and a single body placeholder. Legacy three-button pause UI removed.
- * click actions come in a
- * later step.
+ * Keyboard: <b>J</b> = Inventory tab, <b>K</b> = Settings tab; mouse tab hits come later.
  */
 public class PauseModal extends GraphicsPane
 {
@@ -97,6 +96,13 @@ public class PauseModal extends GraphicsPane
   //Pixels for the thick “active tab connects to body” accent under the "in use" tab.
   private static final double ACTIVE_TAB_BOTTOM_BAR = 4;
 
+  /**
+   * {@code false} = Inventory tab selected; 
+   * {@code true} = Settings tab selected.
+   * Reset when pause opens fresh; kept when {@link #refreshForResize()} rebuilds the layout.
+   */
+  private boolean settingsTabActive;
+
   private GRect dimOverlay;
   private GRoundRect panel;
 
@@ -104,8 +110,8 @@ public class PauseModal extends GraphicsPane
   private GRect inventoryTabBg;
   //Background for the Settings tab (inactive on open).
   private GRect settingsTabBg;
-  //Thick line under the active tab so it reads attached to the panel body.
-  private GRect inventoryTabBottomAccent;
+  //Thick line under whichever tab is active (J/K moves it).
+  private GRect activeTabBottomAccent;
   private GLabel inventoryTabLabel;
   private GLabel settingsTabLabel;
   private GLabel tabKeysHintLabel;
@@ -118,12 +124,19 @@ public class PauseModal extends GraphicsPane
   }
 
   /**
-   * Builds dim overlay & main pause panel, then tab strip (Inventory / Settings) and a placeholder line.
-   * Uses the window’s width and height from {@code mainScreen} only — no {@code scaleX}/{@code scaleY}.
+   * Builds dim overlay & main pause panel, then tab strip (Inventory / Settings) and stub body text.
+   * Opens on Inventory; {@code J} / {@code K} switch tabs while pause is open. Uses window size from
+   * {@code mainScreen} only — no {@code scaleX}/{@code scaleY}.
    */
   public void showPause()
   {
+    // If pause UI already exists, we are rebuilding (e.g. resize) — keep which tab was selected.
+    boolean preserveTabSelection = !contents.isEmpty();
     hideContent();
+    if (!preserveTabSelection)
+    {
+      settingsTabActive = false;
+    }
 
     double fw = mainScreen.getWidth();
     double fh = mainScreen.getHeight();
@@ -160,11 +173,11 @@ public class PauseModal extends GraphicsPane
     settingsTabBg.setColor(Color.BLACK);
     addBoth(settingsTabBg);
 
-    inventoryTabBottomAccent =
+    activeTabBottomAccent =
         new GRect(px + TAB_PAD_X_INDENT, tabY + TAB_BUTTON_HEIGHT, tabInnerW, ACTIVE_TAB_BOTTOM_BAR);
-    inventoryTabBottomAccent.setFilled(true);
-    inventoryTabBottomAccent.setFillColor(Color.BLACK);
-    addBoth(inventoryTabBottomAccent);
+    activeTabBottomAccent.setFilled(true);
+    activeTabBottomAccent.setFillColor(Color.BLACK);
+    addBoth(activeTabBottomAccent);
 
     inventoryTabLabel = new GLabel("Inventory", 0, 0);
     inventoryTabLabel.setFont("SansSerif-BOLD-16");
@@ -184,14 +197,55 @@ public class PauseModal extends GraphicsPane
     tabKeysHintLabel.setLocation(px + TAB_PAD_X_INDENT, tabY + TAB_BUTTON_HEIGHT + ACTIVE_TAB_BOTTOM_BAR + 18);
     addBoth(tabKeysHintLabel);
 
-    bodyPlaceholderLabel =
-        new GLabel("Pause layout — step 1: tab shell only (inventory / settings bodies next).", 0, 0);
+    bodyPlaceholderLabel = new GLabel("", 0, 0);
     bodyPlaceholderLabel.setFont("SansSerif-PLAIN-14");
     bodyPlaceholderLabel.setColor(Color.WHITE);
-    bodyPlaceholderLabel.setLocation(px + TAB_PAD_X_INDENT , py + TAB_BUTTON_HEIGHT + ACTIVE_TAB_BOTTOM_BAR + 48);
+    bodyPlaceholderLabel.setLocation(px + TAB_PAD_X_INDENT, py + TAB_BUTTON_HEIGHT + ACTIVE_TAB_BOTTOM_BAR + 48);
     addBoth(bodyPlaceholderLabel);
 
+    refreshPauseFrameDecoration();
     restackOnTop();
+  }
+
+  /**
+   * Paints tab headers + bottom accent for {@link #settingsTabActive}; updates stub body copy per tab.
+   */
+  private void refreshPauseFrameDecoration()
+  {
+    if (inventoryTabBg == null || settingsTabBg == null || activeTabBottomAccent == null)
+    {
+      return;
+    }
+    if (!settingsTabActive)
+    {
+      inventoryTabBg.setFillColor(Color.LIGHT_GRAY);
+      settingsTabBg.setFillColor(Color.GRAY);
+      activeTabBottomAccent.setLocation(inventoryTabBg.getX(), tabBottomAccentY(inventoryTabBg));
+    }
+    else
+    {
+      inventoryTabBg.setFillColor(Color.GRAY);
+      settingsTabBg.setFillColor(Color.LIGHT_GRAY);
+      activeTabBottomAccent.setLocation(settingsTabBg.getX(), tabBottomAccentY(settingsTabBg));
+    }
+    if (bodyPlaceholderLabel != null)
+    {
+      if (!settingsTabActive)
+      {
+        bodyPlaceholderLabel.setLabel(
+            "Inventory tab — item row, description, player panel, hearts/relics (keyboard layout next).");
+      }
+      else
+      {
+        bodyPlaceholderLabel.setLabel(
+            "Settings tab — volume, window presets, return / main menu / quit (keyboard layout next).");
+      }
+    }
+  }
+
+  private double tabBottomAccentY(GRect tabBg)
+  {
+    return tabBg.getY() + TAB_BUTTON_HEIGHT;
   }
 
   /** Rebuild at the new window size while keeping the pause menu open. */
@@ -251,7 +305,7 @@ public class PauseModal extends GraphicsPane
     panel = null;
     inventoryTabBg = null;
     settingsTabBg = null;
-    inventoryTabBottomAccent = null;
+    activeTabBottomAccent = null;
     inventoryTabLabel = null;
     settingsTabLabel = null;
     tabKeysHintLabel = null;
@@ -260,6 +314,8 @@ public class PauseModal extends GraphicsPane
 
   /**
    * ESC closes the pause overlay.
+   * J / K switch tabs when that would change the selection.
+   * Trying to open the same tab twice does nothing.
    */
   @Override
   public void keyPressed(KeyEvent e)
@@ -267,6 +323,28 @@ public class PauseModal extends GraphicsPane
     if (e.getKeyCode() == KeyEvent.VK_ESCAPE)
     {
       hideContent();
+      return;
+    }
+    if (e.getKeyCode() == KeyEvent.VK_J)
+    {
+        //pressing J when the Inventory tab is already active does nothing
+      if (!settingsTabActive)
+      {
+        return;
+      }
+      settingsTabActive = false;
+      refreshPauseFrameDecoration();
+      return;
+    }
+    if (e.getKeyCode() == KeyEvent.VK_K)
+    {
+      //pressing K when the Settings tab is already active does nothing
+      if (settingsTabActive)
+      {
+        return;
+      }
+      settingsTabActive = true;
+      refreshPauseFrameDecoration();
     }
   }
 
