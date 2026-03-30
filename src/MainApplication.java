@@ -567,9 +567,6 @@ public class MainApplication extends GraphicsProgram{
 			return;
 		}
 		if (pauseModal != null && !pauseModal.contents.isEmpty()) {
-			if (SwingUtilities.isLeftMouseButton(e)) {
-				pauseModal.handlePointer(e.getX(), e.getY());
-			}
 			return;
 		}
 		if (currentScreen != null && currentScreen.tryHandleSettingsCornerClick(e)) {

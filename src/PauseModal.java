@@ -1,5 +1,6 @@
 import java.awt.Color;
 import java.awt.event.KeyEvent;
+import java.util.ArrayList;
 
 import acm.graphics.*;
 
@@ -82,7 +83,8 @@ BUILD ORDER (pivot doc)
  * (Inventory active, Settings inactive by default)
  * Inventory tab: stats outlines, portrait/relics column, item list + description outlines (right column).
  * Tight stat-cell sizing: {@link #measureTightInventoryOutline} + {@link #addTightInventoryStatOutline}.
- * Legacy three-button pause UI removed. Keyboard: <b>J</b> / <b>K</b> tabs; mouse later.
+ * Legacy three-button pause UI removed. Keyboard navigation only (no pause-menu mouse): <b>J</b>/<b>K</b> tabs,
+ * <b>WASD</b> + <b>Space</b>/<b>Enter</b> per plan block; confirm uses <b>A</b>/<b>D</b> + <b>Enter</b>/<b>Space</b>/<b>Esc</b>.
  */
 public class PauseModal extends GraphicsPane
 {
@@ -141,6 +143,25 @@ public class PauseModal extends GraphicsPane
   private static final double PAUSE_INVENTORY_STUB_LINE_STEP = 18;
   private static final double PAUSE_INVENTORY_DESC_FONT_TOP_INSET = 8;
   private static final double PAUSE_INVENTORY_DESC_LINE_GAP = 3;
+  // Dummy blurbs per stub row — same order as the stub list in showPause; swap for real item text later.
+  private static final String[] PAUSE_INVENTORY_STUB_DESCRIPTIONS =
+      new String[] {
+        "Healing Bread (dummy): pretend this restores hearts when used. Stackables show “x N” in the list.",
+        "Broken Lever (dummy): pretend this is a quest piece — not usable like bread.",
+        "Ore (dummy): pretend this is crafting stuff — long text on purpose so you can see wrapping "
+            + "still works when the real item descriptions arrive from Player / inventory."
+      };
+  /** Settings tab: bottom row (Return / Main Menu / Quit). */
+  private static final double PAUSE_SETTINGS_ACTION_BAR_H = 48;
+  /** Square thumb on each volume slider track. */
+  private static final double PAUSE_SETTINGS_SLIDER_THUMB = 12;
+  /** Music/SFX change per <b>A</b>/<b>D</b> while that slider row is focused. */
+  private static final int PAUSE_SLIDER_KEY_STEP = 5;
+  /** Gap between Music and SFX rows. */
+  private static final double PAUSE_SETTINGS_AUDIO_ROW_GAP = 40;
+  /** Placeholder resolution labels (replace when real window presets exist). */
+  private static final String[] PAUSE_SETTINGS_RESOLUTION_STUBS =
+      new String[] {"1280x720", "1600x900", "1920x1080"};
   private static final int PAUSE_HUD_HEART_SEGMENT_COUNT = 6;
   private static final double PAUSE_HUD_HEART_SEG_W = 10;
   private static final double PAUSE_HUD_HEART_SEG_H = 12;
@@ -177,8 +198,6 @@ public class PauseModal extends GraphicsPane
   /** Tab row band, flush to panel inner right: WASD / Space / Esc hints (both tabs; no outline). */
   private GLabel pauseMenuInstructionsLabel;
   private GLabel tabKeysHintLabel;
-  /** Settings tab body stub only (hidden on Inventory tab). */
-  private GLabel bodyPlaceholderLabel;
 
   //Inventory tab: HUD-style hearts + coins + last saved (stubs until Player / SaveManager feed data)
   private GRect[] pauseHeartSegments;
@@ -202,13 +221,74 @@ public class PauseModal extends GraphicsPane
   private GLabel[] pauseInventoryItemStubLabels;
   /** Wrapped lines inside the description outline (ACM has no multiline label). */
   private GLabel[] pauseInventoryDescriptionLines;
+  // Cached inner box for the description outline — rebuild wrapped lines when focus moves.
+  private double inventoryDescInnerX;
+  private double inventoryDescInnerY;
+  private double inventoryDescInnerW;
+  private double inventoryDescInnerH;
 
   /** Left X of the padded column inside the main panel (used when switching tab stub position). */
   private double inventoryContentLeftX;
   /** Right column left edge (item list + description); portrait column ends before this. */
   private double inventoryItemStubLeftX;
-  /** Baseline for {@link #bodyPlaceholderLabel} on Settings tab (upper area). */
-  private double inventorySettingsBodyBaselineY;
+
+  /** First open: seed pause sliders from {@link GameSettings}; later opens keep last drag values. */
+  private boolean pauseVolumesInitialized;
+
+  /** Settings tab widgets (visibility toggled with tab). */
+  private GObject[] settingsTabWidgets;
+  private GRoundRect settingsContentBg;
+  private GLine settingsDividerAudioDisplay;
+  private GLabel musicVolumeTitleLabel;
+  private GLabel sfxVolumeTitleLabel;
+  private GLine musicSliderTrack;
+  private GLine sfxSliderTrack;
+  private GRect musicSliderThumb;
+  private GRect sfxSliderThumb;
+  private GLabel musicVolumePercentLabel;
+  private GLabel sfxVolumePercentLabel;
+  private double musicTrackLeft;
+  private double musicTrackRight;
+  private double musicTrackYCenter;
+  private double sfxTrackLeft;
+  private double sfxTrackRight;
+  private double sfxTrackYCenter;
+  private int pauseMusicVolumePercent;
+  private int pauseSfxVolumePercent;
+  private GRoundRect[] pauseResolutionButtons;
+  private GLabel[] pauseResolutionLabels;
+  /** 0–2 = stub presets; fourth button is empty placeholder. */
+  private int selectedResolutionIndex;
+  private GRect pauseFullscreenCheckboxOuter;
+  private GLabel pauseFullscreenCheckGlyph;
+  private GLabel pauseFullscreenLabel;
+  private boolean pauseFullscreenStub;
+  private GRect settingsActionBarBg;
+  private GRect settingsReturnHit;
+  private GRect settingsMainMenuHit;
+  private GRect settingsQuitHit;
+  private GLabel settingsReturnLabel;
+  private GLabel settingsMainMenuLabel;
+  private GLabel settingsQuitLabel;
+  /** Inventory list row index for stub items (0 .. 2). */
+  private int pauseInventoryFocusIndex;
+  /** Settings: 0 music, 1 SFX, 2 resolution, 3 fullscreen, 4 return, 5 main menu, 6 quit. */
+  private int pauseSettingsFocusIndex;
+  /** Confirmation dialog: 0 Cancel, 1 Yes (keyboard <b>A</b>/<b>D</b>). */
+  private int pauseConfirmFocus;
+  /** Confirmation overlay for Main Menu / Quit (see {@link ConfirmKind}). */
+  private ArrayList<GObject> confirmDialogObjects;
+  private ConfirmKind confirmPending = ConfirmKind.NONE;
+  /** Cancel / Yes button rects — keyboard focus highlight only (not mouse). */
+  private GRect confirmCancelHit;
+  private GRect confirmYesHit;
+
+  private enum ConfirmKind
+  {
+    NONE,
+    MAIN_MENU,
+    QUIT
+  }
 
   public PauseModal(MainApplication mainScreen)
   {
@@ -222,12 +302,21 @@ public class PauseModal extends GraphicsPane
    */
   public void showPause()
   {
-    // If pause UI already exists, we are rebuilding (e.g. resize) — keep which tab was selected.
-    boolean preserveTabSelection = !contents.isEmpty();
+    // Full rebuild of dimmer + panel + lists; 
+    // resize calls this while pause stays open.
+    boolean preserveTabSelection = !contents.isEmpty(); // true => keep tab + focus across rebuild
     hideContent();
     if (!preserveTabSelection)
     {
       settingsTabActive = false;
+      pauseInventoryFocusIndex = 0;
+      pauseSettingsFocusIndex = 0;
+    }
+    if (!pauseVolumesInitialized)
+    {
+      pauseMusicVolumePercent = GameSettings.getVolumePercent();
+      pauseSfxVolumePercent = 100;
+      pauseVolumesInitialized = true;
     }
 
     double fw = mainScreen.getWidth();
@@ -296,7 +385,7 @@ public class PauseModal extends GraphicsPane
     addBoth(settingsTabLabel);
 
     pauseMenuInstructionsLabel =
-        new GLabel("WASD = move selection  Space = use  Esc = close", 0, 0);
+        new GLabel("J/K = tabs  WASD = move  Space/Enter = activate  Esc = close", 0, 0);
     pauseMenuInstructionsLabel.setFont("SansSerif-BOLD-12");
     pauseMenuInstructionsLabel.setColor(Color.WHITE);
     double panelInnerRightX = px + panelW - TAB_PAD_X_INDENT;
@@ -483,6 +572,10 @@ public class PauseModal extends GraphicsPane
         addTightInventoryStatOutline(
             descriptionLeftX, middleSectionTop, inventoryDescOutlineSize);
     pauseInventoryDescriptionOutline = inventoryDescDecoration.outline;
+    inventoryDescInnerX = inventoryDescDecoration.innerX;
+    inventoryDescInnerY = inventoryDescDecoration.innerY;
+    inventoryDescInnerW = inventoryDescDecoration.innerW;
+    inventoryDescInnerH = inventoryDescDecoration.innerH;
 
     //Stub list — wire Player later; stackables use "· Name x N" (see plan block).
     String[] stubItemLines =
@@ -492,7 +585,7 @@ public class PauseModal extends GraphicsPane
     for (int i = 0; i < stubItemLines.length; i++)
     {
       GLabel row = new GLabel(stubItemLines[i], 0, 0);
-      row.setFont(i == 0 ? "SansSerif-BOLD-12" : "SansSerif-PLAIN-12");
+      row.setFont("SansSerif-PLAIN-12");
       row.setColor(Color.BLACK);
       row.setLocation(inventoryListDecoration.innerX + 8, itemLineBaseline);
       pauseInventoryItemStubLabels[i] = row;
@@ -500,35 +593,21 @@ public class PauseModal extends GraphicsPane
       itemLineBaseline += PAUSE_INVENTORY_STUB_LINE_STEP;
     }
 
-    String descFont = "SansSerif-PLAIN-12";
-    String stubDescription =
-        "Healing Bread: restores hearts when used from the inventory. "
-            + "This paragraph is intentionally long so you can see line wrapping inside the "
-            + "description panel. When you wire selection from Player, replace this string and "
-            + "call the same wrap helper. Stackable items in the list use x N.";
-    pauseInventoryDescriptionLines =
-        addWrappedDescriptionLines(
-            stubDescription,
-            descFont,
-            Color.BLACK,
-            inventoryDescDecoration.innerX,
-            inventoryDescDecoration.innerY,
-            inventoryDescDecoration.innerW,
-            inventoryDescDecoration.innerH);
+    // Description lines come from refreshInventoryDescriptionFromFocus() via refreshPauseFrameDecoration.
 
-    bodyPlaceholderLabel = new GLabel("", 0, 0);
-    bodyPlaceholderLabel.setFont("SansSerif-PLAIN-14");
-    bodyPlaceholderLabel.setColor(Color.WHITE);
-    inventorySettingsBodyBaselineY = statsRow1Top + bodyPlaceholderLabel.getAscent();
-    addBoth(bodyPlaceholderLabel);
+    double panelInnerBottomY = py + panelH - TAB_PAD_X_INDENT;
+    buildSettingsTabContent(inventoryContentLeftX, innerW, statsRow1Top, panelInnerBottomY);
 
     refreshPauseFrameDecoration();
+    refreshPauseMenuFocusVisuals();
     restackOnTop();
   }
 
   /**
    * Paints tab headers + bottom accent for {@link #settingsTabActive}; updates stub body copy per tab.
    */
+  // Tab colors, bottom accent, visibility of inventory vs settings widgets; 
+  // also refreshes description text on inventory.
   private void refreshPauseFrameDecoration()
   {
     if (inventoryTabBg == null
@@ -553,6 +632,11 @@ public class PauseModal extends GraphicsPane
       settingsTabBottomAccent.setVisible(true);
     }
     boolean inventoryTab = !settingsTabActive;
+    // Rebuild description text when the inventory tab is showing (focus row or first paint).
+    if (inventoryTab)
+    {
+      refreshInventoryDescriptionFromFocus();
+    }
     if (pauseHeartSegments != null)
     {
       for (GRect h : pauseHeartSegments)
@@ -641,25 +725,544 @@ public class PauseModal extends GraphicsPane
         }
       }
     }
-    if (bodyPlaceholderLabel != null)
+    if (settingsTabWidgets != null)
     {
-      if (inventoryTab)
+      for (GObject g : settingsTabWidgets)
       {
-        bodyPlaceholderLabel.setVisible(false);
+        if (g != null)
+        {
+          g.setVisible(!inventoryTab);
+        }
       }
-      else
+    }
+    refreshPauseMenuFocusVisuals();
+  }
+
+  // White settings body + sliders + resolution stubs + fullscreen stub + black action bar 
+  // (keyboard-driven).
+  // Placeholders until shared window/audio wiring matches SettingsPane.
+  private void buildSettingsTabContent(
+      double innerLeftX, double innerW, double contentTop, double panelInnerBottomY)
+  {
+    ArrayList<GObject> group = new ArrayList<>();
+    double pad = 12;
+    double actionBarTop = panelInnerBottomY - PAUSE_SETTINGS_ACTION_BAR_H;
+    double blockBottom = actionBarTop - 10;
+    double blockH = Math.max(120, blockBottom - contentTop);
+    double corner = Math.min(12, blockH * 0.08);
+
+    settingsContentBg = new GRoundRect(innerLeftX, contentTop, innerW, blockH, corner, corner);
+    settingsContentBg.setFilled(true);
+    settingsContentBg.setFillColor(Color.WHITE);
+    settingsContentBg.setColor(Color.BLACK);
+    addBoth(settingsContentBg);
+    group.add(settingsContentBg);
+
+    double row1Baseline = contentTop + pad + 14;
+    musicVolumeTitleLabel = new GLabel("Music Volume:", innerLeftX + pad, row1Baseline);
+    musicVolumeTitleLabel.setFont("SansSerif-PLAIN-14");
+    musicVolumeTitleLabel.setColor(Color.BLACK);
+    addBoth(musicVolumeTitleLabel);
+    group.add(musicVolumeTitleLabel);
+
+    musicTrackLeft = innerLeftX + innerW * 0.34;
+    musicTrackRight = innerLeftX + innerW - pad - 44;
+    musicTrackYCenter = row1Baseline - musicVolumeTitleLabel.getAscent() / 2 + 2;
+    musicSliderTrack =
+        new GLine(musicTrackLeft, musicTrackYCenter, musicTrackRight, musicTrackYCenter);
+    musicSliderTrack.setColor(Color.BLACK);
+    addBoth(musicSliderTrack);
+    group.add(musicSliderTrack);
+
+    musicSliderThumb =
+        new GRect(
+            musicTrackLeft,
+            musicTrackYCenter - PAUSE_SETTINGS_SLIDER_THUMB / 2,
+            PAUSE_SETTINGS_SLIDER_THUMB,
+            PAUSE_SETTINGS_SLIDER_THUMB);
+    musicSliderThumb.setFilled(true);
+    musicSliderThumb.setFillColor(Color.DARK_GRAY);
+    musicSliderThumb.setColor(Color.BLACK);
+    addBoth(musicSliderThumb);
+    group.add(musicSliderThumb);
+
+    musicVolumePercentLabel = new GLabel(pauseMusicVolumePercent + "%", 0, 0);
+    musicVolumePercentLabel.setFont("SansSerif-PLAIN-12");
+    musicVolumePercentLabel.setColor(Color.BLACK);
+    addBoth(musicVolumePercentLabel);
+    group.add(musicVolumePercentLabel);
+
+    double row2Baseline = row1Baseline + PAUSE_SETTINGS_AUDIO_ROW_GAP;
+    sfxVolumeTitleLabel = new GLabel("SFX Volume:", innerLeftX + pad, row2Baseline);
+    sfxVolumeTitleLabel.setFont("SansSerif-PLAIN-14");
+    sfxVolumeTitleLabel.setColor(Color.BLACK);
+    addBoth(sfxVolumeTitleLabel);
+    group.add(sfxVolumeTitleLabel);
+
+    sfxTrackLeft = musicTrackLeft;
+    sfxTrackRight = musicTrackRight;
+    sfxTrackYCenter = row2Baseline - sfxVolumeTitleLabel.getAscent() / 2 + 2;
+    sfxSliderTrack = new GLine(sfxTrackLeft, sfxTrackYCenter, sfxTrackRight, sfxTrackYCenter);
+    sfxSliderTrack.setColor(Color.BLACK);
+    addBoth(sfxSliderTrack);
+    group.add(sfxSliderTrack);
+
+    sfxSliderThumb =
+        new GRect(
+            sfxTrackLeft,
+            sfxTrackYCenter - PAUSE_SETTINGS_SLIDER_THUMB / 2,
+            PAUSE_SETTINGS_SLIDER_THUMB,
+            PAUSE_SETTINGS_SLIDER_THUMB);
+    sfxSliderThumb.setFilled(true);
+    sfxSliderThumb.setFillColor(Color.DARK_GRAY);
+    sfxSliderThumb.setColor(Color.BLACK);
+    addBoth(sfxSliderThumb);
+    group.add(sfxSliderThumb);
+
+    sfxVolumePercentLabel = new GLabel(pauseSfxVolumePercent + "%", 0, 0);
+    sfxVolumePercentLabel.setFont("SansSerif-PLAIN-12");
+    sfxVolumePercentLabel.setColor(Color.BLACK);
+    addBoth(sfxVolumePercentLabel);
+    group.add(sfxVolumePercentLabel);
+
+    updateMusicSliderThumbLayout();
+    updateSfxSliderThumbLayout();
+
+    double divY = row2Baseline + 22;
+    settingsDividerAudioDisplay =
+        new GLine(innerLeftX + pad, divY, innerLeftX + innerW - pad, divY);
+    settingsDividerAudioDisplay.setColor(Color.GRAY);
+    addBoth(settingsDividerAudioDisplay);
+    group.add(settingsDividerAudioDisplay);
+
+    int nRes = PAUSE_SETTINGS_RESOLUTION_STUBS.length + 1;
+    double btnGap = 6;
+    double resTop = divY + 14;
+    double resBtnH = 28;
+    double resBtnW = (innerW - 2 * pad - (nRes - 1) * btnGap) / nRes;
+    pauseResolutionButtons = new GRoundRect[nRes];
+    pauseResolutionLabels = new GLabel[nRes];
+    for (int i = 0; i < nRes; i++)
+    {
+      double bx = innerLeftX + pad + i * (resBtnW + btnGap);
+      pauseResolutionButtons[i] =
+          new GRoundRect(bx, resTop, resBtnW, resBtnH, 4, 4);
+      pauseResolutionButtons[i].setFilled(true);
+      pauseResolutionButtons[i].setColor(Color.BLACK);
+      addBoth(pauseResolutionButtons[i]);
+      group.add(pauseResolutionButtons[i]);
+      String lab = i < PAUSE_SETTINGS_RESOLUTION_STUBS.length ? PAUSE_SETTINGS_RESOLUTION_STUBS[i] : "";
+      pauseResolutionLabels[i] = new GLabel(lab, 0, 0);
+      pauseResolutionLabels[i].setFont("SansSerif-PLAIN-11");
+      pauseResolutionLabels[i].setColor(Color.BLACK);
+      centerLabelInRect(pauseResolutionLabels[i], pauseResolutionButtons[i]);
+      addBoth(pauseResolutionLabels[i]);
+      group.add(pauseResolutionLabels[i]);
+    }
+    selectedResolutionIndex = 0;
+    refreshResolutionButtonHighlights();
+
+    double fsTop = resTop + resBtnH + 12;
+    pauseFullscreenLabel = new GLabel("Fullscreen:", innerLeftX + pad, fsTop + 14);
+    pauseFullscreenLabel.setFont("SansSerif-PLAIN-14");
+    pauseFullscreenLabel.setColor(Color.BLACK);
+    addBoth(pauseFullscreenLabel);
+    group.add(pauseFullscreenLabel);
+
+    double cbSize = 18;
+    double cbX = innerLeftX + innerW / 2 - 40;
+    double cbY = fsTop;
+    pauseFullscreenCheckboxOuter = new GRect(cbX, cbY, cbSize, cbSize);
+    pauseFullscreenCheckboxOuter.setFilled(true);
+    pauseFullscreenCheckboxOuter.setFillColor(Color.WHITE);
+    pauseFullscreenCheckboxOuter.setColor(Color.BLACK);
+    addBoth(pauseFullscreenCheckboxOuter);
+    group.add(pauseFullscreenCheckboxOuter);
+
+    pauseFullscreenCheckGlyph = new GLabel(pauseFullscreenStub ? "\u2713" : "", 0, 0);
+    pauseFullscreenCheckGlyph.setFont("SansSerif-BOLD-14");
+    pauseFullscreenCheckGlyph.setColor(Color.BLACK);
+    centerLabelInRect(pauseFullscreenCheckGlyph, pauseFullscreenCheckboxOuter);
+    addBoth(pauseFullscreenCheckGlyph);
+    group.add(pauseFullscreenCheckGlyph);
+
+    settingsActionBarBg = new GRect(innerLeftX, actionBarTop, innerW, PAUSE_SETTINGS_ACTION_BAR_H);
+    settingsActionBarBg.setFilled(true);
+    settingsActionBarBg.setFillColor(Color.BLACK);
+    settingsActionBarBg.setColor(Color.BLACK);
+    addBoth(settingsActionBarBg);
+    group.add(settingsActionBarBg);
+
+    double segW = innerW / 3.0;
+    settingsReturnHit = new GRect(innerLeftX, actionBarTop, segW, PAUSE_SETTINGS_ACTION_BAR_H);
+    settingsReturnHit.setFilled(true);
+    settingsReturnHit.setFillColor(Color.BLACK);
+    settingsReturnHit.setColor(Color.BLACK);
+    addBoth(settingsReturnHit);
+    group.add(settingsReturnHit);
+
+    settingsMainMenuHit =
+        new GRect(innerLeftX + segW, actionBarTop, segW, PAUSE_SETTINGS_ACTION_BAR_H);
+    settingsMainMenuHit.setFilled(true);
+    settingsMainMenuHit.setFillColor(Color.BLACK);
+    settingsMainMenuHit.setColor(Color.BLACK);
+    addBoth(settingsMainMenuHit);
+    group.add(settingsMainMenuHit);
+
+    double thirdW = innerW - 2 * segW;
+    settingsQuitHit =
+        new GRect(innerLeftX + 2 * segW, actionBarTop, thirdW, PAUSE_SETTINGS_ACTION_BAR_H);
+    settingsQuitHit.setFilled(true);
+    settingsQuitHit.setFillColor(Color.BLACK);
+    settingsQuitHit.setColor(Color.BLACK);
+    addBoth(settingsQuitHit);
+    group.add(settingsQuitHit);
+
+    settingsReturnLabel = new GLabel("Return to Game", 0, 0);
+    settingsReturnLabel.setFont("SansSerif-BOLD-12");
+    settingsReturnLabel.setColor(Color.WHITE);
+    centerLabelInRect(settingsReturnLabel, settingsReturnHit);
+    addBoth(settingsReturnLabel);
+    group.add(settingsReturnLabel);
+
+    settingsMainMenuLabel = new GLabel("Main Menu", 0, 0);
+    settingsMainMenuLabel.setFont("SansSerif-BOLD-12");
+    settingsMainMenuLabel.setColor(Color.WHITE);
+    centerLabelInRect(settingsMainMenuLabel, settingsMainMenuHit);
+    addBoth(settingsMainMenuLabel);
+    group.add(settingsMainMenuLabel);
+
+    settingsQuitLabel = new GLabel("Quit Game", 0, 0);
+    settingsQuitLabel.setFont("SansSerif-BOLD-12");
+    settingsQuitLabel.setColor(Color.WHITE);
+    centerLabelInRect(settingsQuitLabel, settingsQuitHit);
+    addBoth(settingsQuitLabel);
+    group.add(settingsQuitLabel);
+
+    settingsTabWidgets = group.toArray(new GObject[0]);
+    for (GObject g : settingsTabWidgets)
+    {
+      g.setVisible(false);
+    }
+  }
+
+  // Fills which resolution stub looks “selected” (fake list until real presets exist).
+  private void refreshResolutionButtonHighlights()
+  {
+    if (pauseResolutionButtons == null)
+    {
+      return;
+    }
+    for (int i = 0; i < pauseResolutionButtons.length; i++)
+    {
+      boolean sel = i == selectedResolutionIndex && i < PAUSE_SETTINGS_RESOLUTION_STUBS.length;
+      pauseResolutionButtons[i].setFillColor(sel ? new Color(200, 210, 255) : Color.WHITE);
+    }
+  }
+
+  // Drops old wrapped lines so we can swap text when the highlighted stub row changes.
+  private void removePauseInventoryDescriptionLines()
+  {
+    if (pauseInventoryDescriptionLines == null)
+    {
+      return;
+    }
+    for (GLabel ln : pauseInventoryDescriptionLines)
+    {
+      if (ln != null)
       {
-        bodyPlaceholderLabel.setLocation(inventoryContentLeftX, inventorySettingsBodyBaselineY);
-        bodyPlaceholderLabel.setLabel(
-            "Settings tab — volume, window presets, return / main menu / quit (keyboard layout next).");
-        bodyPlaceholderLabel.setVisible(true);
+        mainScreen.remove(ln);
+        contents.remove(ln);
+      }
+    }
+    pauseInventoryDescriptionLines = null;
+  }
+
+  // Picks dummy text for the current inventory row; real game will ask the item object instead.
+  private void refreshInventoryDescriptionFromFocus()
+  {
+    if (inventoryDescInnerW <= 1)
+    {
+      return;
+    }
+    removePauseInventoryDescriptionLines();
+    int n = PAUSE_INVENTORY_STUB_DESCRIPTIONS.length;
+    if (n == 0)
+    {
+      return;
+    }
+    int idx = pauseInventoryFocusIndex;
+    if (idx < 0)
+    {
+      idx = 0;
+    }
+    if (idx >= n)
+    {
+      idx = n - 1;
+    }
+    pauseInventoryDescriptionLines =
+        addWrappedDescriptionLines(
+            PAUSE_INVENTORY_STUB_DESCRIPTIONS[idx],
+            "SansSerif-PLAIN-12",
+            Color.BLACK,
+            inventoryDescInnerX,
+            inventoryDescInnerY,
+            inventoryDescInnerW,
+            inventoryDescInnerH);
+    if (pauseInventoryDescriptionLines != null)
+    {
+      for (GLabel ln : pauseInventoryDescriptionLines)
+      {
+        if (ln != null)
+        {
+          ln.setVisible(!settingsTabActive);
+        }
       }
     }
   }
 
-  /**
-   * Same segment layout/colors as {@link HUDoverlay#showHearts}; origins are pause-panel coordinates.
-   */
+  /** Keyboard focus highlights (Inventory + Settings); no mouse hit-testing. */
+  private void refreshPauseMenuFocusVisuals()
+  {
+    if (pauseInventoryItemStubLabels != null)
+    {
+      for (int i = 0; i < pauseInventoryItemStubLabels.length; i++)
+      {
+        pauseInventoryItemStubLabels[i].setFont(
+            i == pauseInventoryFocusIndex ? "SansSerif-BOLD-12" : "SansSerif-PLAIN-12");
+      }
+    }
+    boolean settingsOn = settingsTabActive;
+    if (musicVolumeTitleLabel != null)
+    {
+      musicVolumeTitleLabel.setFont(
+          settingsOn && pauseSettingsFocusIndex == 0
+              ? "SansSerif-BOLD-14"
+              : "SansSerif-PLAIN-14");
+    }
+    if (sfxVolumeTitleLabel != null)
+    {
+      sfxVolumeTitleLabel.setFont(
+          settingsOn && pauseSettingsFocusIndex == 1
+              ? "SansSerif-BOLD-14"
+              : "SansSerif-PLAIN-14");
+    }
+    if (pauseResolutionLabels != null)
+    {
+      for (int i = 0; i < PAUSE_SETTINGS_RESOLUTION_STUBS.length; i++)
+      {
+        boolean rowFocused = settingsOn && pauseSettingsFocusIndex == 2;
+        boolean itemSelected = i == selectedResolutionIndex;
+        pauseResolutionLabels[i].setFont(
+            rowFocused && itemSelected ? "SansSerif-BOLD-11" : "SansSerif-PLAIN-11");
+      }
+    }
+    if (pauseFullscreenLabel != null)
+    {
+      pauseFullscreenLabel.setFont(
+          settingsOn && pauseSettingsFocusIndex == 3
+              ? "SansSerif-BOLD-14"
+              : "SansSerif-PLAIN-14");
+    }
+    Color hi = new Color(255, 220, 100);
+    if (settingsReturnLabel != null)
+    {
+      settingsReturnLabel.setColor(
+          settingsOn && pauseSettingsFocusIndex == 4 ? hi : Color.WHITE);
+    }
+    if (settingsMainMenuLabel != null)
+    {
+      settingsMainMenuLabel.setColor(
+          settingsOn && pauseSettingsFocusIndex == 5 ? hi : Color.WHITE);
+    }
+    if (settingsQuitLabel != null)
+    {
+      settingsQuitLabel.setColor(
+          settingsOn && pauseSettingsFocusIndex == 6 ? hi : Color.WHITE);
+    }
+  }
+
+  // A/D moves between Cancel and Yes before Enter/Space; this tints the active side.
+  private void refreshConfirmFocusVisuals()
+  {
+    if (confirmCancelHit == null || confirmYesHit == null)
+    {
+      return;
+    }
+    confirmCancelHit.setFillColor(
+        pauseConfirmFocus == 0 ? new Color(220, 220, 255) : Color.LIGHT_GRAY);
+    confirmYesHit.setFillColor(
+        pauseConfirmFocus == 1 ? new Color(255, 200, 200) : new Color(220, 200, 200));
+  }
+
+  private static int clampVolume(int v)
+  {
+    if (v < 0)
+    {
+      return 0;
+    }
+    if (v > 100)
+    {
+      return 100;
+    }
+    return v;
+  }
+
+  private void updateMusicSliderThumbLayout()
+  {
+    if (musicSliderThumb == null || musicVolumePercentLabel == null)
+    {
+      return;
+    }
+    double span = musicTrackRight - musicTrackLeft;
+    double t = pauseMusicVolumePercent / 100.0;
+    double cx = musicTrackLeft + t * span;
+    double thumbX = cx - PAUSE_SETTINGS_SLIDER_THUMB / 2;
+    double thumbY = musicTrackYCenter - PAUSE_SETTINGS_SLIDER_THUMB / 2;
+    musicSliderThumb.setLocation(thumbX, thumbY);
+    musicVolumePercentLabel.setLabel(pauseMusicVolumePercent + "%");
+    musicVolumePercentLabel.setLocation(
+        musicTrackRight + 6, musicTrackYCenter + musicVolumePercentLabel.getAscent() / 2);
+  }
+
+  private void updateSfxSliderThumbLayout()
+  {
+    if (sfxSliderThumb == null || sfxVolumePercentLabel == null)
+    {
+      return;
+    }
+    double span = sfxTrackRight - sfxTrackLeft;
+    double t = pauseSfxVolumePercent / 100.0;
+    double cx = sfxTrackLeft + t * span;
+    double thumbX = cx - PAUSE_SETTINGS_SLIDER_THUMB / 2;
+    double thumbY = sfxTrackYCenter - PAUSE_SETTINGS_SLIDER_THUMB / 2;
+    sfxSliderThumb.setLocation(thumbX, thumbY);
+    sfxVolumePercentLabel.setLabel(pauseSfxVolumePercent + "%");
+    sfxVolumePercentLabel.setLocation(
+        sfxTrackRight + 6, sfxTrackYCenter + sfxVolumePercentLabel.getAscent() / 2);
+  }
+
+  // Main menu / quit: second-step overlay; keys handled in keyPressed before normal pause keys.
+  private void showConfirmDialog(ConfirmKind kind)
+  {
+    if (confirmPending != ConfirmKind.NONE || kind == ConfirmKind.NONE)
+    {
+      return;
+    }
+    confirmPending = kind;
+    confirmDialogObjects = new ArrayList<>();
+    double fw = mainScreen.getWidth();
+    double fh = mainScreen.getHeight();
+
+    GRect dim = new GRect(0, 0, fw, fh);
+    dim.setFilled(true);
+    dim.setFillColor(new Color(0, 0, 0, 150));
+    dim.setColor(new Color(0, 0, 0, 0));
+    addConfirmObject(dim);
+
+    double boxW = Math.min(440, fw * 0.85);
+    double boxH = 140;
+    double bx = (fw - boxW) / 2;
+    double by = (fh - boxH) / 2;
+    GRoundRect box = new GRoundRect(bx, by, boxW, boxH, 12, 12);
+    box.setFilled(true);
+    box.setFillColor(Color.WHITE);
+    box.setColor(Color.BLACK);
+    addConfirmObject(box);
+
+    String msg =
+        kind == ConfirmKind.MAIN_MENU
+            ? "Are you sure you want to return to the main menu?"
+            : "Are you sure you want to quit the game?";
+    GLabel msgLab = new GLabel(msg, 0, 0);
+    msgLab.setFont("SansSerif-PLAIN-14");
+    msgLab.setColor(Color.BLACK);
+    double msgW = msgLab.getWidth();
+    msgLab.setLocation(bx + (boxW - msgW) / 2, by + 36);
+    addConfirmObject(msgLab);
+
+    double btnW = 100;
+    double btnH = 32;
+    double btnY = by + boxH - btnH - 20;
+    double gap = 16;
+    double pairW = 2 * btnW + gap;
+    double btnLeft0 = bx + (boxW - pairW) / 2;
+
+    confirmCancelHit = new GRect(btnLeft0, btnY, btnW, btnH);
+    confirmCancelHit.setFilled(true);
+    confirmCancelHit.setFillColor(Color.LIGHT_GRAY);
+    confirmCancelHit.setColor(Color.BLACK);
+    addConfirmObject(confirmCancelHit);
+
+    GLabel cancelLab = new GLabel("Cancel", 0, 0);
+    cancelLab.setFont("SansSerif-BOLD-13");
+    cancelLab.setColor(Color.BLACK);
+    centerLabelInRect(cancelLab, confirmCancelHit);
+    addConfirmObject(cancelLab);
+
+    confirmYesHit = new GRect(btnLeft0 + btnW + gap, btnY, btnW, btnH);
+    confirmYesHit.setFilled(true);
+    confirmYesHit.setFillColor(new Color(220, 200, 200));
+    confirmYesHit.setColor(Color.BLACK);
+    addConfirmObject(confirmYesHit);
+
+    GLabel yesLab = new GLabel("Yes", 0, 0);
+    yesLab.setFont("SansSerif-BOLD-13");
+    yesLab.setColor(Color.BLACK);
+    centerLabelInRect(yesLab, confirmYesHit);
+    addConfirmObject(yesLab);
+
+    pauseConfirmFocus = 0;
+    refreshConfirmFocusVisuals();
+    restackOnTop();
+  }
+
+  // Tracks confirm-layer objects so dismissConfirmDialog 
+  // can remove them without hunting the canvas.
+  private void addConfirmObject(GObject g)
+  {
+    contents.add(g);
+    mainScreen.add(g);
+    confirmDialogObjects.add(g);
+  }
+
+  // Strips the dim + box + buttons; leaves the main pause UI underneath.
+  private void dismissConfirmDialog()
+  {
+    if (confirmDialogObjects == null)
+    {
+      confirmPending = ConfirmKind.NONE;
+      return;
+    }
+    for (GObject g : confirmDialogObjects)
+    {
+      mainScreen.remove(g);
+      contents.remove(g);
+    }
+    confirmDialogObjects = null;
+    confirmPending = ConfirmKind.NONE;
+    confirmCancelHit = null;
+    confirmYesHit = null;
+  }
+
+  // Yes on confirm: go to main menu or exit process; 
+  // Cancel never calls this.
+  private void runConfirmedAction()
+  {
+    ConfirmKind k = confirmPending;
+    dismissConfirmDialog();
+    if (k == ConfirmKind.MAIN_MENU)
+    {
+      hideContent();
+      mainScreen.switchToStartMenuScreen();
+    }
+    else if (k == ConfirmKind.QUIT)
+    {
+      System.exit(0);
+    }
+  }
+
+  // Same heart “pill” layout as HUDoverlay#showHearts; counts still stubbed until Player feeds HP.
   private void addPauseHeartsLikeHud(double originX, double originY, int filledSegments)
   {
     int filled = Math.max(0, Math.min(PAUSE_HUD_HEART_SEGMENT_COUNT, filledSegments));
@@ -890,15 +1493,14 @@ public class PauseModal extends GraphicsPane
     }
   }
 
+  // Normal add for pause UI (not the small confirm overlay list).
   private void addBoth(GObject g)
   {
     contents.add(g);
     mainScreen.add(g);
   }
 
-  /**
-   * Re-adds all objects on top after a canvas refresh (resize).
-   */
+  // Re-add everything in contents so the stack order stays correct after canvas quirks / resize.
   public void restackOnTop()
   {
     java.util.ArrayList<GObject> snapshot = new java.util.ArrayList<>(contents);
@@ -909,14 +1511,190 @@ public class PauseModal extends GraphicsPane
     }
   }
 
-  /**
-   * Mouse release on pause UI. Step 1: no click targets wired (tabs + buttons come next).
-   */
-  public void handlePointer(double x, double y)
+  // Bottom bar: Return closes pause; 
+  // Main menu / Quit open confirm first.
+  private void activateSettingsBottomButton(int focusSlot)
   {
-    // Intentionally empty until tab hit-tests and settings/inventory actions are added.
+    if (focusSlot == 4)
+    {
+      hideContent();
+    }
+    else if (focusSlot == 5)
+    {
+      showConfirmDialog(ConfirmKind.MAIN_MENU);
+    }
+    else if (focusSlot == 6)
+    {
+      showConfirmDialog(ConfirmKind.QUIT);
+    }
   }
 
+  // Inventory tab: W/S on stub rows; 
+  // Space reserved for consumable use once Player is wired.
+  private void handleInventoryNavigationKey(int k)
+  {
+    int rows =
+        pauseInventoryItemStubLabels == null ? 0 : pauseInventoryItemStubLabels.length;
+    if (rows == 0)
+    {
+      return;
+    }
+    if (k == KeyEvent.VK_W)
+    {
+      if (pauseInventoryFocusIndex > 0)
+      {
+        pauseInventoryFocusIndex--;
+      }
+      refreshPauseMenuFocusVisuals();
+      refreshInventoryDescriptionFromFocus();
+      return;
+    }
+    if (k == KeyEvent.VK_S)
+    {
+      if (pauseInventoryFocusIndex < rows - 1)
+      {
+        pauseInventoryFocusIndex++;
+      }
+      refreshPauseMenuFocusVisuals();
+      refreshInventoryDescriptionFromFocus();
+      return;
+    }
+    if (k == KeyEvent.VK_SPACE)
+    {
+      // Stub until Player / consumable wiring.
+    }
+  }
+
+  // Settings tab: see pauseSettingsFocusIndex on fields  
+  // W/S, A/D on sliders + resolution + bottom row, etc.
+  private void handleSettingsNavigationKey(int k)
+  {
+    int f = pauseSettingsFocusIndex;
+    if (k == KeyEvent.VK_SPACE)
+    {
+      if (f == 3)
+      {
+        pauseFullscreenStub = !pauseFullscreenStub;
+        if (pauseFullscreenCheckGlyph != null)
+        {
+          pauseFullscreenCheckGlyph.setLabel(pauseFullscreenStub ? "\u2713" : "");
+          centerLabelInRect(pauseFullscreenCheckGlyph, pauseFullscreenCheckboxOuter);
+        }
+        refreshPauseMenuFocusVisuals();
+        return;
+      }
+      if (f >= 4 && f <= 6)
+      {
+        activateSettingsBottomButton(f);
+      }
+      return;
+    }
+    if (k == KeyEvent.VK_ENTER)
+    {
+      if (f >= 4 && f <= 6)
+      {
+        activateSettingsBottomButton(f);
+      }
+      return;
+    }
+    if (k == KeyEvent.VK_W)
+    {
+      if (f == 0)
+      {
+        refreshPauseMenuFocusVisuals();
+        return;
+      }
+      if (f >= 4 && f <= 6)
+      {
+        if (f == 4)
+        {
+          pauseSettingsFocusIndex = 3;
+        }
+        else
+        {
+          pauseSettingsFocusIndex--;
+        }
+      }
+      else if (f >= 1 && f <= 3)
+      {
+        pauseSettingsFocusIndex--;
+      }
+      refreshPauseMenuFocusVisuals();
+      return;
+    }
+    if (k == KeyEvent.VK_S)
+    {
+      if (f >= 4 && f <= 6)
+      {
+        if (f < 6)
+        {
+          pauseSettingsFocusIndex++;
+        }
+      }
+      else if (f >= 0 && f <= 2)
+      {
+        pauseSettingsFocusIndex++;
+      }
+      else if (f == 3)
+      {
+        pauseSettingsFocusIndex = 4;
+      }
+      refreshPauseMenuFocusVisuals();
+      return;
+    }
+    if (f == 0 && (k == KeyEvent.VK_A || k == KeyEvent.VK_D))
+    {
+      pauseMusicVolumePercent =
+          clampVolume(
+              pauseMusicVolumePercent
+                  + (k == KeyEvent.VK_A ? -PAUSE_SLIDER_KEY_STEP : PAUSE_SLIDER_KEY_STEP));
+      updateMusicSliderThumbLayout();
+      refreshPauseMenuFocusVisuals();
+      return;
+    }
+    if (f == 1 && (k == KeyEvent.VK_A || k == KeyEvent.VK_D))
+    {
+      pauseSfxVolumePercent =
+          clampVolume(
+              pauseSfxVolumePercent
+                  + (k == KeyEvent.VK_A ? -PAUSE_SLIDER_KEY_STEP : PAUSE_SLIDER_KEY_STEP));
+      updateSfxSliderThumbLayout();
+      refreshPauseMenuFocusVisuals();
+      return;
+    }
+    if (f == 2 && (k == KeyEvent.VK_A || k == KeyEvent.VK_D))
+    {
+      int n = PAUSE_SETTINGS_RESOLUTION_STUBS.length;
+      if (k == KeyEvent.VK_A)
+      {
+        selectedResolutionIndex = (selectedResolutionIndex + n - 1) % n;
+      }
+      else
+      {
+        selectedResolutionIndex = (selectedResolutionIndex + 1) % n;
+      }
+      refreshResolutionButtonHighlights();
+      refreshPauseMenuFocusVisuals();
+      return;
+    }
+    if (f >= 4 && f <= 6 && (k == KeyEvent.VK_A || k == KeyEvent.VK_D))
+    {
+      if (k == KeyEvent.VK_A)
+      {
+        if (f > 4)
+        {
+          pauseSettingsFocusIndex = f - 1;
+        }
+      }
+      else if (f < 6)
+      {
+        pauseSettingsFocusIndex = f + 1;
+      }
+      refreshPauseMenuFocusVisuals();
+    }
+  }
+
+  // Clears every GObject we added; MainApplication also calls this when switching screens.
   @Override
   public void hideContent()
   {
@@ -935,7 +1713,6 @@ public class PauseModal extends GraphicsPane
     settingsTabLabel = null;
     pauseMenuInstructionsLabel = null;
     tabKeysHintLabel = null;
-    bodyPlaceholderLabel = null;
     pauseHeartSegments = null;
     pauseCoinsIcon = null;
     pauseCoinsLabel = null;
@@ -951,42 +1728,105 @@ public class PauseModal extends GraphicsPane
     pauseInventoryDescriptionOutline = null;
     pauseInventoryItemStubLabels = null;
     pauseInventoryDescriptionLines = null;
+    settingsTabWidgets = null;
+    settingsContentBg = null;
+    settingsDividerAudioDisplay = null;
+    musicVolumeTitleLabel = null;
+    sfxVolumeTitleLabel = null;
+    musicSliderTrack = null;
+    sfxSliderTrack = null;
+    musicSliderThumb = null;
+    sfxSliderThumb = null;
+    musicVolumePercentLabel = null;
+    sfxVolumePercentLabel = null;
+    pauseResolutionButtons = null;
+    pauseResolutionLabels = null;
+    pauseFullscreenCheckboxOuter = null;
+    pauseFullscreenCheckGlyph = null;
+    pauseFullscreenLabel = null;
+    settingsActionBarBg = null;
+    settingsReturnHit = null;
+    settingsMainMenuHit = null;
+    settingsQuitHit = null;
+    settingsReturnLabel = null;
+    settingsMainMenuLabel = null;
+    settingsQuitLabel = null;
+    confirmDialogObjects = null;
+    confirmPending = ConfirmKind.NONE;
+    confirmCancelHit = null;
+    confirmYesHit = null;
   }
 
-  /**
-   * ESC closes the pause overlay.
-   * J / K switch tabs when that would change the selection.
-   * Trying to open the same tab twice does nothing.
-   */
+  // Key order: confirm dialog first, then Esc, J/K tabs, then inventory vs settings handlers.
   @Override
   public void keyPressed(KeyEvent e)
   {
-    if (e.getKeyCode() == KeyEvent.VK_ESCAPE)
+    int k = e.getKeyCode();
+    if (confirmPending != ConfirmKind.NONE)
+    {
+      if (k == KeyEvent.VK_ESCAPE)
+      {
+        dismissConfirmDialog();
+        return;
+      }
+      if (k == KeyEvent.VK_A)
+      {
+        pauseConfirmFocus = 0;
+        refreshConfirmFocusVisuals();
+        return;
+      }
+      if (k == KeyEvent.VK_D)
+      {
+        pauseConfirmFocus = 1;
+        refreshConfirmFocusVisuals();
+        return;
+      }
+      if (k == KeyEvent.VK_ENTER || k == KeyEvent.VK_SPACE)
+      {
+        if (pauseConfirmFocus == 0)
+        {
+          dismissConfirmDialog();
+        }
+        else
+        {
+          runConfirmedAction();
+        }
+      }
+      return;
+    }
+    if (k == KeyEvent.VK_ESCAPE)
     {
       hideContent();
       return;
     }
-    if (e.getKeyCode() == KeyEvent.VK_J)
+    if (k == KeyEvent.VK_J)
     {
-        //pressing J when the Inventory tab is already active does nothing
       if (!settingsTabActive)
       {
         return;
       }
       settingsTabActive = false;
+      pauseInventoryFocusIndex = 0;
       refreshPauseFrameDecoration();
       return;
     }
-    if (e.getKeyCode() == KeyEvent.VK_K)
+    if (k == KeyEvent.VK_K)
     {
-      //pressing K when the Settings tab is already active does nothing
       if (settingsTabActive)
       {
         return;
       }
       settingsTabActive = true;
+      pauseSettingsFocusIndex = 0;
       refreshPauseFrameDecoration();
+      return;
     }
+    if (!settingsTabActive)
+    {
+      handleInventoryNavigationKey(k);
+      return;
+    }
+    handleSettingsNavigationKey(k);
   }
 
   /**

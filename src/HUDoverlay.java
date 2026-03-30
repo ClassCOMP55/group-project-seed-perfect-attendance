@@ -11,6 +11,10 @@ import acm.graphics.*;
 
 public class HUDoverlay 
 {
+  // In-game HUD: hearts, coins, relic slots, sword + ability buttons. 
+  // Caller passes HudSnapshot / updates;
+  // this class only draws — it does not own Player or combat math.
+
   //constants for the HUDoverlay
   private static final int DEFAULT_HEART_SEGMENTS = 6;
   private static final int UPGRADED_HEART_SEGMENTS = 12;
