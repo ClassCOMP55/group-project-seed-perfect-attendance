@@ -56,6 +56,7 @@ TABS / CONTENT
 - Two tabs: default = Inventory (items + relic display + player sprite facing Player direction),
   other = Settings (volume, window presets + fullscreen, return to game, main menu, quit).
 - Inventory: static description area for the focused item; "use" only for consumables; relics read-only.
+- Item list from Player later: stackables (e.g. Healing Bread) show as {@code Name x N}; non-stackables have no {@code x N}.
 - Active tab indicator (mockup): combine (1) light rectangle fill behind the active tab label and
   (2) a thicker bottom border on the active tab so it visually connects to the panel body.
 
@@ -76,9 +77,9 @@ BUILD ORDER (pivot doc)
 
 /**
  * Full-screen dim pause overlay. inventory + settings tabs (see plan block above).
- * Intent: dim everything, bring up main panel with two tab headers 
+ * Intent: dim everything, bring up main panel with two tab headers (tight width: label + horizontal pad).
  * (Inventory active, Settings inactive by default)
- * Inventory tab: stats block in rounded outlines (hint, hearts, coins+save column), then stub body.
+ * Inventory tab: stats outlines, portrait/relics column, item list + description outlines (right column).
  * Tight stat-cell sizing: {@link #measureTightInventoryOutline} + {@link #addTightInventoryStatOutline}.
  * Legacy three-button pause UI removed. Keyboard: <b>J</b> / <b>K</b> tabs; mouse later.
  */
@@ -86,18 +87,21 @@ public class PauseModal extends GraphicsPane
 {
     //CONSTANTS
 
-    //Layout measurement 
-    //(pixels from current window size; pivot targets fixed 16:9 presets, no more scaleX/scaleY at this time) 
+  //Layout measurement 
+  //(pixels from current window size; pivot targets fixed 16:9 presets, no more scaleX/scaleY at this time) 
   private static final double PAUSE_PANEL_WIDTH_RATIO = 0.78;
   private static final double PAUSE_PANEL_HEIGHT_RATIO = 0.72;
   private static final double PAUSE_PANEL_TOP_MARGIN_RATIO = 0.08;
   private static final double TAB_BUTTON_HEIGHT = 36;
   private static final double TAB_PAD_X_INDENT = 10;
   private static final double TAB_GAP = 6;
+  //Horizontal padding inside each tab cell around the label (tabs are only as wide as text + this).
+  private static final double TAB_BUTTON_INNER_PAD_X = 14;
   //Pixels for the thick “active tab connects to body” accent under the "in use" tab.
   private static final double ACTIVE_TAB_BOTTOM_BAR = 4;
 
-  //Inventory stats block (matches {@link HUDoverlay} heart/coin visuals; positions are pause-panel-local).
+  //Inventory stats block (matches {@link HUDoverlay} heart/coin visuals 
+  // positions are pause-panel-local).
   private static final double PAUSE_STATS_BELOW_TABS = 12;
   private static final double PAUSE_STATS_ROW_GAP = 10;
   private static final double PAUSE_STATS_COL_GAP = 12;
@@ -107,7 +111,19 @@ public class PauseModal extends GraphicsPane
   private static final double PAUSE_STATS_OUTLINE_LOOSE = 8;
   //Extra pixels on the outer height beyond the pad pair — keeps single-line and heart rows from feeling cramped.
   private static final double PAUSE_STATS_OUTLINE_VERTICAL_EXTRA = 10;
+  //Vertical gap after stats strip and before lower inventory content (portrait row, item list, etc.).
   private static final double INVENTORY_SECTION_GAP = 8;
+  private static final double PAUSE_PORTRAIT_RELICS_GAP = 10;
+  //Portrait placeholder height from inner width; width = height × narrow factor (tall rectangle, not square).
+  private static final double PAUSE_PORTRAIT_CONTENT_HEIGHT_RATIO = 0.30;
+  private static final double PAUSE_PORTRAIT_WIDTH_OF_HEIGHT = 0.62;
+  //Relic placeholders: small squares ~HUD heart scale; gap between squares (not full-width stretch).
+  private static final double PAUSE_RELIC_SLOT_SIZE = 12;
+  private static final double PAUSE_RELIC_SLOT_GAP = 6;
+  private static final double PAUSE_INVENTORY_LIST_TO_DESC_GAP = 10;
+  //Split of inner height (after both outlines’ vertical shells) between list vs description.
+  private static final double PAUSE_INVENTORY_LIST_INNER_HEIGHT_SHARE = 0.52;
+  private static final double PAUSE_INVENTORY_STUB_LINE_STEP = 18;
   private static final int PAUSE_HUD_HEART_SEGMENT_COUNT = 6;
   private static final double PAUSE_HUD_HEART_SEG_W = 10;
   private static final double PAUSE_HUD_HEART_SEG_H = 12;
@@ -136,15 +152,15 @@ public class PauseModal extends GraphicsPane
   private GRect inventoryTabBg;
   //Background for the Settings tab (inactive on open).
   private GRect settingsTabBg;
-  //Thick line under whichever tab is active (J/K moves it).
-  private GRect activeTabBottomAccent;
+  //Thick bar under each tab (only the active tab’s bar is visible — widths match tight tab cells).
+  private GRect inventoryTabBottomAccent;
+  private GRect settingsTabBottomAccent;
   private GLabel inventoryTabLabel;
   private GLabel settingsTabLabel;
+  /** Tab row band, flush to panel inner right: WASD / Space / Esc hints (both tabs; no outline). */
+  private GLabel pauseMenuInstructionsLabel;
   private GLabel tabKeysHintLabel;
-  /**
-   * Lower inventory stub (item grid / description / player / relics) or settings-tab stub; position
-   * depends on active tab.
-   */
+  /** Settings tab body stub only (hidden on Inventory tab). */
   private GLabel bodyPlaceholderLabel;
 
   //Inventory tab: HUD-style hearts + coins + last saved (stubs until Player / SaveManager feed data)
@@ -157,12 +173,24 @@ public class PauseModal extends GraphicsPane
   private GRoundRect pauseStatsHeartsBox;
   private GRoundRect pauseStatsCoinsSaveBox;
 
+  //Inventory middle column: portrait placeholder + one relic strip (until Player / art assets).
+  private GRoundRect pausePortraitOutline;
+  private GRect pausePlayerPlaceholder;
+  private GRoundRect pauseRelicsOutline;
+  private GRect[] pauseRelicPlaceholders;
+
+  //Inventory right column: item list + description (same rounded-outline style as stats cells).
+  private GRoundRect pauseInventoryListOutline;
+  private GRoundRect pauseInventoryDescriptionOutline;
+  private GLabel[] pauseInventoryItemStubLabels;
+  private GLabel pauseInventoryDescriptionLabel;
+
   /** Left X of the padded column inside the main panel (used when switching tab stub position). */
   private double inventoryContentLeftX;
+  /** Right column left edge (item list + description); portrait column ends before this. */
+  private double inventoryItemStubLeftX;
   /** Baseline for {@link #bodyPlaceholderLabel} on Settings tab (upper area). */
   private double inventorySettingsBodyBaselineY;
-  /** Baseline Y for {@link #bodyPlaceholderLabel} while Inventory tab is active. */
-  private double inventoryLowerStubY;
 
   public PauseModal(MainApplication mainScreen)
   {
@@ -205,37 +233,60 @@ public class PauseModal extends GraphicsPane
     addBoth(panel);
 
     double tabY = py + 8;
-    double tabInnerW = (panelW - 2 * TAB_PAD_X_INDENT - TAB_GAP) / 2.0;
+    double tabRowLeft = px + TAB_PAD_X_INDENT;
 
-    inventoryTabBg = new GRect(px + TAB_PAD_X_INDENT, tabY, tabInnerW, TAB_BUTTON_HEIGHT);
+    inventoryTabLabel = new GLabel("Inventory", 0, 0);
+    inventoryTabLabel.setFont("SansSerif-BOLD-16");
+    inventoryTabLabel.setColor(Color.BLACK);
+    settingsTabLabel = new GLabel("Settings", 0, 0);
+    settingsTabLabel.setFont("SansSerif-BOLD-16");
+    settingsTabLabel.setColor(Color.BLACK);
+
+    double inventoryTabW = inventoryTabLabel.getWidth() + 2 * TAB_BUTTON_INNER_PAD_X;
+    double settingsTabW = settingsTabLabel.getWidth() + 2 * TAB_BUTTON_INNER_PAD_X;
+
+    inventoryTabBg = new GRect(tabRowLeft, tabY, inventoryTabW, TAB_BUTTON_HEIGHT);
     inventoryTabBg.setFilled(true);
     inventoryTabBg.setFillColor(Color.LIGHT_GRAY);
     inventoryTabBg.setColor(Color.BLACK);
     addBoth(inventoryTabBg);
 
-    settingsTabBg = new GRect(px + TAB_PAD_X_INDENT + tabInnerW + TAB_GAP, tabY, tabInnerW, TAB_BUTTON_HEIGHT);
+    double settingsTabLeft = tabRowLeft + inventoryTabW + TAB_GAP;
+    settingsTabBg = new GRect(settingsTabLeft, tabY, settingsTabW, TAB_BUTTON_HEIGHT);
     settingsTabBg.setFilled(true);
     settingsTabBg.setFillColor(Color.GRAY);
     settingsTabBg.setColor(Color.BLACK);
     addBoth(settingsTabBg);
 
-    activeTabBottomAccent =
-        new GRect(px + TAB_PAD_X_INDENT, tabY + TAB_BUTTON_HEIGHT, tabInnerW, ACTIVE_TAB_BOTTOM_BAR);
-    activeTabBottomAccent.setFilled(true);
-    activeTabBottomAccent.setFillColor(Color.BLACK);
-    addBoth(activeTabBottomAccent);
+    double accentY = tabY + TAB_BUTTON_HEIGHT;
+    inventoryTabBottomAccent =
+        new GRect(tabRowLeft, accentY, inventoryTabW, ACTIVE_TAB_BOTTOM_BAR);
+    inventoryTabBottomAccent.setFilled(true);
+    inventoryTabBottomAccent.setFillColor(Color.BLACK);
+    addBoth(inventoryTabBottomAccent);
 
-    inventoryTabLabel = new GLabel("Inventory", 0, 0);
-    inventoryTabLabel.setFont("SansSerif-BOLD-16");
-    inventoryTabLabel.setColor(Color.BLACK);
+    settingsTabBottomAccent =
+        new GRect(settingsTabLeft, accentY, settingsTabW, ACTIVE_TAB_BOTTOM_BAR);
+    settingsTabBottomAccent.setFilled(true);
+    settingsTabBottomAccent.setFillColor(Color.BLACK);
+    addBoth(settingsTabBottomAccent);
+
     centerLabelInRect(inventoryTabLabel, inventoryTabBg);
     addBoth(inventoryTabLabel);
 
-    settingsTabLabel = new GLabel("Settings", 0, 0);
-    settingsTabLabel.setFont("SansSerif-BOLD-16");
-    settingsTabLabel.setColor(Color.BLACK);
     centerLabelInRect(settingsTabLabel, settingsTabBg);
     addBoth(settingsTabLabel);
+
+    pauseMenuInstructionsLabel =
+        new GLabel("WASD = move selection  Space = use  Esc = close", 0, 0);
+    pauseMenuInstructionsLabel.setFont("SansSerif-BOLD-12");
+    pauseMenuInstructionsLabel.setColor(Color.WHITE);
+    double panelInnerRightX = px + panelW - TAB_PAD_X_INDENT;
+    double menuHintsLeft = panelInnerRightX - pauseMenuInstructionsLabel.getWidth();
+    double menuHintsBaseline =
+        tabY + (TAB_BUTTON_HEIGHT + pauseMenuInstructionsLabel.getAscent()) / 2;
+    pauseMenuInstructionsLabel.setLocation(menuHintsLeft, menuHintsBaseline);
+    addBoth(pauseMenuInstructionsLabel);
 
     inventoryContentLeftX = px + TAB_PAD_X_INDENT;
     double innerW = panelW - 2 * TAB_PAD_X_INDENT;
@@ -326,15 +377,130 @@ public class PauseModal extends GraphicsPane
     inventoryLastSavedLabel.setLocation(lastSavedX, lastSavedBaseline);
     addBoth(inventoryLastSavedLabel);
 
+    double statsBlockBottom =
+        statsRow1Top + Math.max(statsBlockH, coinSaveOutlineSize.outerH);
+    double middleSectionTop = statsBlockBottom + INVENTORY_SECTION_GAP;
+
+    double portraitContentH = innerW * PAUSE_PORTRAIT_CONTENT_HEIGHT_RATIO;
+    double portraitContentW = portraitContentH * PAUSE_PORTRAIT_WIDTH_OF_HEIGHT;
+    TightOutlineDimensions portraitOutlineSize =
+        measureTightInventoryOutline(portraitContentW, portraitContentH);
+    RoundedDecoration portraitDecoration =
+        addTightInventoryStatOutline(
+            inventoryContentLeftX, middleSectionTop, portraitOutlineSize);
+    pausePortraitOutline = portraitDecoration.outline;
+    double phInset = 0.92;
+    double greenW = portraitDecoration.innerW * phInset;
+    double greenH = portraitDecoration.innerH * phInset;
+    double greenX = portraitDecoration.innerX + (portraitDecoration.innerW - greenW) / 2;
+    double greenY = portraitDecoration.innerY + (portraitDecoration.innerH - greenH) / 2;
+    pausePlayerPlaceholder = new GRect(greenX, greenY, greenW, greenH);
+    pausePlayerPlaceholder.setFilled(true);
+    pausePlayerPlaceholder.setFillColor(Color.GREEN);
+    pausePlayerPlaceholder.setColor(Color.BLACK);
+    addBoth(pausePlayerPlaceholder);
+
+    double relicClusterW =
+        3 * PAUSE_RELIC_SLOT_SIZE + 2 * PAUSE_RELIC_SLOT_GAP;
+    double relicClusterH = PAUSE_RELIC_SLOT_SIZE;
+    TightOutlineDimensions relicOutlineSize =
+        measureTightInventoryOutline(relicClusterW, relicClusterH);
+    double relicsTop =
+        middleSectionTop + portraitOutlineSize.outerH + PAUSE_PORTRAIT_RELICS_GAP;
+    double relicOutlineLeftX =
+        inventoryContentLeftX
+            + (portraitOutlineSize.outerW - relicOutlineSize.outerW) / 2;
+    RoundedDecoration relicDecoration =
+        addTightInventoryStatOutline(relicOutlineLeftX, relicsTop, relicOutlineSize);
+    pauseRelicsOutline = relicDecoration.outline;
+    double relTop =
+        relicDecoration.innerY
+            + (relicDecoration.innerH - PAUSE_RELIC_SLOT_SIZE) / 2;
+    double startX =
+        relicDecoration.innerX
+            + (relicDecoration.innerW - relicClusterW) / 2;
+    Color[] relicColors = {Color.MAGENTA, Color.ORANGE, Color.CYAN};
+    pauseRelicPlaceholders = new GRect[3];
+    for (int i = 0; i < 3; i++)
+    {
+      double sx = startX + i * (PAUSE_RELIC_SLOT_SIZE + PAUSE_RELIC_SLOT_GAP);
+      GRect slot = new GRect(sx, relTop, PAUSE_RELIC_SLOT_SIZE, PAUSE_RELIC_SLOT_SIZE);
+      slot.setFilled(true);
+      slot.setFillColor(relicColors[i]);
+      slot.setColor(Color.BLACK);
+      pauseRelicPlaceholders[i] = slot;
+      addBoth(slot);
+    }
+
+    inventoryItemStubLeftX =
+        inventoryContentLeftX + portraitOutlineSize.outerW + PAUSE_STATS_COL_GAP;
+    double rightColOuterW = innerRightX - inventoryItemStubLeftX;
+    double leftBlockBottom = relicsTop + relicOutlineSize.outerH;
+    double sharedMiddleH = leftBlockBottom - middleSectionTop;
+    double shellExtra = 2 * PAUSE_ROUND_BOX_PAD + PAUSE_STATS_OUTLINE_VERTICAL_EXTRA;
+    double innerBudget =
+        sharedMiddleH - PAUSE_INVENTORY_LIST_TO_DESC_GAP - 2 * shellExtra;
+    if (innerBudget < 64)
+    {
+      innerBudget = 64;
+    }
+    double listContentH = innerBudget * PAUSE_INVENTORY_LIST_INNER_HEIGHT_SHARE;
+    double descContentH = innerBudget * (1.0 - PAUSE_INVENTORY_LIST_INNER_HEIGHT_SHARE);
+    double listContentW =
+        Math.max(
+            40,
+            rightColOuterW - 2 * PAUSE_ROUND_BOX_PAD - PAUSE_STATS_OUTLINE_LOOSE);
+
+    TightOutlineDimensions inventoryListOutlineSize =
+        measureTightInventoryOutline(listContentW, listContentH);
+    RoundedDecoration inventoryListDecoration =
+        addTightInventoryStatOutline(
+            inventoryItemStubLeftX, middleSectionTop, inventoryListOutlineSize);
+    pauseInventoryListOutline = inventoryListDecoration.outline;
+
+    double descriptionTop =
+        middleSectionTop
+            + inventoryListOutlineSize.outerH
+            + PAUSE_INVENTORY_LIST_TO_DESC_GAP;
+    TightOutlineDimensions inventoryDescOutlineSize =
+        measureTightInventoryOutline(listContentW, descContentH);
+    RoundedDecoration inventoryDescDecoration =
+        addTightInventoryStatOutline(
+            inventoryItemStubLeftX, descriptionTop, inventoryDescOutlineSize);
+    pauseInventoryDescriptionOutline = inventoryDescDecoration.outline;
+
+    //Stub list — wire Player later; stackables use "· Name x N" (see plan block).
+    String[] stubItemLines =
+        new String[] {"• Healing Bread x 3", "• Broken Lever", "• Ore"};
+    pauseInventoryItemStubLabels = new GLabel[stubItemLines.length];
+    double itemLineBaseline = inventoryListDecoration.innerY + 14;
+    for (int i = 0; i < stubItemLines.length; i++)
+    {
+      GLabel row = new GLabel(stubItemLines[i], 0, 0);
+      row.setFont(i == 0 ? "SansSerif-BOLD-12" : "SansSerif-PLAIN-12");
+      row.setColor(Color.BLACK);
+      row.setLocation(inventoryListDecoration.innerX + 8, itemLineBaseline);
+      pauseInventoryItemStubLabels[i] = row;
+      addBoth(row);
+      itemLineBaseline += PAUSE_INVENTORY_STUB_LINE_STEP;
+    }
+
+    pauseInventoryDescriptionLabel =
+        new GLabel(
+            "Healing Bread: restores hearts when used. (Stub — selection will set this text. "
+                + "Stacks in the list use x N.)",
+            0,
+            0);
+    pauseInventoryDescriptionLabel.setFont("SansSerif-PLAIN-12");
+    pauseInventoryDescriptionLabel.setColor(Color.BLACK);
+    pauseInventoryDescriptionLabel.setLocation(
+        inventoryDescDecoration.innerX + 8, inventoryDescDecoration.innerY + 14);
+    addBoth(pauseInventoryDescriptionLabel);
+
     bodyPlaceholderLabel = new GLabel("", 0, 0);
     bodyPlaceholderLabel.setFont("SansSerif-PLAIN-14");
     bodyPlaceholderLabel.setColor(Color.WHITE);
-    double statsBlockBottom =
-        statsRow1Top + Math.max(statsBlockH, coinSaveOutlineSize.outerH);
     inventorySettingsBodyBaselineY = statsRow1Top + bodyPlaceholderLabel.getAscent();
-    inventoryLowerStubY =
-        statsBlockBottom + INVENTORY_SECTION_GAP + bodyPlaceholderLabel.getAscent();
-    bodyPlaceholderLabel.setLocation(inventoryContentLeftX, inventoryLowerStubY);
     addBoth(bodyPlaceholderLabel);
 
     refreshPauseFrameDecoration();
@@ -346,7 +512,10 @@ public class PauseModal extends GraphicsPane
    */
   private void refreshPauseFrameDecoration()
   {
-    if (inventoryTabBg == null || settingsTabBg == null || activeTabBottomAccent == null)
+    if (inventoryTabBg == null
+        || settingsTabBg == null
+        || inventoryTabBottomAccent == null
+        || settingsTabBottomAccent == null)
     {
       return;
     }
@@ -354,13 +523,15 @@ public class PauseModal extends GraphicsPane
     {
       inventoryTabBg.setFillColor(Color.LIGHT_GRAY);
       settingsTabBg.setFillColor(Color.GRAY);
-      activeTabBottomAccent.setLocation(inventoryTabBg.getX(), tabBottomAccentY(inventoryTabBg));
+      inventoryTabBottomAccent.setVisible(true);
+      settingsTabBottomAccent.setVisible(false);
     }
     else
     {
       inventoryTabBg.setFillColor(Color.GRAY);
       settingsTabBg.setFillColor(Color.LIGHT_GRAY);
-      activeTabBottomAccent.setLocation(settingsTabBg.getX(), tabBottomAccentY(settingsTabBg));
+      inventoryTabBottomAccent.setVisible(false);
+      settingsTabBottomAccent.setVisible(true);
     }
     boolean inventoryTab = !settingsTabActive;
     if (pauseHeartSegments != null)
@@ -401,14 +572,55 @@ public class PauseModal extends GraphicsPane
     {
       pauseStatsCoinsSaveBox.setVisible(inventoryTab);
     }
+    if (pausePortraitOutline != null)
+    {
+      pausePortraitOutline.setVisible(inventoryTab);
+    }
+    if (pausePlayerPlaceholder != null)
+    {
+      pausePlayerPlaceholder.setVisible(inventoryTab);
+    }
+    if (pauseRelicsOutline != null)
+    {
+      pauseRelicsOutline.setVisible(inventoryTab);
+    }
+    if (pauseRelicPlaceholders != null)
+    {
+      for (GRect r : pauseRelicPlaceholders)
+      {
+        if (r != null)
+        {
+          r.setVisible(inventoryTab);
+        }
+      }
+    }
+    if (pauseInventoryListOutline != null)
+    {
+      pauseInventoryListOutline.setVisible(inventoryTab);
+    }
+    if (pauseInventoryDescriptionOutline != null)
+    {
+      pauseInventoryDescriptionOutline.setVisible(inventoryTab);
+    }
+    if (pauseInventoryItemStubLabels != null)
+    {
+      for (GLabel row : pauseInventoryItemStubLabels)
+      {
+        if (row != null)
+        {
+          row.setVisible(inventoryTab);
+        }
+      }
+    }
+    if (pauseInventoryDescriptionLabel != null)
+    {
+      pauseInventoryDescriptionLabel.setVisible(inventoryTab);
+    }
     if (bodyPlaceholderLabel != null)
     {
       if (inventoryTab)
       {
-        bodyPlaceholderLabel.setLocation(inventoryContentLeftX, inventoryLowerStubY);
-        bodyPlaceholderLabel.setLabel(
-            "Below: item row, description, player portrait, relics — keyboard layout next.");
-        bodyPlaceholderLabel.setVisible(true);
+        bodyPlaceholderLabel.setVisible(false);
       }
       else
       {
@@ -418,11 +630,6 @@ public class PauseModal extends GraphicsPane
         bodyPlaceholderLabel.setVisible(true);
       }
     }
-  }
-
-  private double tabBottomAccentY(GRect tabBg)
-  {
-    return tabBg.getY() + TAB_BUTTON_HEIGHT;
   }
 
   /**
@@ -591,9 +798,11 @@ public class PauseModal extends GraphicsPane
     panel = null;
     inventoryTabBg = null;
     settingsTabBg = null;
-    activeTabBottomAccent = null;
+    inventoryTabBottomAccent = null;
+    settingsTabBottomAccent = null;
     inventoryTabLabel = null;
     settingsTabLabel = null;
+    pauseMenuInstructionsLabel = null;
     tabKeysHintLabel = null;
     bodyPlaceholderLabel = null;
     pauseHeartSegments = null;
@@ -603,6 +812,14 @@ public class PauseModal extends GraphicsPane
     pauseStatsHintBox = null;
     pauseStatsHeartsBox = null;
     pauseStatsCoinsSaveBox = null;
+    pausePortraitOutline = null;
+    pausePlayerPlaceholder = null;
+    pauseRelicsOutline = null;
+    pauseRelicPlaceholders = null;
+    pauseInventoryListOutline = null;
+    pauseInventoryDescriptionOutline = null;
+    pauseInventoryItemStubLabels = null;
+    pauseInventoryDescriptionLabel = null;
   }
 
   /**
