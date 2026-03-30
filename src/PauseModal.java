@@ -77,6 +77,7 @@ BUILD ORDER (pivot doc)
 
 /**
  * Full-screen dim pause overlay. inventory + settings tabs (see plan block above).
+ * Main panel size: {@link #PAUSE_PANEL_WIDTH_RATIO} / {@link #PAUSE_PANEL_HEIGHT_RATIO} of the window (tuned, not fixed aspect).
  * Intent: dim everything, bring up main panel with two tab headers (tight width: label + horizontal pad).
  * (Inventory active, Settings inactive by default)
  * Inventory tab: stats outlines, portrait/relics column, item list + description outlines (right column).
@@ -87,10 +88,24 @@ public class PauseModal extends GraphicsPane
 {
     //CONSTANTS
 
-  //Layout measurement 
-  //(pixels from current window size; pivot targets fixed 16:9 presets, no more scaleX/scaleY at this time) 
-  private static final double PAUSE_PANEL_WIDTH_RATIO = 0.78;
-  private static final double PAUSE_PANEL_HEIGHT_RATIO = 0.72;
+  //Layout measurement (window pixels; no scaleX/scaleY).
+  //Panel is a fraction of the game window — not a locked aspect ratio. 
+  // Kept wider than a strict 3:4 card so the inventory list/description stay readable.
+  // narrower than the old ~0.78 width to cut empty horizontal.
+
+  /*
+  =====================
+  Adjust these two values to change the size of the pause panel.
+  =====================
+  */
+  private static final double PAUSE_PANEL_WIDTH_RATIO = 0.66;
+  private static final double PAUSE_PANEL_HEIGHT_RATIO = 0.70;
+/*
+ =====================
+ End of adjustable values.
+ =====================
+ */
+
   private static final double PAUSE_PANEL_TOP_MARGIN_RATIO = 0.08;
   private static final double TAB_BUTTON_HEIGHT = 36;
   private static final double TAB_PAD_X_INDENT = 10;
@@ -100,8 +115,7 @@ public class PauseModal extends GraphicsPane
   //Pixels for the thick “active tab connects to body” accent under the "in use" tab.
   private static final double ACTIVE_TAB_BOTTOM_BAR = 4;
 
-  //Inventory stats block (matches {@link HUDoverlay} heart/coin visuals 
-  // positions are pause-panel-local).
+  //Inventory stats block (matches {@link HUDoverlay} heart/coin visuals; pause-panel-local).
   private static final double PAUSE_STATS_BELOW_TABS = 12;
   private static final double PAUSE_STATS_ROW_GAP = 10;
   private static final double PAUSE_STATS_COL_GAP = 12;
@@ -120,10 +134,13 @@ public class PauseModal extends GraphicsPane
   //Relic placeholders: small squares ~HUD heart scale; gap between squares (not full-width stretch).
   private static final double PAUSE_RELIC_SLOT_SIZE = 12;
   private static final double PAUSE_RELIC_SLOT_GAP = 6;
+  //Horizontal gap between item-list outline and description outline (same row).
   private static final double PAUSE_INVENTORY_LIST_TO_DESC_GAP = 10;
-  //Split of inner height (after both outlines’ vertical shells) between list vs description.
-  private static final double PAUSE_INVENTORY_LIST_INNER_HEIGHT_SHARE = 0.52;
+  //Share of usable inner width (minus both outlines’ horizontal shells) for the item list; rest is description.
+  private static final double PAUSE_INVENTORY_LIST_WIDTH_SHARE = 0.38;
   private static final double PAUSE_INVENTORY_STUB_LINE_STEP = 18;
+  private static final double PAUSE_INVENTORY_DESC_FONT_TOP_INSET = 8;
+  private static final double PAUSE_INVENTORY_DESC_LINE_GAP = 3;
   private static final int PAUSE_HUD_HEART_SEGMENT_COUNT = 6;
   private static final double PAUSE_HUD_HEART_SEG_W = 10;
   private static final double PAUSE_HUD_HEART_SEG_H = 12;
@@ -183,7 +200,8 @@ public class PauseModal extends GraphicsPane
   private GRoundRect pauseInventoryListOutline;
   private GRoundRect pauseInventoryDescriptionOutline;
   private GLabel[] pauseInventoryItemStubLabels;
-  private GLabel pauseInventoryDescriptionLabel;
+  /** Wrapped lines inside the description outline (ACM has no multiline label). */
+  private GLabel[] pauseInventoryDescriptionLines;
 
   /** Left X of the padded column inside the main panel (used when switching tab stub position). */
   private double inventoryContentLeftX;
@@ -437,36 +455,33 @@ public class PauseModal extends GraphicsPane
     double rightColOuterW = innerRightX - inventoryItemStubLeftX;
     double leftBlockBottom = relicsTop + relicOutlineSize.outerH;
     double sharedMiddleH = leftBlockBottom - middleSectionTop;
-    double shellExtra = 2 * PAUSE_ROUND_BOX_PAD + PAUSE_STATS_OUTLINE_VERTICAL_EXTRA;
-    double innerBudget =
-        sharedMiddleH - PAUSE_INVENTORY_LIST_TO_DESC_GAP - 2 * shellExtra;
-    if (innerBudget < 64)
+    double shellH = 2 * PAUSE_ROUND_BOX_PAD + PAUSE_STATS_OUTLINE_VERTICAL_EXTRA;
+    double rowContentH = Math.max(80, sharedMiddleH - shellH);
+    double shellW = 2 * PAUSE_ROUND_BOX_PAD + PAUSE_STATS_OUTLINE_LOOSE;
+    double innerRowW = rightColOuterW - PAUSE_INVENTORY_LIST_TO_DESC_GAP - 2 * shellW;
+    if (innerRowW < 80)
     {
-      innerBudget = 64;
+      innerRowW = 80;
     }
-    double listContentH = innerBudget * PAUSE_INVENTORY_LIST_INNER_HEIGHT_SHARE;
-    double descContentH = innerBudget * (1.0 - PAUSE_INVENTORY_LIST_INNER_HEIGHT_SHARE);
-    double listContentW =
-        Math.max(
-            40,
-            rightColOuterW - 2 * PAUSE_ROUND_BOX_PAD - PAUSE_STATS_OUTLINE_LOOSE);
+    double listContentW = Math.max(36, innerRowW * PAUSE_INVENTORY_LIST_WIDTH_SHARE);
+    double descContentW = Math.max(36, innerRowW - listContentW);
 
     TightOutlineDimensions inventoryListOutlineSize =
-        measureTightInventoryOutline(listContentW, listContentH);
+        measureTightInventoryOutline(listContentW, rowContentH);
     RoundedDecoration inventoryListDecoration =
         addTightInventoryStatOutline(
             inventoryItemStubLeftX, middleSectionTop, inventoryListOutlineSize);
     pauseInventoryListOutline = inventoryListDecoration.outline;
 
-    double descriptionTop =
-        middleSectionTop
-            + inventoryListOutlineSize.outerH
+    double descriptionLeftX =
+        inventoryItemStubLeftX
+            + inventoryListOutlineSize.outerW
             + PAUSE_INVENTORY_LIST_TO_DESC_GAP;
     TightOutlineDimensions inventoryDescOutlineSize =
-        measureTightInventoryOutline(listContentW, descContentH);
+        measureTightInventoryOutline(descContentW, rowContentH);
     RoundedDecoration inventoryDescDecoration =
         addTightInventoryStatOutline(
-            inventoryItemStubLeftX, descriptionTop, inventoryDescOutlineSize);
+            descriptionLeftX, middleSectionTop, inventoryDescOutlineSize);
     pauseInventoryDescriptionOutline = inventoryDescDecoration.outline;
 
     //Stub list — wire Player later; stackables use "· Name x N" (see plan block).
@@ -485,17 +500,21 @@ public class PauseModal extends GraphicsPane
       itemLineBaseline += PAUSE_INVENTORY_STUB_LINE_STEP;
     }
 
-    pauseInventoryDescriptionLabel =
-        new GLabel(
-            "Healing Bread: restores hearts when used. (Stub — selection will set this text. "
-                + "Stacks in the list use x N.)",
-            0,
-            0);
-    pauseInventoryDescriptionLabel.setFont("SansSerif-PLAIN-12");
-    pauseInventoryDescriptionLabel.setColor(Color.BLACK);
-    pauseInventoryDescriptionLabel.setLocation(
-        inventoryDescDecoration.innerX + 8, inventoryDescDecoration.innerY + 14);
-    addBoth(pauseInventoryDescriptionLabel);
+    String descFont = "SansSerif-PLAIN-12";
+    String stubDescription =
+        "Healing Bread: restores hearts when used from the inventory. "
+            + "This paragraph is intentionally long so you can see line wrapping inside the "
+            + "description panel. When you wire selection from Player, replace this string and "
+            + "call the same wrap helper. Stackable items in the list use x N.";
+    pauseInventoryDescriptionLines =
+        addWrappedDescriptionLines(
+            stubDescription,
+            descFont,
+            Color.BLACK,
+            inventoryDescDecoration.innerX,
+            inventoryDescDecoration.innerY,
+            inventoryDescDecoration.innerW,
+            inventoryDescDecoration.innerH);
 
     bodyPlaceholderLabel = new GLabel("", 0, 0);
     bodyPlaceholderLabel.setFont("SansSerif-PLAIN-14");
@@ -612,9 +631,15 @@ public class PauseModal extends GraphicsPane
         }
       }
     }
-    if (pauseInventoryDescriptionLabel != null)
+    if (pauseInventoryDescriptionLines != null)
     {
-      pauseInventoryDescriptionLabel.setVisible(inventoryTab);
+      for (GLabel ln : pauseInventoryDescriptionLines)
+      {
+        if (ln != null)
+        {
+          ln.setVisible(inventoryTab);
+        }
+      }
     }
     if (bodyPlaceholderLabel != null)
     {
@@ -684,6 +709,112 @@ public class PauseModal extends GraphicsPane
     double lx = innerX + (innerW - g.getWidth()) / 2;
     double ly = innerY + (innerH + g.getAscent()) / 2;
     g.setLocation(lx, ly);
+  }
+
+  /**
+   * Word-wraps {@code text} to {@code maxWidth} using {@code fontSpec} for measurement. Overlong
+   * single words are split so they can still fit (rare for item names; useful for long stubs).
+   */
+  private static java.util.List<String> wrapInventoryDescriptionText(
+      String text, String fontSpec, double maxWidth)
+  {
+    java.util.ArrayList<String> linesOut = new java.util.ArrayList<>();
+    if (text == null || text.trim().isEmpty())
+    {
+      return linesOut;
+    }
+    String[] words = text.trim().split("\\s+");
+    StringBuilder current = new StringBuilder();
+    for (String w : words)
+    {
+      String trial = current.length() == 0 ? w : current + " " + w;
+      GLabel measure = new GLabel(trial, 0, 0);
+      measure.setFont(fontSpec);
+      if (measure.getWidth() <= maxWidth)
+      {
+        current = new StringBuilder(trial);
+        continue;
+      }
+      if (current.length() > 0)
+      {
+        linesOut.add(current.toString());
+        current = new StringBuilder();
+      }
+      GLabel oneWord = new GLabel(w, 0, 0);
+      oneWord.setFont(fontSpec);
+      if (oneWord.getWidth() <= maxWidth)
+      {
+        current.append(w);
+      }
+      else
+      {
+        int i = 0;
+        while (i < w.length())
+        {
+          int j = i + 1;
+          while (j <= w.length())
+          {
+            GLabel chunkLab = new GLabel(w.substring(i, j), 0, 0);
+            chunkLab.setFont(fontSpec);
+            if (chunkLab.getWidth() > maxWidth && j > i + 1)
+            {
+              j--;
+              break;
+            }
+            j++;
+          }
+          if (j <= i)
+          {
+            j = i + 1;
+          }
+          linesOut.add(w.substring(i, j));
+          i = j;
+        }
+      }
+    }
+    if (current.length() > 0)
+    {
+      linesOut.add(current.toString());
+    }
+    return linesOut;
+  }
+
+  /**
+   * Adds wrapped {@link GLabel} lines inside the description outline; returns them for tab visibility.
+   */
+  private GLabel[] addWrappedDescriptionLines(
+      String text,
+      String fontSpec,
+      Color color,
+      double innerX,
+      double innerY,
+      double innerW,
+      double innerH)
+  {
+    double pad = PAUSE_INVENTORY_DESC_FONT_TOP_INSET;
+    double maxLineW = Math.max(8, innerW - 2 * pad);
+    java.util.List<String> lines = wrapInventoryDescriptionText(text, fontSpec, maxLineW);
+    GLabel probe = new GLabel("Mg", 0, 0);
+    probe.setFont(fontSpec);
+    double lineStep = probe.getAscent() + probe.getDescent() + PAUSE_INVENTORY_DESC_LINE_GAP;
+    double bottomLimit = innerY + innerH - pad;
+    java.util.ArrayList<GLabel> added = new java.util.ArrayList<>();
+    double baseline = innerY + pad + probe.getAscent();
+    for (String line : lines)
+    {
+      if (baseline > bottomLimit)
+      {
+        break;
+      }
+      GLabel gl = new GLabel(line, 0, 0);
+      gl.setFont(fontSpec);
+      gl.setColor(color);
+      gl.setLocation(innerX + pad, baseline);
+      addBoth(gl);
+      added.add(gl);
+      baseline += lineStep;
+    }
+    return added.toArray(new GLabel[0]);
   }
 
   /**
@@ -819,7 +950,7 @@ public class PauseModal extends GraphicsPane
     pauseInventoryListOutline = null;
     pauseInventoryDescriptionOutline = null;
     pauseInventoryItemStubLabels = null;
-    pauseInventoryDescriptionLabel = null;
+    pauseInventoryDescriptionLines = null;
   }
 
   /**
