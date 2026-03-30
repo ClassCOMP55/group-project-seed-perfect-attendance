@@ -29,7 +29,7 @@ public class Player extends Entity {
      * Do NOT call move() on a Player created this way.
      */
     public Player() {
-        super(0, 0, "assets/player.png", null, 3, PLAYER_SPEED);
+        super(0, 0, "assets/Visuals/Characters/Player 1 Idle Front.gif", null, 3, PLAYER_SPEED);
     }
 
     /**
@@ -40,7 +40,7 @@ public class Player extends Entity {
      * @param tileMap Tile map for collision checks
      */
     public Player(double x, double y, TileMap tileMap) {
-        super(x, y, "assets/player.png", tileMap, 3, PLAYER_SPEED);
+        super(x, y, "assets/Visuals/Characters/Player 1 Idle Front.gif", tileMap, 3, PLAYER_SPEED);
     }
 
     // ==========================================================
