@@ -112,11 +112,11 @@ public class RangedEnemy extends Enemy {
      * The cooldown and fire-rate logic is fully implemented so Task 11 can slot in
      * by replacing the stub println with a real Projectile constructor call.
      *
-     * Task 11 integration checklist:
-     *   - Replace println stub with:
-     *       projectiles.add(new Projectile(x, y, target.getX(), target.getY(), tileMap));
-     *   - Add a List<Projectile> reference (field set by Room at spawn time)
-     *   - Confirm Projectile carries direction info for SwordSwing reflect logic
+     * Task 11 integration (Projectile.java is now complete):
+     *   - Add a List<Projectile> projectiles field to RangedEnemy (set by Room at spawn time)
+     *   - Replace the System.out.println stub in tryAttack() with:
+     *       projectiles.add(new Projectile(x, y, target.getX(), target.getY(), tileMap, this));
+     *   - Projectile carries reflect logic; SwordSwing already wired to List<Projectile>
      *
      * @param target Entity to fire at (typically the Player)
      */

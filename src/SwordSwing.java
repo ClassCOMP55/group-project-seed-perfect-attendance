@@ -133,7 +133,7 @@ public class SwordSwing {
      * @param projectiles  Active projectiles stub — replace with List<Projectile> when ready
      * @param canReflect   True if the player has the Reflect relic equipped
      */
-    public void update(List<Enemy> enemies, List<Object> projectiles, boolean canReflect) {
+    public void update(List<Enemy> enemies, List<Projectile> projectiles, boolean canReflect) {
         currentAge++;
 
         // Hit detection: damage each enemy in range, but only once per swing
@@ -148,15 +148,15 @@ public class SwordSwing {
             }
         }
 
-        // Projectile reflection (stub — Projectile class does not exist yet)
-        // TODO [PROJECTILE]: replace List<Object> param with List<Projectile> and uncomment:
-        //   if (canReflect && projectiles != null) {
-        //       for (Projectile p : projectiles) {
-        //           if (hitbox.overlaps(p.getHitbox())) {
-        //               p.reflect();
-        //           }
-        //       }
-        //   }
+        // Projectile reflection: if the player has the Reflect relic,
+        // reverse any projectile whose hitbox overlaps this swing.
+        if (canReflect && projectiles != null) {
+            for (Projectile p : projectiles) {
+                if (p.isAlive() && hitbox.overlaps(p.getHitbox())) {
+                    p.reflect();
+                }
+            }
+        }
     }
 
     // ==========================================================
