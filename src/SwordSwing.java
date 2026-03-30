@@ -142,7 +142,7 @@ public class SwordSwing {
                 if (e.isAlive()
                         && hitbox.overlaps(e.getHitbox())
                         && !alreadyHit.contains(e)) {
-                    e.takeDamage(1);
+                    e.takeDamage(1, this.facing);
                     alreadyHit.add(e);
                 }
             }

@@ -251,6 +251,18 @@ public abstract class Entity {
     }
 
     /**
+     * Directional damage overload. Default ignores the hit direction and
+     * delegates to takeDamage(amount). Override in subclasses that need
+     * directional armor checks (e.g. ArmorEnemy blocks all frontal hits).
+     *
+     * @param amount  Damage to apply (positive integer)
+     * @param hitFrom Direction the hit arrived from (the attacker's facing direction)
+     */
+    public void takeDamage(int amount, Direction hitFrom) {
+        takeDamage(amount);
+    }
+
+    /**
      * Returns true while this entity has health remaining.
      * False means the entity is dead and should be removed from the room.
      *
