@@ -4,7 +4,7 @@ import java.awt.event.KeyEvent;
 import acm.graphics.*;
 
 /*
-(a lot fo this was set up by Charles/Gorge before the pivot on 03/27/26 )
+(a lot of this was set up by Charles/Gorge before the pivot on 03/27/26 )
 Roberto: PauseModal/Pause Menu
 Who RIGs it: TBD
 Does not own Player or combat
@@ -78,8 +78,9 @@ BUILD ORDER (pivot doc)
  * Full-screen dim pause overlay. inventory + settings tabs (see plan block above).
  * Intent: dim everything, bring up main panel with two tab headers 
  * (Inventory active, Settings inactive by default)
- * and a single body placeholder. Legacy three-button pause UI removed.
- * Keyboard: <b>J</b> = Inventory tab, <b>K</b> = Settings tab; mouse tab hits come later.
+ * Inventory tab: stats block in rounded outlines (hint, hearts, coins+save column), then stub body.
+ * Tight stat-cell sizing: {@link #measureTightInventoryOutline} + {@link #addTightInventoryStatOutline}.
+ * Legacy three-button pause UI removed. Keyboard: <b>J</b> / <b>K</b> tabs; mouse later.
  */
 public class PauseModal extends GraphicsPane
 {
@@ -95,6 +96,31 @@ public class PauseModal extends GraphicsPane
   private static final double TAB_GAP = 6;
   //Pixels for the thick “active tab connects to body” accent under the "in use" tab.
   private static final double ACTIVE_TAB_BOTTOM_BAR = 4;
+
+  //Inventory stats block (matches {@link HUDoverlay} heart/coin visuals; positions are pause-panel-local).
+  private static final double PAUSE_STATS_BELOW_TABS = 12;
+  private static final double PAUSE_STATS_ROW_GAP = 10;
+  private static final double PAUSE_STATS_COL_GAP = 12;
+  private static final double PAUSE_ROUND_BOX_PAD = 8;
+  private static final double PAUSE_COINS_SAVE_STACK_GAP = 8;
+  /** Extra pixels on the outer width beyond the {@link #PAUSE_ROUND_BOX_PAD} inset (horizontal breathing room). */
+  private static final double PAUSE_STATS_OUTLINE_LOOSE = 8;
+  //Extra pixels on the outer height beyond the pad pair — keeps single-line and heart rows from feeling cramped.
+  private static final double PAUSE_STATS_OUTLINE_VERTICAL_EXTRA = 10;
+  private static final double INVENTORY_SECTION_GAP = 8;
+  private static final int PAUSE_HUD_HEART_SEGMENT_COUNT = 6;
+  private static final double PAUSE_HUD_HEART_SEG_W = 10;
+  private static final double PAUSE_HUD_HEART_SEG_H = 12;
+  /** Width of the six HUD heart segments including pair gaps (matches {@link #addPauseHeartsLikeHud}). */
+  private static final double PAUSE_HEARTS_CLUSTER_WIDTH =
+      6 * PAUSE_HUD_HEART_SEG_W + 2 * (PAUSE_HUD_HEART_SEG_W * 2);
+  private static final double PAUSE_HUD_COINS_ICON = 10;
+  private static final double PAUSE_HUD_COINS_ICON_LABEL_GAP = 4;
+  private static final int PAUSE_HUD_COINS_DISPLAY_MAX = 999;
+  /** Until Player / wallet is wired into {@link #showPause()}. */
+  private static final int PAUSE_STUB_HEART_SEGMENTS_FILLED = 6;
+  /** Until Player / wallet is wired into {@link #showPause()}. */
+  private static final int PAUSE_STUB_COINS = 125;
 
   /**
    * {@code false} = Inventory tab selected; 
@@ -115,8 +141,28 @@ public class PauseModal extends GraphicsPane
   private GLabel inventoryTabLabel;
   private GLabel settingsTabLabel;
   private GLabel tabKeysHintLabel;
-  //Stub until inventory/settings bodies are built.
+  /**
+   * Lower inventory stub (item grid / description / player / relics) or settings-tab stub; position
+   * depends on active tab.
+   */
   private GLabel bodyPlaceholderLabel;
+
+  //Inventory tab: HUD-style hearts + coins + last saved (stubs until Player / SaveManager feed data)
+  private GRect[] pauseHeartSegments;
+  private GOval pauseCoinsIcon;
+  private GLabel pauseCoinsLabel;
+  private GLabel inventoryLastSavedLabel;
+
+  private GRoundRect pauseStatsHintBox;
+  private GRoundRect pauseStatsHeartsBox;
+  private GRoundRect pauseStatsCoinsSaveBox;
+
+  /** Left X of the padded column inside the main panel (used when switching tab stub position). */
+  private double inventoryContentLeftX;
+  /** Baseline for {@link #bodyPlaceholderLabel} on Settings tab (upper area). */
+  private double inventorySettingsBodyBaselineY;
+  /** Baseline Y for {@link #bodyPlaceholderLabel} while Inventory tab is active. */
+  private double inventoryLowerStubY;
 
   public PauseModal(MainApplication mainScreen)
   {
@@ -191,16 +237,104 @@ public class PauseModal extends GraphicsPane
     centerLabelInRect(settingsTabLabel, settingsTabBg);
     addBoth(settingsTabLabel);
 
-    tabKeysHintLabel = new GLabel("J = Inventory tab   K = Settings tab", 0, 0);
+    inventoryContentLeftX = px + TAB_PAD_X_INDENT;
+    double innerW = panelW - 2 * TAB_PAD_X_INDENT;
+
+    double statsRow1Top = tabY + TAB_BUTTON_HEIGHT + ACTIVE_TAB_BOTTOM_BAR + PAUSE_STATS_BELOW_TABS;
+
+    tabKeysHintLabel = new GLabel("J = inventory, K = settings", 0, 0);
     tabKeysHintLabel.setFont("SansSerif-PLAIN-12");
-    tabKeysHintLabel.setColor(Color.LIGHT_GRAY);
-    tabKeysHintLabel.setLocation(px + TAB_PAD_X_INDENT, tabY + TAB_BUTTON_HEIGHT + ACTIVE_TAB_BOTTOM_BAR + 18);
+    tabKeysHintLabel.setColor(Color.BLACK);
+
+    pauseCoinsLabel = new GLabel("", 0, 0);
+    pauseCoinsLabel.setFont("SansSerif-BOLD-14");
+    pauseCoinsLabel.setColor(Color.BLACK);
+    int displayCoins =
+        Math.max(0, Math.min(PAUSE_HUD_COINS_DISPLAY_MAX, PAUSE_STUB_COINS));
+    pauseCoinsLabel.setLabel(String.valueOf(displayCoins));
+
+    inventoryLastSavedLabel = new GLabel("Last Saved: --:--", 0, 0);
+    inventoryLastSavedLabel.setFont("SansSerif-BOLD-12");
+    inventoryLastSavedLabel.setColor(Color.BLACK);
+
+    //Tight inventory-stats outlines: same outer-size rules for hint, hearts, and coins/save (see helpers below).
+    TightOutlineDimensions hintOutlineSize =
+        measureTightInventoryOutline(tabKeysHintLabel.getWidth(), tabKeysHintLabel.getAscent());
+    TightOutlineDimensions heartsOutlineSize =
+        measureTightInventoryOutline(PAUSE_HEARTS_CLUSTER_WIDTH, PAUSE_HUD_HEART_SEG_H);
+
+    double coinUnitW =
+        PAUSE_HUD_COINS_ICON + PAUSE_HUD_COINS_ICON_LABEL_GAP + pauseCoinsLabel.getWidth();
+    double coinRowH = Math.max(PAUSE_HUD_COINS_ICON, pauseCoinsLabel.getAscent());
+    double coinSaveStackH =
+        coinRowH + PAUSE_COINS_SAVE_STACK_GAP + inventoryLastSavedLabel.getAscent();
+    TightOutlineDimensions coinSaveOutlineSize =
+        measureTightInventoryOutline(
+            Math.max(coinUnitW, inventoryLastSavedLabel.getWidth()), coinSaveStackH);
+
+    double row1BoxH = hintOutlineSize.outerH;
+    double row2BoxH = heartsOutlineSize.outerH;
+    double statsBlockH = row1BoxH + PAUSE_STATS_ROW_GAP + row2BoxH;
+    double leftStackMaxW = Math.max(hintOutlineSize.outerW, heartsOutlineSize.outerW);
+
+    double innerRightX = inventoryContentLeftX + innerW;
+    double minCoinSaveLeft = inventoryContentLeftX + leftStackMaxW + PAUSE_STATS_COL_GAP;
+    double coinSaveLeft =
+        Math.max(minCoinSaveLeft, innerRightX - coinSaveOutlineSize.outerW);
+
+    RoundedDecoration hintDecoration =
+        addTightInventoryStatOutline(inventoryContentLeftX, statsRow1Top, hintOutlineSize);
+    pauseStatsHintBox = hintDecoration.outline;
+    centerLabelInInnerBounds(
+        tabKeysHintLabel,
+        hintDecoration.innerX,
+        hintDecoration.innerY,
+        hintDecoration.innerW,
+        hintDecoration.innerH);
     addBoth(tabKeysHintLabel);
+
+    double statsRow2Top = statsRow1Top + row1BoxH + PAUSE_STATS_ROW_GAP;
+    RoundedDecoration heartsDecoration =
+        addTightInventoryStatOutline(inventoryContentLeftX, statsRow2Top, heartsOutlineSize);
+    pauseStatsHeartsBox = heartsDecoration.outline;
+    double heartsOriginX =
+        heartsDecoration.innerX + (heartsDecoration.innerW - PAUSE_HEARTS_CLUSTER_WIDTH) / 2;
+    double heartsOriginY =
+        heartsDecoration.innerY + (heartsDecoration.innerH - PAUSE_HUD_HEART_SEG_H) / 2;
+    addPauseHeartsLikeHud(heartsOriginX, heartsOriginY, PAUSE_STUB_HEART_SEGMENTS_FILLED);
+
+    RoundedDecoration coinSaveDecoration =
+        addTightInventoryStatOutline(coinSaveLeft, statsRow1Top, coinSaveOutlineSize);
+    pauseStatsCoinsSaveBox = coinSaveDecoration.outline;
+    double stackTop = coinSaveDecoration.innerY + (coinSaveDecoration.innerH - coinSaveStackH) / 2;
+    double coinLeft = coinSaveDecoration.innerX + (coinSaveDecoration.innerW - coinUnitW) / 2;
+    double coinIconTop = stackTop + (coinRowH - PAUSE_HUD_COINS_ICON) / 2;
+    pauseCoinsIcon = new GOval(coinLeft, coinIconTop, PAUSE_HUD_COINS_ICON, PAUSE_HUD_COINS_ICON);
+    pauseCoinsIcon.setColor(Color.BLACK);
+    pauseCoinsIcon.setFilled(true);
+    pauseCoinsIcon.setFillColor(Color.YELLOW);
+    double coinLabelBaseline = stackTop + coinRowH - 2;
+    pauseCoinsLabel.setLocation(
+        coinLeft + PAUSE_HUD_COINS_ICON + PAUSE_HUD_COINS_ICON_LABEL_GAP, coinLabelBaseline);
+    addBoth(pauseCoinsIcon);
+    addBoth(pauseCoinsLabel);
+    double lastSavedBaseline =
+        stackTop + coinRowH + PAUSE_COINS_SAVE_STACK_GAP + inventoryLastSavedLabel.getAscent();
+    double lastSavedX =
+        coinSaveDecoration.innerX
+            + (coinSaveDecoration.innerW - inventoryLastSavedLabel.getWidth()) / 2;
+    inventoryLastSavedLabel.setLocation(lastSavedX, lastSavedBaseline);
+    addBoth(inventoryLastSavedLabel);
 
     bodyPlaceholderLabel = new GLabel("", 0, 0);
     bodyPlaceholderLabel.setFont("SansSerif-PLAIN-14");
     bodyPlaceholderLabel.setColor(Color.WHITE);
-    bodyPlaceholderLabel.setLocation(px + TAB_PAD_X_INDENT, py + TAB_BUTTON_HEIGHT + ACTIVE_TAB_BOTTOM_BAR + 48);
+    double statsBlockBottom =
+        statsRow1Top + Math.max(statsBlockH, coinSaveOutlineSize.outerH);
+    inventorySettingsBodyBaselineY = statsRow1Top + bodyPlaceholderLabel.getAscent();
+    inventoryLowerStubY =
+        statsBlockBottom + INVENTORY_SECTION_GAP + bodyPlaceholderLabel.getAscent();
+    bodyPlaceholderLabel.setLocation(inventoryContentLeftX, inventoryLowerStubY);
     addBoth(bodyPlaceholderLabel);
 
     refreshPauseFrameDecoration();
@@ -228,17 +362,60 @@ public class PauseModal extends GraphicsPane
       settingsTabBg.setFillColor(Color.LIGHT_GRAY);
       activeTabBottomAccent.setLocation(settingsTabBg.getX(), tabBottomAccentY(settingsTabBg));
     }
+    boolean inventoryTab = !settingsTabActive;
+    if (pauseHeartSegments != null)
+    {
+      for (GRect h : pauseHeartSegments)
+      {
+        if (h != null)
+        {
+          h.setVisible(inventoryTab);
+        }
+      }
+    }
+    if (pauseCoinsIcon != null)
+    {
+      pauseCoinsIcon.setVisible(inventoryTab);
+    }
+    if (pauseCoinsLabel != null)
+    {
+      pauseCoinsLabel.setVisible(inventoryTab);
+    }
+    if (inventoryLastSavedLabel != null)
+    {
+      inventoryLastSavedLabel.setVisible(inventoryTab);
+    }
+    if (tabKeysHintLabel != null)
+    {
+      tabKeysHintLabel.setVisible(inventoryTab);
+    }
+    if (pauseStatsHintBox != null)
+    {
+      pauseStatsHintBox.setVisible(inventoryTab);
+    }
+    if (pauseStatsHeartsBox != null)
+    {
+      pauseStatsHeartsBox.setVisible(inventoryTab);
+    }
+    if (pauseStatsCoinsSaveBox != null)
+    {
+      pauseStatsCoinsSaveBox.setVisible(inventoryTab);
+    }
     if (bodyPlaceholderLabel != null)
     {
-      if (!settingsTabActive)
+      if (inventoryTab)
       {
+        bodyPlaceholderLabel.setLocation(inventoryContentLeftX, inventoryLowerStubY);
         bodyPlaceholderLabel.setLabel(
-            "Inventory tab — item row, description, player panel, hearts/relics (keyboard layout next).");
+            "Below: item row, description, player portrait, relics — keyboard layout next.");
+        bodyPlaceholderLabel.setVisible(true);
       }
       else
       {
+        bodyPlaceholderLabel.setLocation(inventoryContentLeftX, inventorySettingsBodyBaselineY);
         bodyPlaceholderLabel.setLabel(
             "Settings tab — volume, window presets, return / main menu / quit (keyboard layout next).");
+        bodyPlaceholderLabel.setVisible(true);
       }
     }
   }
@@ -246,6 +423,33 @@ public class PauseModal extends GraphicsPane
   private double tabBottomAccentY(GRect tabBg)
   {
     return tabBg.getY() + TAB_BUTTON_HEIGHT;
+  }
+
+  /**
+   * Same segment layout/colors as {@link HUDoverlay#showHearts}; origins are pause-panel coordinates.
+   */
+  private void addPauseHeartsLikeHud(double originX, double originY, int filledSegments)
+  {
+    int filled = Math.max(0, Math.min(PAUSE_HUD_HEART_SEGMENT_COUNT, filledSegments));
+    pauseHeartSegments = new GRect[PAUSE_HUD_HEART_SEGMENT_COUNT];
+    double gapBetweenHearts = PAUSE_HUD_HEART_SEG_W * 2;
+    double x = originX;
+    for (int i = 0; i < PAUSE_HUD_HEART_SEGMENT_COUNT; i++)
+    {
+      double segX = x;
+      double segY = originY;
+      GRect heartsegment = new GRect(segX, segY, PAUSE_HUD_HEART_SEG_W, PAUSE_HUD_HEART_SEG_H);
+      heartsegment.setColor(Color.BLACK);
+      heartsegment.setFilled(true);
+      heartsegment.setFillColor(i < filled ? Color.RED : Color.LIGHT_GRAY);
+      pauseHeartSegments[i] = heartsegment;
+      addBoth(heartsegment);
+      x += PAUSE_HUD_HEART_SEG_W;
+      if (i % 2 == 1 && i < PAUSE_HUD_HEART_SEGMENT_COUNT - 1)
+      {
+        x += gapBetweenHearts;
+      }
+    }
   }
 
   /** Rebuild at the new window size while keeping the pause menu open. */
@@ -264,6 +468,88 @@ public class PauseModal extends GraphicsPane
     double lx = r.getX() + (r.getWidth() - g.getWidth()) / 2;
     double ly = r.getY() + (r.getHeight() + g.getAscent()) / 2;
     g.setLocation(lx, ly);
+  }
+
+  /** Centers a {@link GLabel} inside an inner rectangle (padded area inside a rounded outline). */
+  private void centerLabelInInnerBounds(
+      GLabel g, double innerX, double innerY, double innerW, double innerH)
+  {
+    double lx = innerX + (innerW - g.getWidth()) / 2;
+    double ly = innerY + (innerH + g.getAscent()) / 2;
+    g.setLocation(lx, ly);
+  }
+
+  /**
+   * Outer width/height for one inventory-tab stats cell after {@link #measureTightInventoryOutline}.
+   * (Inner placement uses {@link RoundedDecoration} from {@link #addPauseRoundedDecoration}.)
+   */
+  private static final class TightOutlineDimensions
+  {
+    final double outerW;
+    final double outerH;
+
+    private TightOutlineDimensions(double outerW, double outerH)
+    {
+      this.outerW = outerW;
+      this.outerH = outerH;
+    }
+  }
+
+  /**
+   * Content size in → outline size out. Used for J/K hint, heart cluster, and coins/save stack so all
+   * three cells share one sizing rule ({@link #PAUSE_ROUND_BOX_PAD}, {@link #PAUSE_STATS_OUTLINE_LOOSE},
+   * {@link #PAUSE_STATS_OUTLINE_VERTICAL_EXTRA}).
+   */
+  private static TightOutlineDimensions measureTightInventoryOutline(double contentW, double contentH)
+  {
+    return new TightOutlineDimensions(
+        contentW + 2 * PAUSE_ROUND_BOX_PAD + PAUSE_STATS_OUTLINE_LOOSE,
+        contentH + 2 * PAUSE_ROUND_BOX_PAD + PAUSE_STATS_OUTLINE_VERTICAL_EXTRA);
+  }
+
+  /**
+   * Places one tight inventory-stats rounded box. Call before adding labels/sprites that sit inside
+   * the returned {@link RoundedDecoration} inner bounds.
+   */
+  private RoundedDecoration addTightInventoryStatOutline(
+      double outerLeft, double outerTop, TightOutlineDimensions dim)
+  {
+    return addPauseRoundedDecoration(outerLeft, outerTop, dim.outerW, dim.outerH);
+  }
+
+  /**
+   * Low-level rounded outline for the pause panel. Prefer {@link #addTightInventoryStatOutline} for
+   * inventory stats rows; keep this for any future outline that does not use the tight-stat size rule.
+   */
+  private RoundedDecoration addPauseRoundedDecoration(double x, double y, double w, double h)
+  {
+    double corner = Math.min(14, Math.min(w, h) * 0.2);
+    GRoundRect outline = new GRoundRect(x, y, w, h, corner, corner);
+    outline.setFilled(true);
+    outline.setFillColor(Color.LIGHT_GRAY);
+    outline.setColor(Color.BLACK);
+    addBoth(outline);
+    double p = PAUSE_ROUND_BOX_PAD;
+    return new RoundedDecoration(outline, x + p, y + p, w - 2 * p, h - 2 * p);
+  }
+
+  /** Rounded outline plus inner bounds after {@value #PAUSE_ROUND_BOX_PAD} inset (for centering content). */
+  private static final class RoundedDecoration
+  {
+    private final GRoundRect outline;
+    private final double innerX;
+    private final double innerY;
+    private final double innerW;
+    private final double innerH;
+
+    private RoundedDecoration(GRoundRect outline, double ix, double iy, double iw, double ih)
+    {
+      this.outline = outline;
+      this.innerX = ix;
+      this.innerY = iy;
+      this.innerW = iw;
+      this.innerH = ih;
+    }
   }
 
   private void addBoth(GObject g)
@@ -310,6 +596,13 @@ public class PauseModal extends GraphicsPane
     settingsTabLabel = null;
     tabKeysHintLabel = null;
     bodyPlaceholderLabel = null;
+    pauseHeartSegments = null;
+    pauseCoinsIcon = null;
+    pauseCoinsLabel = null;
+    inventoryLastSavedLabel = null;
+    pauseStatsHintBox = null;
+    pauseStatsHeartsBox = null;
+    pauseStatsCoinsSaveBox = null;
   }
 
   /**
