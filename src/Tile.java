@@ -1,6 +1,6 @@
 import acm.graphics.*;
 public class Tile {
-    public enum TileType { FLOOR, WALL, HOLE }
+    public enum TileType { FLOOR, WALL, HOLE, BRIDGE }
 
 
     private TileType type;
@@ -27,13 +27,23 @@ public class Tile {
     }
 
 
+    /** FLOOR and BRIDGE are both walkable. WALL and HOLE block movement. */
     public boolean isPassable() {
-        return type == TileType.FLOOR;
+        return type == TileType.FLOOR || type == TileType.BRIDGE;
     }
 
 
     public boolean isHole() {
         return type == TileType.HOLE;
+    }
+
+    public boolean isBridge() {
+        return type == TileType.BRIDGE;
+    }
+
+    /** Returns the raw tile type — used by drawbridge / room logic. */
+    public TileType getType() {
+        return type;
     }
 
 
