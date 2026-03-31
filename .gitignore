@@ -14,3 +14,6 @@ out/
 
 #Cursor
 .cursor/rules/
+
+# macOS
+.DS_Store
