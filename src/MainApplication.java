@@ -27,6 +27,8 @@ public class MainApplication extends GraphicsProgram{
 	 * {@link PauseModal}. See plan comments in {@link PauseModal}.
 	 */
 	private PauseModal pauseModal;
+	private GameLoop gameLoop;
+	private InputHandler inputHandler;
 
 	//List of all the full screen panes
 	private TitleCardPane titleCardPane;
@@ -35,7 +37,7 @@ public class MainApplication extends GraphicsProgram{
 	private SettingsPane settingsPane;
 	private CharacterCreationPane characterCreationPane;
 	private SkyTransitionPane skyTransitionPane;
-	private Scene1Pane scene1Pane;
+	private GraphicsPane scene1Pane;
 	private Scene1To2TransitionPane scene1To2TransitionPane;
 	private Scene2Pane scene2Pane;
 	private TransitionLoading1Pane transitionLoading1Pane;
@@ -48,6 +50,7 @@ public class MainApplication extends GraphicsProgram{
 	private Scene6Pane scene6Pane;
 	private EndingPane endingPane;
 	private GameSavesPane gameSavesPane;
+	private MarketCharacterDebug marketDebugPane;
 	private GraphicsPane currentScreen;
 	private int lastKnownWidth;
 	private int lastKnownHeight;
@@ -68,6 +71,9 @@ public class MainApplication extends GraphicsProgram{
 		requestFocus();
 		addKeyListeners();
 		addMouseListeners();
+		if (inputHandler != null) {
+			getGCanvas().addKeyListener(inputHandler);
+		}
 		getGCanvas().addMouseWheelListener(e -> {
 			if (cardPlayModal != null && !cardPlayModal.contents.isEmpty()) {
 				return;
@@ -87,6 +93,7 @@ public class MainApplication extends GraphicsProgram{
 
 	public void run() {
 		System.out.println("Lets' Begin!");
+		inputHandler = new InputHandler();
 		setupInteractions();
 		try {
 			SettingsIO.loadOrCreate();
@@ -102,6 +109,7 @@ public class MainApplication extends GraphicsProgram{
 		gameState = new GameState();
 		cardPlayModal = new CardPlayModal(this);
 		pauseModal = new PauseModal(this);
+		gameLoop = new GameLoop(getGCanvas());
 
 		//Initialize all Panes
 		titleCardPane = new TitleCardPane(this);
@@ -111,7 +119,7 @@ public class MainApplication extends GraphicsProgram{
 
 		characterCreationPane = new CharacterCreationPane(this);
 		skyTransitionPane = new SkyTransitionPane(this);
-		scene1Pane = new Scene1Pane(this);
+		scene1Pane = new P1GameplayPane(this);
 		scene1To2TransitionPane = new Scene1To2TransitionPane(this);
 		scene2Pane = new Scene2Pane(this);
 		transitionLoading1Pane = new TransitionLoading1Pane(this);
@@ -124,12 +132,18 @@ public class MainApplication extends GraphicsProgram{
 		scene6Pane = new Scene6Pane(this);
 		endingPane = new EndingPane(this);
 		gameSavesPane = new GameSavesPane(this);
+		marketDebugPane = new MarketCharacterDebug(this);
 
 		// Landing splash → then main menu (Start / Options / Quit)
 		switchToScreen(landingPane);
 		lastKnownWidth = (int) getWidth();
 		lastKnownHeight = (int) getHeight();
 		installResizeHandler();
+		gameLoop.setUpdatable(dt -> {
+			if (currentScreen != null) {
+				currentScreen.onTick(dt);
+			}
+		});
 	}
 
 	/** Width used for scaling layout (may animate during resize). */
@@ -257,6 +271,16 @@ public class MainApplication extends GraphicsProgram{
 		currentScreen = newScreen;
 		updateMenuMusicForScreen(newScreen);
 		autosaveIfSlotActive();
+
+		if (newScreen.needsGameLoop()) {
+			if (gameLoop != null && !gameLoop.isRunning()) {
+				gameLoop.start();
+			}
+		} else {
+			if (gameLoop != null && gameLoop.isRunning()) {
+				gameLoop.stop();
+			}
+		}
 	}
 
 	/** Writes JSON when a save slot is in use (no manual save button). */
@@ -362,6 +386,19 @@ public class MainApplication extends GraphicsProgram{
 
 	public GameState getGameState() {
 		return gameState;
+	}
+
+	public InputHandler getInputHandler() {
+		return inputHandler;
+	}
+
+	public boolean isPauseModalOpen() {
+		return pauseModal != null && !pauseModal.contents.isEmpty();
+	}
+
+	/** Debug: opens the walkable market character test scene. */
+	public void switchToMarketDebug() {
+		switchToScreen(marketDebugPane);
 	}
 
 	/** Writes the active slot (defaults to 1 if unset). */
@@ -649,6 +686,11 @@ public class MainApplication extends GraphicsProgram{
 		if (pauseModal != null && !pauseModal.contents.isEmpty()) 
 		{
 			pauseModal.keyPressed(e);
+			return;
+		}
+		// F1 anywhere: open market-character-debug scene
+		if (e.getKeyCode() == KeyEvent.VK_F1) {
+			switchToMarketDebug();
 			return;
 		}
 		// Pressing ESC opens/shows the pause menu when not on a denied (menu/splash) screen.

@@ -5,6 +5,7 @@ import java.awt.event.MouseWheelEvent;
 import java.util.ArrayList;
 import java.util.List;
 
+import acm.graphics.GImage;
 import acm.graphics.GLabel;
 import acm.graphics.GObject;
 import acm.graphics.GOval;
@@ -64,6 +65,21 @@ public class GraphicsPane {
 	}
 
 	public void keyTyped(KeyEvent e) {
+	}
+
+	/**
+	 * Per-tick callback for panes that need continuous updates (movement, AI, cutscenes).
+	 * Default no-op keeps menu panes event-driven.
+	 */
+	public void onTick(double dt) {
+	}
+
+	/**
+	 * Returns true if this pane needs the 60fps game loop running (player movement, AI, etc.).
+	 * Menu/narrative panes return false so the loop doesn't interfere with event-driven rendering.
+	 */
+	public boolean needsGameLoop() {
+		return false;
 	}
 
 	/** Horizontal offset so the layout canvas stays centered in the real window while animating. */
@@ -252,6 +268,8 @@ public class GraphicsPane {
 	private GRect hudPanel;
 	/** Circle avatar placeholder. */
 	private GOval hudIcon;
+	/** Player portrait sprite shown inside the HUD frame. */
+	private GImage hudPortrait;
 	/** First-initial label centred in the avatar circle. */
 	private GLabel hudIconLabel;
 	/** Player name label. */
@@ -279,6 +297,10 @@ public class GraphicsPane {
 	private static final Color HUD_NAME_COLOR   = new Color(220, 220, 235);
 	private static final Color HUD_HEART_FULL   = new Color(220, 50, 50);
 	private static final Color HUD_HEART_EMPTY  = new Color(60, 60, 80);
+	private static final String HUD_PORTRAIT_PATH =
+		"assets/visuals/characters/normalized/player-1-idle-front.gif";
+	private static final double HUD_PORTRAIT_ANCHOR_X = 0.507812;
+	private static final double HUD_PORTRAIT_ANCHOR_Y = 0.543981;
 
 	/**
 	 * Draws the player HUD in the top-left corner.
@@ -300,14 +322,7 @@ public class GraphicsPane {
 		contents.add(hudPanel);
 		mainScreen.add(hudPanel);
 
-		// TODO Angel / Roberto [GRAPHICS]: Replace this placeholder circle + initial label with the player's
-		// actual character portrait/icon. The icon should be a circular-cropped sprite that
-		// matches the character the player is playing as. Remove hudIcon, hudIconLabel, and
-		// the sendToFront calls for both once the real asset is in place.
-		// Bounding box (pixel coords): scaleX(HUD_ICON_X), scaleY(HUD_ICON_Y),
-		//   width = scaleX(HUD_ICON_X + HUD_ICON_D) - scaleX(HUD_ICON_X)
-		//   height = scaleY(HUD_ICON_Y + HUD_ICON_D) - scaleY(HUD_ICON_Y)
-		// Circle avatar icon
+		// Portrait frame
 		hudIcon = new GOval(
 			scaleX(HUD_ICON_X), scaleY(HUD_ICON_Y),
 			scaleX(HUD_ICON_X + HUD_ICON_D) - scaleX(HUD_ICON_X),
@@ -318,17 +333,22 @@ public class GraphicsPane {
 		contents.add(hudIcon);
 		mainScreen.add(hudIcon);
 
-		// First-initial label centred in the avatar circle
-		String initials = player.getName().isEmpty() ? "?" :
-			String.valueOf(player.getName().charAt(0)).toUpperCase();
-		hudIconLabel = pixelLabel(initials, 16, HUD_NAME_COLOR);
-		double iconCx = scaleX(HUD_ICON_X) + (scaleX(HUD_ICON_X + HUD_ICON_D) - scaleX(HUD_ICON_X)
-			- hudIconLabel.getWidth()) / 2.0;
-		double iconCy = scaleY(HUD_ICON_Y) + (scaleY(HUD_ICON_Y + HUD_ICON_D) - scaleY(HUD_ICON_Y)
-			+ hudIconLabel.getAscent()) / 2.0 - hudIconLabel.getDescent() / 2.0;
-		hudIconLabel.setLocation(iconCx, iconCy);
-		contents.add(hudIconLabel);
-		mainScreen.add(hudIconLabel);
+		hudPortrait = createHudPortrait();
+		if (hudPortrait != null) {
+			contents.add(hudPortrait);
+			mainScreen.add(hudPortrait);
+		} else {
+			String initials = player.getName().isEmpty() ? "?" :
+				String.valueOf(player.getName().charAt(0)).toUpperCase();
+			hudIconLabel = pixelLabel(initials, 16, HUD_NAME_COLOR);
+			double iconCx = scaleX(HUD_ICON_X) + (scaleX(HUD_ICON_X + HUD_ICON_D) - scaleX(HUD_ICON_X)
+				- hudIconLabel.getWidth()) / 2.0;
+			double iconCy = scaleY(HUD_ICON_Y) + (scaleY(HUD_ICON_Y + HUD_ICON_D) - scaleY(HUD_ICON_Y)
+				+ hudIconLabel.getAscent()) / 2.0 - hudIconLabel.getDescent() / 2.0;
+			hudIconLabel.setLocation(iconCx, iconCy);
+			contents.add(hudIconLabel);
+			mainScreen.add(hudIconLabel);
+		}
 
 		// Player name label
 		String displayName = player.getName();
@@ -354,9 +374,35 @@ public class GraphicsPane {
 		// Send HUD to front so it isn't obscured
 		hudPanel.sendToFront();
 		hudIcon.sendToFront();
-		hudIconLabel.sendToFront();
+		if (hudPortrait != null) {
+			hudPortrait.sendToFront();
+		}
+		if (hudIconLabel != null) {
+			hudIconLabel.sendToFront();
+		}
 		hudNameLabel.sendToFront();
 		for (GLabel heart : hudHearts) heart.sendToFront();
+	}
+
+	private GImage createHudPortrait() {
+		GImage portrait = new GImage(HUD_PORTRAIT_PATH, 0, 0);
+		double baseWidth = portrait.getWidth() > 0 ? portrait.getWidth() : 32.0;
+		double baseHeight = portrait.getHeight() > 0 ? portrait.getHeight() : 36.0;
+		double iconWidth = scaleX(HUD_ICON_X + HUD_ICON_D) - scaleX(HUD_ICON_X);
+		double iconHeight = scaleY(HUD_ICON_Y + HUD_ICON_D) - scaleY(HUD_ICON_Y);
+		double maxWidth = Math.max(18.0, iconWidth - Math.max(6.0, iconWidth * 0.22));
+		double maxHeight = Math.max(18.0, iconHeight - Math.max(4.0, iconHeight * 0.10));
+		double scale = Math.min(maxWidth / baseWidth, maxHeight / baseHeight);
+		double targetWidth = baseWidth * scale;
+		double targetHeight = baseHeight * scale;
+		portrait.setSize(targetWidth, targetHeight);
+
+		double centerX = scaleX(HUD_ICON_X) + iconWidth / 2.0;
+		double centerY = scaleY(HUD_ICON_Y) + iconHeight / 2.0 + iconHeight * 0.04;
+		portrait.setLocation(
+			centerX - targetWidth * HUD_PORTRAIT_ANCHOR_X,
+			centerY - targetHeight * HUD_PORTRAIT_ANCHOR_Y);
+		return portrait;
 	}
 
 	/**
@@ -377,7 +423,7 @@ public class GraphicsPane {
 	 * Removes all HUD elements from the canvas and tracking list.
 	 */
 	protected void hidePlayerHUD() {
-		GObject[] hudObjects = {hudPanel, hudIcon, hudIconLabel, hudNameLabel};
+		GObject[] hudObjects = {hudPanel, hudIcon, hudPortrait, hudIconLabel, hudNameLabel};
 		for (GObject obj : hudObjects) {
 			if (obj != null) {
 				mainScreen.remove(obj);
@@ -394,9 +440,17 @@ public class GraphicsPane {
 		}
 		hudPanel = null;
 		hudIcon = null;
+		hudPortrait = null;
 		hudIconLabel = null;
 		hudNameLabel = null;
 		hudHearts = null;
+	}
+
+	protected double playerHudBottomY() {
+		if (hudPanel != null) {
+			return hudPanel.getY() + hudPanel.getHeight();
+		}
+		return scaleY(HUD_Y + HUD_H);
 	}
 
 	/**

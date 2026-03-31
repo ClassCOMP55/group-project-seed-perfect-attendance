@@ -1,3 +1,5 @@
+import java.util.List;
+
 /**
  * RangedEnemy.java
  *
@@ -9,18 +11,12 @@
  *   Chase:   retreats if player is closer than retreatDistance;
  *            holds position if at or beyond that distance (does NOT advance).
  *   Attack:  spawns a Projectile toward the player every fireRate ticks.
- *            Projectile.java does not exist yet — spawn is stubbed with a TODO.
  *
  * Stats (Zelda-feel):
  *   Health  2 — fragile glass-cannon; 2 sword hits to kill
  *   Patrol 50 px/s — slow, methodical pacing
  *   Chase  90 px/s — repurposed as retreat speed; fast enough to maintain distance
  *   Aggro 256 px — 4-tile radius; spots the player first
- *
- * When Task 11 (Projectile.java) is implemented:
- *   1. Add a List<Projectile> field (or pass it via constructor/setter from Room)
- *   2. Replace the System.out.println stub in tryAttack() with the real spawn call
- *   3. Update SwordSwing.update() to accept List<Projectile> instead of List<Object>
  *
  * Person 3 — Combat & Enemies
  */
@@ -43,6 +39,13 @@ public class RangedEnemy extends Enemy {
      */
     private double retreatDistance;
 
+    /**
+     * Active projectile list shared with the Room. Set by Room via
+     * setProjectileList() at spawn time. Null until wired — tryAttack()
+     * guards against null so compilation is safe.
+     */
+    private List<Projectile> projectiles;
+
     // ==========================================================
     // CONSTRUCTOR
     // ==========================================================
@@ -62,6 +65,17 @@ public class RangedEnemy extends Enemy {
               256.0); // aggroRange  (px)   — 4 tiles, spots player early
         this.fireRate        = 90;
         this.retreatDistance = 160.0;
+        this.projectiles     = null; // wired by Room via setProjectileList()
+    }
+
+    /**
+     * Wires in the Room's active projectile list so this enemy can spawn Projectiles.
+     * Call immediately after constructing the RangedEnemy in the Room.
+     *
+     * @param list the Room's shared active projectile list
+     */
+    public void setProjectileList(List<Projectile> list) {
+        this.projectiles = list;
     }
 
     // ==========================================================
@@ -107,16 +121,7 @@ public class RangedEnemy extends Enemy {
 
     /**
      * Fires a projectile toward the target when the cooldown has expired.
-     *
-     * Projectile spawning is stubbed until Task 11 (Projectile.java) is complete.
-     * The cooldown and fire-rate logic is fully implemented so Task 11 can slot in
-     * by replacing the stub println with a real Projectile constructor call.
-     *
-     * Task 11 integration (Projectile.java is now complete):
-     *   - Add a List<Projectile> projectiles field to RangedEnemy (set by Room at spawn time)
-     *   - Replace the System.out.println stub in tryAttack() with:
-     *       projectiles.add(new Projectile(x, y, target.getX(), target.getY(), tileMap, this));
-     *   - Projectile carries reflect logic; SwordSwing already wired to List<Projectile>
+     * No-ops if the projectile list hasn't been wired by Room yet.
      *
      * @param target Entity to fire at (typically the Player)
      */
@@ -124,14 +129,9 @@ public class RangedEnemy extends Enemy {
     protected void tryAttack(Entity target) {
         if (target == null) return;
         if (attackCooldownTicks > 0) return;
+        if (projectiles == null) return;
 
-        // TODO [Task 11 — Projectile]: replace stub below with real spawn:
-        //   projectiles.add(new Projectile(x, y, target.getX(), target.getY(), tileMap));
-        // Direction toward target: (target.getX() - x, target.getY() - y) — already normalized in Projectile
-        System.out.println("TODO: RangedEnemy spawn Projectile from ("
-            + (int)x + ", " + (int)y + ") toward ("
-            + (int)target.getX() + ", " + (int)target.getY() + ")");
-
+        projectiles.add(new Projectile(x, y, target.getX(), target.getY(), tileMap, this));
         attackCooldownTicks = fireRate;
     }
 }

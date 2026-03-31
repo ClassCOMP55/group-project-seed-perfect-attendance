@@ -21,6 +21,11 @@ public class Tile {
         canvas.add(sprite);
     }
 
+    /** Removes this tile's sprite from the canvas (pair with {@link #draw}). */
+    public void removeFrom(GCanvas canvas) {
+        canvas.remove(sprite);
+    }
+
 
     public boolean isPassable() {
         return type == TileType.FLOOR;

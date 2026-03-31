@@ -62,10 +62,13 @@ public abstract class Entity {
     /** Axis-aligned bounding box. Top-left = (x - HITBOX_HALF, y - HITBOX_HALF). */
     protected Hitbox hitbox;
 
-    // TODO Task 28 (P1): replace the line below with:
-    //     protected SpriteAnimator animator;
-    // and remove the sprite field. Update draw() and setFacing() accordingly.
-    /** Sprite image. Replaced by SpriteAnimator in Task 28 (Person 1). */
+    /** Sprite animator for directional walk cycles. */
+    protected SpriteAnimator animator;
+
+    /**
+     * Static sprite image — used as the default/fallback frame.
+     * Kept for backward compatibility; draw() prefers animator frames.
+     */
     protected GImage sprite;
 
     /** Tile map used for passability and hole checks during move(). */
@@ -99,6 +102,10 @@ public abstract class Entity {
         this.sprite = new GImage(spritePath, x - SPRITE_HALF, y - SPRITE_HALF);
         this.sprite.setSize(SPRITE_SIZE, SPRITE_SIZE);
 
+        // Animator: initialized with 6 ticks/frame; fallback to static sprite
+        this.animator = new SpriteAnimator(6);
+        this.animator.setFallbackFrame(this.sprite);
+
         // Hitbox: top-left = (x - HITBOX_HALF, y - HITBOX_HALF)
         this.hitbox = new Hitbox(
             x - HITBOX_HALF,
@@ -125,15 +132,17 @@ public abstract class Entity {
 
     /**
      * Draws the entity's sprite onto the canvas.
-     * Called by the game loop after update().
-     *
-     * TODO Task 28 (P1): when SpriteAnimator is ready, replace with:
-     *     canvas.add(animator.getCurrentFrame());
+     * Uses the animator's current frame if available, falls back to static sprite.
      *
      * @param canvas The ACM GCanvas to draw onto
      */
     public void draw(GCanvas canvas) {
-        canvas.add(sprite);
+        GImage frame = animator.getCurrentFrame();
+        if (frame != null) {
+            canvas.add(frame);
+        } else {
+            canvas.add(sprite);
+        }
     }
 
     // ==========================================================
@@ -165,6 +174,18 @@ public abstract class Entity {
      * @param dy Vertical pixel delta for this frame (positive = down)
      */
     public void move(double dx, double dy) {
+        if (tileMap == null) {
+            x += dx;
+            y += dy;
+            hitbox.updatePosition(x - HITBOX_HALF, y - HITBOX_HALF);
+            sprite.setLocation(x - SPRITE_HALF, y - SPRITE_HALF);
+            animator.setPosition(x - SPRITE_HALF, y - SPRITE_HALF);
+            if (dx != 0 || dy != 0) {
+                setFacing(Direction.fromDelta(dx, dy));
+                animator.update();
+            }
+            return;
+        }
 
         // --- X axis ---
         double newX = x + dx;
@@ -214,13 +235,14 @@ public abstract class Entity {
         // Sync hitbox top-left corner to new center
         hitbox.updatePosition(x - HITBOX_HALF, y - HITBOX_HALF);
 
-        // Sync sprite top-left to new center
-        // TODO Task 28 (P1): replace with animator.setPosition(x - SPRITE_HALF, y - SPRITE_HALF)
+        // Sync sprite and animator position to new center
         sprite.setLocation(x - SPRITE_HALF, y - SPRITE_HALF);
+        animator.setPosition(x - SPRITE_HALF, y - SPRITE_HALF);
 
         // Update facing from the net movement vector
         if (dx != 0 || dy != 0) {
             setFacing(Direction.fromDelta(dx, dy));
+            animator.update(); // advance walk animation while moving
         }
     }
 
@@ -231,7 +253,7 @@ public abstract class Entity {
      * @return true if the center point (x, y) is inside a HOLE tile
      */
     public boolean isOverHole() {
-        return tileMap.isHole(x, y);
+        return tileMap != null && tileMap.isHole(x, y);
     }
 
     // ==========================================================
@@ -241,8 +263,6 @@ public abstract class Entity {
     /**
      * Reduces health by the given amount. Clamps to 0 (no negative health).
      * Subclasses can override to apply half-damage relics, invincibility frames, etc.
-     *
-     * TODO Task 28 (P1): trigger hurt animation via animator here.
      *
      * @param amount damage to apply (positive integer)
      */
@@ -278,16 +298,15 @@ public abstract class Entity {
 
     /**
      * Sets the direction this entity is currently facing.
+     * Notifies the animator so the correct directional walk cycle plays.
      * Null-guarded — callers may pass null without risk.
-     *
-     * TODO Task 28 (P1): also notify animator of direction change here so the
-     * correct directional walk cycle plays.
      *
      * @param d the new facing direction (null is silently ignored)
      */
     public void setFacing(Direction d) {
         if (d != null) {
             facing = d;
+            animator.setDirection(d);
         }
     }
 
@@ -315,4 +334,7 @@ public abstract class Entity {
 
     /** @return movement speed in pixels per second */
     public double getSpeed()        { return speed; }
+
+    /** @return the sprite animator for this entity */
+    public SpriteAnimator getAnimator() { return animator; }
 }

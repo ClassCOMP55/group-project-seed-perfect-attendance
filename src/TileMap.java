@@ -11,6 +11,44 @@ public class TileMap {
         generateMarket();
     }
 
+    /**
+     * Compact walkable room for the opening sequence (~704×512 px), fits the default window.
+     * Border walls, floor inside, no holes so the tutorial flow is not interrupted by pits.
+     */
+    public static TileMap createOpeningRoom() {
+        TileMap m = new TileMap();
+        m.cols = 11;
+        m.rows = 8;
+        m.tiles = new Tile[m.rows][m.cols];
+        m.generateOpeningRoom();
+        return m;
+    }
+
+    public int getTileSize() {
+        return tileSize;
+    }
+
+    /** Total width of the map in pixels (cols × tile size). */
+    public double getWidthPixels() {
+        return cols * (double) tileSize;
+    }
+
+    /** Total height of the map in pixels (rows × tile size). */
+    public double getHeightPixels() {
+        return rows * (double) tileSize;
+    }
+
+    private void generateOpeningRoom() {
+        for (int r = 0; r < rows; r++) {
+            for (int c = 0; c < cols; c++) {
+                if (r == 0 || r == rows - 1 || c == 0 || c == cols - 1) {
+                    tiles[r][c] = new Tile(Tile.TileType.WALL, c, r, "assets/tile_wall.png");
+                } else {
+                    tiles[r][c] = new Tile(Tile.TileType.FLOOR, c, r, "assets/tile_floor.png");
+                }
+            }
+        }
+    }
 
     private void generateMarket() {
         // Floor everywhere except borders and holes :)
@@ -33,6 +71,17 @@ public class TileMap {
             for (int c = 0; c < cols; c++) {
                 if (tiles[r][c] != null) {
                     tiles[r][c].draw(canvas);
+                }
+            }
+        }
+    }
+
+    /** Removes all tile sprites from the canvas. */
+    public void removeFrom(GCanvas canvas) {
+        for (int r = 0; r < rows; r++) {
+            for (int c = 0; c < cols; c++) {
+                if (tiles[r][c] != null) {
+                    tiles[r][c].removeFrom(canvas);
                 }
             }
         }
