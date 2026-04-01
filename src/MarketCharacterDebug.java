@@ -676,7 +676,7 @@ public class MarketCharacterDebug extends GraphicsPane {
         if (!preserveStateOnNextShow || combatPlayer == null) {
             combatPlayer = new Player();
         }
-        Player statePlayer = mainScreen.getGameState() != null ? mainScreen.getGameState().getPlayer() : null;
+        Player statePlayer = mainScreen.getPlayer();
         if (combatPlayer != null && statePlayer != null) {
             combatPlayer.setName(statePlayer.getName());
             combatPlayer.setProfession(statePlayer.getProfession());

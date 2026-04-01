@@ -127,7 +127,7 @@ public class P1GameplayPane extends GraphicsPane {
 
     private void setupWorld() {
         tileMap = TileMap.createOpeningRoom();
-        player = mainScreen.getGameState().getPlayer();
+        player = mainScreen.getPlayer();
         player.setTileMap(tileMap);
         double cx = tileMap.getWidthPixels() * 0.5;
         double cy = tileMap.getHeightPixels() * 0.55;

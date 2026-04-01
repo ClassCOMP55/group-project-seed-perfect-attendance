@@ -206,14 +206,13 @@ public class SavePoint {
 	 * Typical wiring in the room setup:
 	 * <pre>
 	 *   inputHandler.onPress(KeyEvent.VK_J,
-	 *       () -> savePoint.tryInteract(player, dialogue, gameState));
+	 *       () -> savePoint.tryInteract(player, dialogue));
 	 * </pre>
 	 *
 	 * @param player    the live Player
 	 * @param dialogue  the shared Dialogue overlay
-	 * @param gameState the live GameState (provides the active save slot)
 	 */
-	public void tryInteract(Player player, Dialogue dialogue, GameState gameState) {
+	public void tryInteract(Player player, Dialogue dialogue) {
 		if (promptOpen) return;
 		if (!interactZone.overlaps(player.getHitbox())) return;
 
@@ -222,7 +221,7 @@ public class SavePoint {
 			promptOpen = false;
 			if (dialogue.getSelectedOption() == 0) {
 				// Player chose Yes
-				performSave(player, gameState);
+				performSave(player);
 			}
 			// Player chose No — nothing happens
 		});
@@ -236,17 +235,14 @@ public class SavePoint {
 	 * Heals the player to full, snapshots game state, and writes the save file.
 	 * Called only after the player confirms Yes in the save prompt.
 	 */
-	private void performSave(Player player, GameState gameState) {
+	private void performSave(Player player) {
 		// Heal to max HP first
 		player.setHP(player.getMaxHealth());
 
-		int slot = gameState.getActiveSaveSlot();
-		if (slot < 1 || slot > SaveManager.SAVE_COUNT) {
-			slot = 1;
-			gameState.setActiveSaveSlot(slot);
-		}
+		// TODO: replace with dynamic slot selection once multi-slot UI is implemented (P4)
+		int slot = 1;
 
-		SaveData data = SaveData.from(slot, player, gameState, roomId, spawnX, spawnY);
+		SaveData data = SaveData.from(slot, player, roomId, spawnX, spawnY);
 
 		try {
 			SaveManager.writeSave(slot, data);

@@ -117,20 +117,19 @@ public class SaveData {
 	 *
 	 * @param slot    the active save slot (1–3)
 	 * @param player  the live Player instance
-	 * @param state   the live GameState instance
 	 * @param roomId  ID of the room containing the SavePoint
 	 * @param spawnX  center X of the SavePoint (respawn position)
 	 * @param spawnY  center Y of the SavePoint (respawn position)
 	 */
-	public static SaveData from(int slot, Player player, GameState state,
+	public static SaveData from(int slot, Player player,
 	                             String roomId, double spawnX, double spawnY) {
-		// TODO: replace 0 with state.getCoins() once the coin system is implemented (P2)
+		// TODO: replace 0 with player.getCoins() once the coin system is implemented (P2)
 		int coins = 0;
 
 		// TODO: replace empty list with actual collected item IDs once item tracking is implemented (P2)
 		List<String> collectedItems = new ArrayList<>();
 
-		// TODO: replace empty list with state.getStoryFlags() once getStoryFlags() is added to GameState (P4)
+		// TODO: replace empty list with story flags once flag tracking is implemented (P4)
 		List<String> flags = new ArrayList<>();
 
 		return new SaveData(
