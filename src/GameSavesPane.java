@@ -63,7 +63,7 @@ public class GameSavesPane extends NightScenePane {
             double y = (i == 0) ? y1 : (i == 1) ? y2 : y3;
             slotFrames[i] = addNightRowButton(buttonLeft, y, bw, bh);
 
-            String text = GameSaveIO.slotOccupied(slot)
+            String text = SaveManager.slotOccupied(slot)
                 ? "Load Save #" + slot
                 : "Create Save #" + slot;
             slotLabels[i] = new GLabel(text, 0, 0);
@@ -74,7 +74,7 @@ public class GameSavesPane extends NightScenePane {
 
             clearFrames[i] = null;
             clearLabels[i] = null;
-            if (GameSaveIO.slotOccupied(slot)) {
+            if (SaveManager.slotOccupied(slot)) {
                 addClearControl(i, buttonLeft, y, bw, bh, side, hGap, ox, lw);
             }
         }
@@ -162,22 +162,20 @@ public class GameSavesPane extends NightScenePane {
 
     private void handleClearSlot(int slot) {
         SaveManager.deleteSave(slot);
-        if (mainScreen.getGameState().getActiveSaveSlot() == slot) {
-            mainScreen.getGameState().setActiveSaveSlot(0);
-        }
         hideContent();
         showContent();
     }
 
     private void handleSlot(int slot) {
         try {
-            if (GameSaveIO.slotOccupied(slot)) {
-                GameSaveIO.loadIntoState(slot, mainScreen.getGameState());
-                mainScreen.switchToSceneFromSave(mainScreen.getGameState().getResumeScene());
+            if (SaveManager.slotOccupied(slot)) {
+                SaveData data = SaveManager.loadSave(slot);
+                // TODO: apply SaveData to Player and route to gameplay screen (P1)
+                System.out.println("Loaded save slot " + slot + ": " + data);
+                mainScreen.switchToStartMenuScreen();
             } else {
-                mainScreen.getGameState().beginNewRunInSlot(slot);
                 // TODO: route to Zelda game-start screen once defined (P1)
-                mainScreen.switchToCharacterCreationScreen();
+                mainScreen.switchToStartMenuScreen();
             }
         } catch (Exception ex) {
             System.err.println("Save slot " + slot + ": " + ex.getMessage());

@@ -13,12 +13,8 @@ import java.util.Map;
  *   - InputHandler-driven movement (WASD/arrows) with wall sliding
  *   - Sword attack (spawns SwordSwing)
  *   - Hole-fall respawn
- *   - Card hand (narrative system)
  *   - Relic flags: hasHalfDamage, hasReflect, hasIntangible (Task 26)
  *   - MarkOfHero flag (Task 24)
- *
- * Preserves the original Player API (getHP, setHP, dealDamage, getName, etc.)
- * so all existing code (GameState, dialogue, HUD, save/load) compiles unchanged.
  *
  * Person 1 — Engine & Sequences
  */
@@ -50,10 +46,9 @@ public class Player extends Entity {
     private static final int GOD_MODE_FADE_TICKS = 14;
 
     // ==========================================================
-    // FIELDS — identity & narrative
+    // FIELDS — identity
     // ==========================================================
 
-    private Hand hand;
     private String name = "Adventurer";
     private String profession = "Wanderer";
 
@@ -139,7 +134,6 @@ public class Player extends Entity {
      */
     public Player() {
         super(0, 0, PLAYER_SPRITE, null, MAX_HEARTS, PLAYER_SPEED);
-        this.hand = new Hand();
         this.respawnX = x;
         this.respawnY = y;
         initializeDirectionalSprites();
@@ -154,7 +148,6 @@ public class Player extends Entity {
      */
     public Player(double startX, double startY, TileMap tileMap) {
         super(startX, startY, PLAYER_SPRITE, tileMap, MAX_HEARTS, PLAYER_SPEED);
-        this.hand = new Hand();
         this.respawnX = startX;
         this.respawnY = startY;
         initializeDirectionalSprites();
@@ -408,11 +401,6 @@ public class Player extends Entity {
     // ==========================================================
     // ORIGINAL API — preserved for backward compatibility
     // ==========================================================
-
-    /** @return the player's hand of cards */
-    public Hand getHand() {
-        return hand;
-    }
 
     /**
      * Returns the player's current health (hearts).

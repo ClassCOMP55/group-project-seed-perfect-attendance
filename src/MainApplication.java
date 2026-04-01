@@ -1,67 +1,38 @@
 import acm.graphics.GObject;
 import acm.program.*;
 
-
-import java.awt.event.ComponentAdapter;
-import java.awt.event.ComponentEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.io.IOException;
 
 import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
-import javax.swing.Timer;
 
 public class MainApplication extends GraphicsProgram{
-	//Settings
-	public static final int WINDOW_WIDTH = 700;
-	public static final int WINDOW_HEIGHT = 500;
-	/** Shown in the OS window title bar (replaces default “Graphics Window”). */
+	// Settings — fixed 1280x720, no resize support
+	public static final int WINDOW_WIDTH = 1280;
+	public static final int WINDOW_HEIGHT = 720;
+	/** Shown in the OS window title bar (replaces default "Graphics Window"). */
 	public static final String GAME_TITLE = "So There's This Wizard That's a Goat";
 
-	private GameState gameState;     // One run: player, quiz flag, scene, save slot
-	private CardPlayModal cardPlayModal; // Reusable modal overlay for obstacle encounters
-	/**
-	 * Pause overlay (inventory + settings tabs). This class is the place to own {@code isPaused}
-	 * (or equivalent): open/close pause from ESC, block gameplay updates while open, show/hide
-	 * {@link PauseModal}. See plan comments in {@link PauseModal}.
-	 */
 	private PauseModal pauseModal;
 	private Dialogue dialogue;
 	private GameLoop gameLoop;
 	private InputHandler inputHandler;
+	private Player player;
 
-	//List of all the full screen panes
+	// Full-screen panes
 	private TitleCardPane titleCardPane;
 	private LandingPane landingPane;
 	private StartMenuPane startMenuPane;
 	private SettingsPane settingsPane;
-	private CharacterCreationPane characterCreationPane;
-	private SkyTransitionPane skyTransitionPane;
-	private GraphicsPane scene1Pane;
-	private Scene1To2TransitionPane scene1To2TransitionPane;
-	private Scene2Pane scene2Pane;
-	private TransitionLoading1Pane transitionLoading1Pane;
-	private RestingScene1Pane restingScene1Pane;
-	private Scene3Pane scene3Pane;
-	private Scene4Pane scene4Pane;
-	private RestingScene2Pane restingScene2Pane;
-	private Scene5Pane scene5Pane;
-	private FinalRestingScenePane finalRestingScenePane;
-	private Scene6Pane scene6Pane;
-	private EndingPane endingPane;
 	private GameSavesPane gameSavesPane;
 	private MarketCharacterDebug marketDebugPane;
 	private GraphicsPane currentScreen;
-	private int lastKnownWidth;
-	private int lastKnownHeight;
-	/** Virtual canvas size tracks the window (single step on resize — no animation loop). */
+
+	/** Virtual canvas size — set once on startup, fixed for 1280x720. */
 	private double layoutWidth;
 	private double layoutHeight;
-
-	/** Fires once after resize events go quiet so we do not rebuild the scene on every drag tick. */
-	private Timer resizeDebounceTimer;
-	private static final int RESIZE_DEBOUNCE_MS = 120;
 
 
 	public MainApplication() {
@@ -76,9 +47,6 @@ public class MainApplication extends GraphicsProgram{
 			getGCanvas().addKeyListener(inputHandler);
 		}
 		getGCanvas().addMouseWheelListener(e -> {
-			if (cardPlayModal != null && !cardPlayModal.contents.isEmpty()) {
-				return;
-			}
 			if (pauseModal != null && !pauseModal.contents.isEmpty()) {
 				return;
 			}
@@ -107,40 +75,20 @@ public class MainApplication extends GraphicsProgram{
 				((JFrame) w).setTitle(GAME_TITLE);
 			}
 		});
-		gameState = new GameState();
-		cardPlayModal = new CardPlayModal(this);
 		pauseModal = new PauseModal(this);
 		dialogue = new Dialogue(this);
 		gameLoop = new GameLoop(getGCanvas());
 
-		//Initialize all Panes
+		// Initialize panes
 		titleCardPane = new TitleCardPane(this);
 		landingPane = new LandingPane(this);
 		startMenuPane = new StartMenuPane(this);
 		settingsPane = new SettingsPane(this);
-
-		characterCreationPane = new CharacterCreationPane(this);
-		skyTransitionPane = new SkyTransitionPane(this);
-		scene1Pane = new Scene1Pane(this);
-		scene1To2TransitionPane = new Scene1To2TransitionPane(this);
-		scene2Pane = new Scene2Pane(this);
-		transitionLoading1Pane = new TransitionLoading1Pane(this);
-		restingScene1Pane = new RestingScene1Pane(this);
-		scene3Pane = new Scene3Pane(this);
-		scene4Pane = new Scene4Pane(this);
-		restingScene2Pane = new RestingScene2Pane(this);
-		scene5Pane = new Scene5Pane(this);
-		finalRestingScenePane = new FinalRestingScenePane(this);
-		scene6Pane = new Scene6Pane(this);
-		endingPane = new EndingPane(this);
 		gameSavesPane = new GameSavesPane(this);
 		marketDebugPane = new MarketCharacterDebug(this);
 
-		// Landing splash → then main menu (Start / Options / Quit)
+		syncLayoutToWindow();
 		switchToScreen(landingPane);
-		lastKnownWidth = (int) getWidth();
-		lastKnownHeight = (int) getHeight();
-		installResizeHandler();
 		gameLoop.setUpdatable(dt -> {
 			if (dialogue != null) dialogue.update(dt);
 			if (currentScreen != null) {
@@ -149,12 +97,12 @@ public class MainApplication extends GraphicsProgram{
 		});
 	}
 
-	/** Width used for scaling layout (may animate during resize). */
+	/** Width used for layout (fixed at 1280). */
 	public double getLayoutWidth() {
 		return layoutWidth;
 	}
 
-	/** Height used for scaling layout (may animate during resize). */
+	/** Height used for layout (fixed at 720). */
 	public double getLayoutHeight() {
 		return layoutHeight;
 	}
@@ -199,81 +147,21 @@ public class MainApplication extends GraphicsProgram{
 		switchToScreen(settingsPane);
 	}
 
-	public void switchToCharacterCreationScreen() {
-		switchToScreen(characterCreationPane);
+	/** Routes to landing as a stub until the real game-over screen is built. */
+	public void switchToGameOverScreen() {
+		switchToScreen(landingPane);
 	}
-
-	public void switchToSkyTransitionScreen() {
-		switchToScreen(skyTransitionPane);
-	}
-
-	public void switchToScene1Screen() {
-		switchToScreen(scene1Pane);
-	}
-
-	public void switchToScene1To2TransitionScreen() {
-		switchToScreen(scene1To2TransitionPane);
-	}
-
-	public void switchToScene2Screen() {
-		switchToScreen(scene2Pane);
-	}
-
-	public void switchToTransitionLoading1Screen() {
-		switchToScreen(transitionLoading1Pane);
-	}
-
-	public void switchToRestingScene1Screen() {
-		switchToScreen(restingScene1Pane);
-	}
-
-	public void switchToScene3Screen() {
-		switchToScreen(scene3Pane);
-	}
-
-	public void switchToScene4Screen() {
-		switchToScreen(scene4Pane);
-	}
-
-	public void switchToRestingScene2Screen() {
-		switchToScreen(restingScene2Pane);
-	}
-
-	public void switchToScene5Screen() {
-		switchToScreen(scene5Pane);
-	}
-
-	public void switchToFinalRestingSceneScreen() {
-		switchToScreen(finalRestingScenePane);
-	}
-
-	public void switchToScene6Screen() {
-		switchToScreen(scene6Pane);
-	}
-
-	public void switchToEndingScreen() {
-		switchToScreen(endingPane);
-	}
-
 
 	protected void switchToScreen(GraphicsPane newScreen) {
-		syncLayoutToWindow();
 		if (pauseModal != null) {
 			pauseModal.hideContent();
 		}
 		if (currentScreen != null) {
 			currentScreen.hideContent();
 		}
-		// Before showContent so panes that autosave (e.g. Scene 1 dialogue) persist the correct scene id.
-		GameSceneId sid = sceneIdFor(newScreen);
-		gameState.setCurrentScene(sid);
-		if (!GameState.isShellMenuScene(sid)) {
-			gameState.setResumeScene(sid);
-		}
 		newScreen.showContent();
 		currentScreen = newScreen;
 		updateMenuMusicForScreen(newScreen);
-		autosaveIfSlotActive();
 
 		if (newScreen.needsGameLoop()) {
 			if (gameLoop != null && !gameLoop.isRunning()) {
@@ -284,111 +172,6 @@ public class MainApplication extends GraphicsProgram{
 				gameLoop.stop();
 			}
 		}
-	}
-
-	/** Writes JSON when a save slot is in use (no manual save button). */
-	public void autosaveIfSlotActive() {
-		int s = gameState.getActiveSaveSlot();
-		if (s < 1 || s > GameSaveIO.SAVE_COUNT) {
-			return;
-		}
-		try {
-			GameSaveIO.ensureGameDirectory();
-			GameSaveIO.writeSave(s, gameState);
-		} catch (IOException e) {
-			System.err.println("Autosave failed: " + e.getMessage());
-		}
-	}
-
-	/**
-	 * Resume play from a loaded save’s scene id.
-	 * If the personality quiz is not finished, always open character creation — the stored
-	 * {@code scene} may be START_MENU or another screen from leaving mid-quiz, which would
-	 * otherwise strand the player away from the quiz on load.
-	 */
-	public void switchToSceneFromSave(GameSceneId id) {
-		if (!gameState.isPersonalityQuizCompleted()) {
-			switchToScreen(characterCreationPane);
-			return;
-		}
-		if (id == null) {
-			id = GameSceneId.SCENE_1;
-		}
-		switch (id) {
-			case LANDING:
-				switchToScreen(landingPane);
-				break;
-			case START_MENU:
-				switchToScreen(startMenuPane);
-				break;
-			case GAME_SAVES:
-				switchToScreen(gameSavesPane);
-				break;
-			case SETTINGS:
-				switchToScreen(settingsPane);
-				break;
-			case CHARACTER_CREATION:
-				switchToScreen(characterCreationPane);
-				break;
-			case SKY_TRANSITION:
-				switchToScreen(skyTransitionPane);
-				break;
-			case SCENE_1:
-				switchToScreen(scene1Pane);
-				break;
-			case SCENE_1_TO_2_TRANSITION:
-				switchToScreen(scene1To2TransitionPane);
-				break;
-			case SCENE_2:
-				switchToScreen(scene2Pane);
-				break;
-			case TRANSITION_LOADING_1:
-				switchToScreen(transitionLoading1Pane);
-				break;
-			case RESTING_1:
-				switchToScreen(restingScene1Pane);
-				break;
-			case SCENE_3:
-				switchToScreen(scene3Pane);
-				break;
-			case SCENE_4:
-				switchToScreen(scene4Pane);
-				break;
-			case RESTING_2:
-				switchToScreen(restingScene2Pane);
-				break;
-			case SCENE_5:
-				switchToScreen(scene5Pane);
-				break;
-			case FINAL_RESTING:
-				switchToScreen(finalRestingScenePane);
-				break;
-			case SCENE_6:
-				switchToScreen(scene6Pane);
-				break;
-			case ENDING:
-				switchToScreen(endingPane);
-				break;
-			default:
-				switchToScreen(scene1Pane);
-				break;
-		}
-	}
-
-	/**
-	 * If the personality quiz was already finished, skip re-rolling cards — continue the stored journey.
-	 */
-	public void resumeAfterQuizIfAlreadyComplete() {
-		GameSceneId s = gameState.getResumeScene();
-		if (s == GameSceneId.CHARACTER_CREATION || s == GameSceneId.SKY_TRANSITION) {
-			switchToSkyTransitionScreen();
-			return;
-		}
-		switchToSceneFromSave(s);
-	}
-
-	public GameState getGameState() {
-		return gameState;
 	}
 
 	public InputHandler getInputHandler() {
@@ -404,168 +187,6 @@ public class MainApplication extends GraphicsProgram{
 		switchToScreen(marketDebugPane);
 	}
 
-	/** Writes the active slot (defaults to 1 if unset). */
-	public void saveGameNow() {
-		int s = gameState.getActiveSaveSlot();
-		if (s < 1 || s > GameSaveIO.SAVE_COUNT) {
-			s = 1;
-			gameState.setActiveSaveSlot(1);
-		}
-		try {
-			GameSaveIO.writeSave(s, gameState);
-		} catch (IOException e) {
-			System.err.println("Save failed: " + e.getMessage());
-		}
-	}
-
-	private GameSceneId sceneIdFor(GraphicsPane p) {
-		if (p == landingPane) {
-			return GameSceneId.LANDING;
-		}
-		if (p == startMenuPane) {
-			return GameSceneId.START_MENU;
-		}
-		if (p == gameSavesPane) {
-			return GameSceneId.GAME_SAVES;
-		}
-		if (p == settingsPane) {
-			return GameSceneId.SETTINGS;
-		}
-		if (p == characterCreationPane) {
-			return GameSceneId.CHARACTER_CREATION;
-		}
-		if (p == skyTransitionPane) {
-			return GameSceneId.SKY_TRANSITION;
-		}
-		if (p == scene1Pane) {
-			return GameSceneId.SCENE_1;
-		}
-		if (p == scene1To2TransitionPane) {
-			return GameSceneId.SCENE_1_TO_2_TRANSITION;
-		}
-		if (p == scene2Pane) {
-			return GameSceneId.SCENE_2;
-		}
-		if (p == transitionLoading1Pane) {
-			return GameSceneId.TRANSITION_LOADING_1;
-		}
-		if (p == restingScene1Pane) {
-			return GameSceneId.RESTING_1;
-		}
-		if (p == scene3Pane) {
-			return GameSceneId.SCENE_3;
-		}
-		if (p == scene4Pane) {
-			return GameSceneId.SCENE_4;
-		}
-		if (p == restingScene2Pane) {
-			return GameSceneId.RESTING_2;
-		}
-		if (p == scene5Pane) {
-			return GameSceneId.SCENE_5;
-		}
-		if (p == finalRestingScenePane) {
-			return GameSceneId.FINAL_RESTING;
-		}
-		if (p == scene6Pane) {
-			return GameSceneId.SCENE_6;
-		}
-		if (p == endingPane) {
-			return GameSceneId.ENDING;
-		}
-		if (p == titleCardPane) {
-			return GameSceneId.START_MENU;
-		}
-		return GameSceneId.SCENE_1;
-	}
-
-	/**
-	 * Main menu theme on landing, start menu, and settings; journey theme on character quiz;
-	 * otherwise stop music during gameplay.
-	 */
-	private void updateMenuMusicForScreen(GraphicsPane newScreen) {
-		if (newScreen == landingPane || newScreen == startMenuPane || newScreen == settingsPane) {
-			GameMusic.stopJourneyBeginsMusic();
-			GameMusic.startMainMenuMusic();
-		} else if (newScreen == characterCreationPane) {
-			GameMusic.stopMainMenuMusic();
-			GameMusic.startJourneyBeginsMusic();
-		} else {
-			GameMusic.stopMainMenuMusic();
-			GameMusic.stopJourneyBeginsMusic();
-		}
-	}
-
-	private void installResizeHandler() {
-		resizeDebounceTimer = new Timer(RESIZE_DEBOUNCE_MS, e -> {
-			resizeDebounceTimer.stop();
-			applyLayoutToCanvasSize();
-		});
-		resizeDebounceTimer.setRepeats(false);
-		getGCanvas().addComponentListener(new ComponentAdapter() {
-			@Override
-			public void componentResized(ComponentEvent e) {
-				resizeDebounceTimer.restart();
-			}
-		});
-	}
-
-	/** One layout pass: sync logical size to the window, re-scale the pane, then modals. */
-	private void applyLayoutToCanvasSize() {
-		int w = (int) getWidth();
-		int h = (int) getHeight();
-		if (w <= 0 || h <= 0) {
-			return;
-		}
-		if (w == lastKnownWidth && h == lastKnownHeight) {
-			return;
-		}
-		lastKnownWidth = w;
-		lastKnownHeight = h;
-		syncLayoutToWindow();
-		if (currentScreen != null) {
-			currentScreen.refreshLayout();
-		}
-		refreshModalsOnResize();
-	}
-
-	private void refreshModalsOnResize() {
-		if (pauseModal != null && !pauseModal.contents.isEmpty()) {
-			pauseModal.refreshForResize();
-		}
-		if (cardPlayModal != null && !cardPlayModal.contents.isEmpty()) {
-			cardPlayModal.refreshLayout();
-		}
-	}
-
-	/**
-	 * Scene refresh re-adds objects on top of the canvas; the obstacle modal would
-	 * otherwise sit underneath and getElementAt would hit the scene instead of buttons.
-	 */
-	public Player getPlayer() {
-		return gameState.getPlayer();
-	}
-
-	/**
-	 * Shows the card play modal overlay on top of the current screen.
-	 * The modal lets the player choose a card to resolve the given obstacle.
-	 * After the modal is dismissed, onComplete is called to advance the game.
-	 *
-	 * @param obstacle   the ObstacleScene to resolve
-	 * @param onComplete Runnable called when the player clicks Continue
-	 */
-	public void showObstacle(ObstacleScene obstacle, Runnable onComplete) {
-		cardPlayModal.showObstacle(obstacle, onComplete);
-	}
-
-	/**
-	 * Shows the card play modal in tutorial mode — the played card is NOT consumed.
-	 * Used for Scene 1 so the player keeps their card after the tutorial obstacle.
-	 */
-	public void showObstacleTutorial(ObstacleScene obstacle, Runnable onComplete) {
-		cardPlayModal.showObstacle(obstacle, onComplete, true);
-	}
-
 	/**
 	 * Returns the shared Dialogue overlay.
 	 * Call {@code getDialogue().open(...)} from any pane to show dialogue.
@@ -574,30 +195,42 @@ public class MainApplication extends GraphicsProgram{
 		return dialogue;
 	}
 
-	/** Shows pause overlay. Will be driven by ESC in gameplay (not only the × corner on some panes). */
+	/** Shows pause overlay. Driven by ESC in gameplay. */
 	public void showPauseModal() {
 		if (pauseModal != null) {
 			pauseModal.showPause();
 		}
 	}
 
-	/**
-	 * Switches to the game over screen.
-	 * Currently routes to the ending pane as a placeholder.
-	 */
-	public void switchToGameOverScreen() {
-		switchToScreen(endingPane);
+	/** Returns the active Player instance. */
+	public Player getPlayer() {
+		return player;
+	}
+
+	/** Sets the active Player (called when a new game starts or a save is loaded). */
+	public void setPlayer(Player p) {
+		this.player = p;
 	}
 
 	public GObject getElementAtLocation(double x, double y) {
 		return getElementAt(x, y);
 	}
 
+	/**
+	 * Main menu theme on landing, start menu, and settings; stop music otherwise.
+	 */
+	private void updateMenuMusicForScreen(GraphicsPane newScreen) {
+		if (newScreen == landingPane || newScreen == startMenuPane || newScreen == settingsPane) {
+			GameMusic.stopJourneyBeginsMusic();
+			GameMusic.startMainMenuMusic();
+		} else {
+			GameMusic.stopMainMenuMusic();
+			GameMusic.stopJourneyBeginsMusic();
+		}
+	}
+
 	@Override
 	public void mousePressed(MouseEvent e) {
-		if (cardPlayModal != null && !cardPlayModal.contents.isEmpty()) {
-			return;
-		}
 		if (pauseModal != null && !pauseModal.contents.isEmpty()) {
 			return;
 		}
@@ -608,12 +241,6 @@ public class MainApplication extends GraphicsProgram{
 
 	@Override
 	public void mouseReleased(MouseEvent e) {
-		if (cardPlayModal != null && !cardPlayModal.contents.isEmpty()) {
-			if (SwingUtilities.isLeftMouseButton(e)) {
-				cardPlayModal.handlePointer(e.getX(), e.getY());
-			}
-			return;
-		}
 		if (pauseModal != null && !pauseModal.contents.isEmpty()) {
 			return;
 		}
@@ -627,9 +254,6 @@ public class MainApplication extends GraphicsProgram{
 
 	@Override
 	public void mouseClicked(MouseEvent e) {
-		if (cardPlayModal != null && !cardPlayModal.contents.isEmpty()) {
-			return;
-		}
 		if (pauseModal != null && !pauseModal.contents.isEmpty()) {
 			return;
 		}
@@ -647,9 +271,6 @@ public class MainApplication extends GraphicsProgram{
 
 	@Override
 	public void mouseDragged(MouseEvent e) {
-		if (cardPlayModal != null && !cardPlayModal.contents.isEmpty()) {
-			return;
-		}
 		if (pauseModal != null && !pauseModal.contents.isEmpty()) {
 			return;
 		}
@@ -660,9 +281,6 @@ public class MainApplication extends GraphicsProgram{
 
 	@Override
 	public void mouseMoved(MouseEvent e) {
-		if (cardPlayModal != null && !cardPlayModal.contents.isEmpty()) {
-			return;
-		}
 		if (pauseModal != null && !pauseModal.contents.isEmpty()) {
 			return;
 		}
@@ -673,12 +291,7 @@ public class MainApplication extends GraphicsProgram{
 
 	/**
 	 * Deny-list guard: ESC must not open {@link PauseModal} on these full-screen shells (menus,
-	 * splash, settings, saves, character flow, cinematic transitions). Any other
-	 * {@link #currentScreen} may open pause. Add new menu-style panes here when you create them.
-	 * <p>
-	 * <b>Reminder:</b> Come back and revise this list once the pivot gameplay screen(s) are
-	 * operational and {@code currentScreen} wiring is final — e.g. add future menu panes, or deny
-	 * pause on cutscene-only panes if needed.
+	 * splash, settings, saves). Any other {@link #currentScreen} may open pause.
 	 */
 	private boolean escPauseMenuDeniedForCurrentScreen() {
 		if (currentScreen == null) 
@@ -689,10 +302,7 @@ public class MainApplication extends GraphicsProgram{
 				|| currentScreen instanceof StartMenuPane
 				|| currentScreen instanceof SettingsPane
 				|| currentScreen instanceof TitleCardPane
-				|| currentScreen instanceof GameSavesPane
-				|| currentScreen instanceof CharacterCreationPane
-				|| currentScreen instanceof SkyTransitionPane
-				|| currentScreen instanceof TransitionLoading1Pane;
+				|| currentScreen instanceof GameSavesPane;
 	}
 
 	@Override
