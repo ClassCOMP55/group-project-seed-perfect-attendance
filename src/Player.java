@@ -29,7 +29,7 @@ public class Player extends Entity {
     // ==========================================================
 
     /** Player movement speed in pixels per second. */
-    private static final double PLAYER_SPEED = 220.0;
+    private static final double PLAYER_SPEED = 270.0;
 
     /** Default max health in hearts. */
     private static final int MAX_HEARTS = 3;
