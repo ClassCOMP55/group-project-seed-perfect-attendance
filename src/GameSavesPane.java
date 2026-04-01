@@ -58,12 +58,12 @@ public class GameSavesPane extends NightScenePane {
         // Same horizontal origin as {@link #addNightButton} / Back — × sits to the right without shifting the bar.
         double buttonLeft = ox + (lw - bw) / 2;
 
-        for (int i = 0; i < 3; i++) {
+		for (int i = 0; i < 3; i++) {
             int slot = i + 1;
             double y = (i == 0) ? y1 : (i == 1) ? y2 : y3;
             slotFrames[i] = addNightRowButton(buttonLeft, y, bw, bh);
 
-            String text = GameSaveIO.slotOccupied(slot)
+            String text = SaveManager.slotOccupied(slot)
                 ? "Load Save #" + slot
                 : "Create Save #" + slot;
             slotLabels[i] = new GLabel(text, 0, 0);
@@ -74,7 +74,7 @@ public class GameSavesPane extends NightScenePane {
 
             clearFrames[i] = null;
             clearLabels[i] = null;
-            if (GameSaveIO.slotOccupied(slot)) {
+            if (SaveManager.slotOccupied(slot)) {
                 addClearControl(i, buttonLeft, y, bw, bh, side, hGap, ox, lw);
             }
         }
@@ -161,7 +161,7 @@ public class GameSavesPane extends NightScenePane {
     }
 
     private void handleClearSlot(int slot) {
-        GameSaveIO.deleteSave(slot);
+        SaveManager.deleteSave(slot);
         if (mainScreen.getGameState().getActiveSaveSlot() == slot) {
             mainScreen.getGameState().setActiveSaveSlot(0);
         }
@@ -171,11 +171,22 @@ public class GameSavesPane extends NightScenePane {
 
     private void handleSlot(int slot) {
         try {
-            if (GameSaveIO.slotOccupied(slot)) {
-                GameSaveIO.loadIntoState(slot, mainScreen.getGameState());
-                mainScreen.switchToSceneFromSave(mainScreen.getGameState().getResumeScene());
+            if (SaveManager.slotOccupied(slot)) {
+                SaveData data = SaveManager.loadSave(slot);
+                GameState state = mainScreen.getGameState();
+                Player player = state.getPlayer();
+                state.setActiveSaveSlot(data.getSlot());
+                player.setHP(data.getHp());
+                player.setHasHalfDamage(data.isHasHalfDamage());
+                player.setHasReflect(data.isHasReflect());
+                player.setHasIntangible(data.isHasIntangible());
+                player.setHasMarkOfHero(data.isHasMarkOfHero());
+                // TODO: restore coins + collected items once those systems are built (P2)
+                // TODO: route to data.getRoomId() once WorldMap / room routing is wired (P2)
+                mainScreen.switchToScene1Screen();
             } else {
                 mainScreen.getGameState().beginNewRunInSlot(slot);
+                // TODO: route to Zelda game-start screen once defined (P1)
                 mainScreen.switchToCharacterCreationScreen();
             }
         } catch (Exception ex) {
