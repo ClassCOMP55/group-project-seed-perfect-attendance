@@ -1,19 +1,33 @@
 import acm.graphics.*;
+import java.awt.Color;
+
 public class Tile {
     public enum TileType { FLOOR, WALL, HOLE, BRIDGE }
 
 
     private TileType type;
-    private GImage sprite;
+    private GRect sprite;
     private int col, row;
 
+    // Placeholder colors — replace with GImage once tile sprites are ready
+    private static final Color COLOR_FLOOR  = new Color(90, 110, 80);
+    private static final Color COLOR_WALL   = new Color(55, 50, 45);
+    private static final Color COLOR_HOLE   = new Color(15, 15, 25);
+    private static final Color COLOR_BRIDGE = new Color(140, 100, 60);
 
     public Tile(TileType type, int col, int row, String spritePath) {
         this.type = type;
         this.col = col;
         this.row = row;
-        this.sprite = new GImage(spritePath, col * 64, row * 64);
-        this.sprite.setSize(64, 64);
+        this.sprite = new GRect(col * 64, row * 64, 64, 64);
+        this.sprite.setFilled(true);
+        switch (type) {
+            case WALL:   this.sprite.setFillColor(COLOR_WALL);   break;
+            case HOLE:   this.sprite.setFillColor(COLOR_HOLE);   break;
+            case BRIDGE: this.sprite.setFillColor(COLOR_BRIDGE); break;
+            default:     this.sprite.setFillColor(COLOR_FLOOR);  break;
+        }
+        this.sprite.setColor(new Color(0, 0, 0, 40));
     }
 
 

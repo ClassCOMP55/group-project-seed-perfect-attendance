@@ -170,13 +170,10 @@ public class GameSavesPane extends NightScenePane {
         try {
             if (SaveManager.slotOccupied(slot)) {
                 SaveData data = SaveManager.loadSave(slot);
-                // TODO: apply SaveData to Player and route to gameplay screen (P1)
+                // TODO: apply SaveData fields to Player once full load-restore is implemented (P1)
                 System.out.println("Loaded save slot " + slot + ": " + data);
-                mainScreen.switchToStartMenuScreen();
-            } else {
-                // TODO: route to Zelda game-start screen once defined (P1)
-                mainScreen.switchToStartMenuScreen();
             }
+            mainScreen.switchToGameplayScreen();
         } catch (Exception ex) {
             System.err.println("Save slot " + slot + ": " + ex.getMessage());
             ex.printStackTrace();

@@ -28,6 +28,7 @@ public class MainApplication extends GraphicsProgram{
 	private SettingsPane settingsPane;
 	private GameSavesPane gameSavesPane;
 	private MarketCharacterDebug marketDebugPane;
+	private P1GameplayPane gameplayPane;
 	private GraphicsPane currentScreen;
 
 	/** Virtual canvas size — set once on startup, fixed for 1280x720. */
@@ -86,6 +87,7 @@ public class MainApplication extends GraphicsProgram{
 		settingsPane = new SettingsPane(this);
 		gameSavesPane = new GameSavesPane(this);
 		marketDebugPane = new MarketCharacterDebug(this);
+		gameplayPane = new P1GameplayPane(this);
 
 		syncLayoutToWindow();
 		switchToScreen(landingPane);
@@ -145,6 +147,14 @@ public class MainApplication extends GraphicsProgram{
 
 	public void switchToSettingsScreen() {
 		switchToScreen(settingsPane);
+	}
+
+	/** Launches the A1 opening room. Creates a fresh Player if none exists. */
+	public void switchToGameplayScreen() {
+		if (player == null) {
+			setPlayer(new Player());
+		}
+		switchToScreen(marketDebugPane);
 	}
 
 	/** Routes to landing as a stub until the real game-over screen is built. */
