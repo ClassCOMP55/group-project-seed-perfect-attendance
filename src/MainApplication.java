@@ -27,6 +27,7 @@ public class MainApplication extends GraphicsProgram{
 	 * {@link PauseModal}. See plan comments in {@link PauseModal}.
 	 */
 	private PauseModal pauseModal;
+	private Dialogue dialogue;
 	private GameLoop gameLoop;
 	private InputHandler inputHandler;
 
@@ -109,6 +110,7 @@ public class MainApplication extends GraphicsProgram{
 		gameState = new GameState();
 		cardPlayModal = new CardPlayModal(this);
 		pauseModal = new PauseModal(this);
+		dialogue = new Dialogue(this);
 		gameLoop = new GameLoop(getGCanvas());
 
 		//Initialize all Panes
@@ -140,6 +142,7 @@ public class MainApplication extends GraphicsProgram{
 		lastKnownHeight = (int) getHeight();
 		installResizeHandler();
 		gameLoop.setUpdatable(dt -> {
+			if (dialogue != null) dialogue.update(dt);
 			if (currentScreen != null) {
 				currentScreen.onTick(dt);
 			}
@@ -563,6 +566,14 @@ public class MainApplication extends GraphicsProgram{
 		cardPlayModal.showObstacle(obstacle, onComplete, true);
 	}
 
+	/**
+	 * Returns the shared Dialogue overlay.
+	 * Call {@code getDialogue().open(...)} from any pane to show dialogue.
+	 */
+	public Dialogue getDialogue() {
+		return dialogue;
+	}
+
 	/** Shows pause overlay. Will be driven by ESC in gameplay (not only the × corner on some panes). */
 	public void showPauseModal() {
 		if (pauseModal != null) {
@@ -620,6 +631,10 @@ public class MainApplication extends GraphicsProgram{
 			return;
 		}
 		if (pauseModal != null && !pauseModal.contents.isEmpty()) {
+			return;
+		}
+		if (dialogue != null && dialogue.isOpen()) {
+			dialogue.mouseClicked(e);
 			return;
 		}
 		if (currentScreen != null && currentScreen.tryHandleSettingsCornerClick(e)) {
@@ -697,6 +712,13 @@ public class MainApplication extends GraphicsProgram{
 		if (pauseModal != null && e.getKeyCode() == KeyEvent.VK_ESCAPE && !escPauseMenuDeniedForCurrentScreen())
 		{
 			showPauseModal();
+			return;
+		}
+		// Dialogue captures all non-ESC keys while open (ESC already handled above for pause).
+		if (dialogue != null && dialogue.isOpen()
+				&& e.getKeyCode() != KeyEvent.VK_ESCAPE)
+		{
+			dialogue.keyPressed(e);
 			return;
 		}
 		if (currentScreen != null) 
