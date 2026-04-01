@@ -71,8 +71,21 @@ public abstract class Entity {
      */
     protected GImage sprite;
 
+    /** Asset path used to create the sprite (kept for rebuild on resize). */
+    protected String spritePath;
+
     /** Tile map used for passability and hole checks during move(). */
     protected TileMap tileMap;
+
+    /**
+     * When true, the next {@link #draw(GCanvas)} call will re-create the
+     * sprite GImage at the current render dimensions. Animated GIFs in
+     * ACM may not honor {@code setSize()} after they start animating, so
+     * a fresh GImage is the most reliable way to apply a new size.
+     */
+    private boolean spriteNeedsRebuild;
+    /** Last visual added to canvas so swaps don't leave ghost images behind. */
+    private GImage lastDrawnVisual;
 
     // ==========================================================
     // CONSTRUCTOR
@@ -99,6 +112,7 @@ public abstract class Entity {
         this.facing    = Direction.DOWN; // idle default: face toward camera
 
         // Sprite: top-left offset so image is centered on (x, y)
+        this.spritePath = spritePath;
         this.sprite = new GImage(spritePath, x - SPRITE_HALF, y - SPRITE_HALF);
         this.sprite.setSize(SPRITE_SIZE, SPRITE_SIZE);
 
@@ -113,6 +127,54 @@ public abstract class Entity {
             HITBOX_SIZE,
             HITBOX_SIZE
         );
+    }
+
+    /**
+     * Override render dimensions (pixels) stored here so every call to
+     * {@link #syncVisualPosition()} reapplies them to whatever animation
+     * frame is current. 0 means "use the sprite's natural size".
+     */
+    private double renderWidth  = SPRITE_SIZE;
+    private double renderHeight = SPRITE_SIZE;
+
+    /**
+     * Resizes the visual sprite while keeping hitbox/collision dimensions unchanged.
+     * The target size is remembered and reapplied every tick so animation frame
+     * swaps do not silently reset the sprite back to its default 48×48 size.
+     *
+     * @param width  target render width in pixels (pass SPRITE_SIZE to reset)
+     * @param height target render height in pixels (pass SPRITE_SIZE to reset)
+     */
+    public void setSpriteRenderSize(double width, double height) {
+        double newW = Math.max(1.0, width);
+        double newH = Math.max(1.0, height);
+        boolean changed = Math.abs(newW - renderWidth) > 0.5
+                       || Math.abs(newH - renderHeight) > 0.5;
+        this.renderWidth  = newW;
+        this.renderHeight = newH;
+        if (changed && spritePath != null) {
+            spriteNeedsRebuild = true;
+        }
+        syncVisualPosition();
+    }
+
+    /**
+     * Re-centers the current sprite/animation frame on the entity's (x, y) position
+     * and reapplies the stored render dimensions so animated GIF frames are always
+     * the correct size regardless of which frame the animator is currently on.
+     */
+    protected void syncVisualPosition() {
+        double hw = renderWidth  / 2.0;
+        double hh = renderHeight / 2.0;
+        if (sprite != null) {
+            sprite.setSize(renderWidth, renderHeight);
+            sprite.setLocation(x - hw, y - hh);
+        }
+        GImage frame = animator.getCurrentFrame();
+        if (frame != null) {
+            frame.setSize(renderWidth, renderHeight);
+            frame.setLocation(x - hw, y - hh);
+        }
     }
 
     // ==========================================================
@@ -133,15 +195,32 @@ public abstract class Entity {
     /**
      * Draws the entity's sprite onto the canvas.
      * Uses the animator's current frame if available, falls back to static sprite.
+     * Reapplies {@link #renderWidth}/{@link #renderHeight} so the frame is always
+     * the correct size at render time even if the animator swapped frames since the
+     * last {@link #syncVisualPosition()} call.
      *
      * @param canvas The ACM GCanvas to draw onto
      */
     public void draw(GCanvas canvas) {
+        if (spriteNeedsRebuild && spritePath != null) {
+            GImage oldSprite = sprite;
+            if (oldSprite != null) {
+                canvas.remove(oldSprite);
+            }
+            sprite = new GImage(spritePath, 0, 0);
+            sprite.setSize(renderWidth, renderHeight);
+            animator.setFallbackFrame(sprite);
+            spriteNeedsRebuild = false;
+        }
+        syncVisualPosition();
         GImage frame = animator.getCurrentFrame();
-        if (frame != null) {
-            canvas.add(frame);
-        } else {
-            canvas.add(sprite);
+        GImage currentVisual = frame != null ? frame : sprite;
+        if (lastDrawnVisual != null && lastDrawnVisual != currentVisual) {
+            canvas.remove(lastDrawnVisual);
+        }
+        if (currentVisual != null) {
+            canvas.add(currentVisual);
+            lastDrawnVisual = currentVisual;
         }
     }
 
@@ -178,11 +257,11 @@ public abstract class Entity {
             x += dx;
             y += dy;
             hitbox.updatePosition(x - HITBOX_HALF, y - HITBOX_HALF);
-            sprite.setLocation(x - SPRITE_HALF, y - SPRITE_HALF);
-            animator.setPosition(x - SPRITE_HALF, y - SPRITE_HALF);
+            syncVisualPosition();
             if (dx != 0 || dy != 0) {
                 setFacing(Direction.fromDelta(dx, dy));
                 animator.update();
+                syncVisualPosition();
             }
             return;
         }
@@ -236,13 +315,13 @@ public abstract class Entity {
         hitbox.updatePosition(x - HITBOX_HALF, y - HITBOX_HALF);
 
         // Sync sprite and animator position to new center
-        sprite.setLocation(x - SPRITE_HALF, y - SPRITE_HALF);
-        animator.setPosition(x - SPRITE_HALF, y - SPRITE_HALF);
+        syncVisualPosition();
 
         // Update facing from the net movement vector
         if (dx != 0 || dy != 0) {
             setFacing(Direction.fromDelta(dx, dy));
             animator.update(); // advance walk animation while moving
+            syncVisualPosition();
         }
     }
 
@@ -337,4 +416,23 @@ public abstract class Entity {
 
     /** @return the sprite animator for this entity */
     public SpriteAnimator getAnimator() { return animator; }
+
+    /**
+     * Removes this entity's sprite (and current animation frame) from the
+     * canvas. Call during scene teardown to prevent orphaned visuals.
+     */
+    public void removeSpriteFromCanvas(GCanvas canvas) {
+        if (canvas == null) return;
+        if (lastDrawnVisual != null) {
+            canvas.remove(lastDrawnVisual);
+            lastDrawnVisual = null;
+        }
+        if (sprite != null) {
+            canvas.remove(sprite);
+        }
+        GImage frame = animator.getCurrentFrame();
+        if (frame != null && frame != sprite) {
+            canvas.remove(frame);
+        }
+    }
 }

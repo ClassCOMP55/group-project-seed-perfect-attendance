@@ -1,7 +1,9 @@
 import acm.graphics.*;
 import java.awt.event.KeyEvent;
+import java.util.EnumMap;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Player.java
@@ -27,7 +29,7 @@ public class Player extends Entity {
     // ==========================================================
 
     /** Player movement speed in pixels per second. */
-    private static final double PLAYER_SPEED = 120.0;
+    private static final double PLAYER_SPEED = 220.0;
 
     /** Default max health in hearts. */
     private static final int MAX_HEARTS = 3;
@@ -116,7 +118,20 @@ public class Player extends Entity {
     // ==========================================================
 
     /** Sprite asset path — actual file in the assets folder. */
-    private static final String PLAYER_SPRITE = "assets/visuals/characters/player-1-idle-front.gif";
+    private static final String PLAYER_SPRITE =
+        "assets/visuals/characters/normalized/player-1-idle-front.gif";
+    private static final String NORMALIZED_SPRITE_DIR = "assets/visuals/characters/normalized/";
+    private static final String PLAYER_IDLE_FRONT = NORMALIZED_SPRITE_DIR + "player-1-idle-front.gif";
+    private static final String PLAYER_IDLE_BACK  = NORMALIZED_SPRITE_DIR + "player-1-idle-back.gif";
+    private static final String PLAYER_IDLE_LEFT  = NORMALIZED_SPRITE_DIR + "player-1-idle-left.gif";
+    private static final String PLAYER_IDLE_RIGHT = NORMALIZED_SPRITE_DIR + "player-1-idle-right.gif";
+    private static final String PLAYER_WALK_FRONT = NORMALIZED_SPRITE_DIR + "player-walk-forward.gif";
+    private static final String PLAYER_WALK_BACK  = NORMALIZED_SPRITE_DIR + "player-walking-back.gif";
+    private static final String PLAYER_WALK_LEFT  = NORMALIZED_SPRITE_DIR + "player-walk-left.gif";
+    private static final String PLAYER_WALK_RIGHT = NORMALIZED_SPRITE_DIR + "player-walking-right.gif";
+
+    private final Map<Direction, GImage> idleByDirection = new EnumMap<>(Direction.class);
+    private final Map<Direction, GImage> walkByDirection = new EnumMap<>(Direction.class);
 
     /**
      * Creates a Player with no TileMap (e.g. for save-load / menu use).
@@ -127,6 +142,7 @@ public class Player extends Entity {
         this.hand = new Hand();
         this.respawnX = x;
         this.respawnY = y;
+        initializeDirectionalSprites();
     }
 
     /**
@@ -141,6 +157,7 @@ public class Player extends Entity {
         this.hand = new Hand();
         this.respawnX = startX;
         this.respawnY = startY;
+        initializeDirectionalSprites();
     }
 
     // ==========================================================
@@ -174,7 +191,7 @@ public class Player extends Entity {
         x = respawnX;
         y = respawnY;
         hitbox.updatePosition(x - 24, y - 24);
-        sprite.setLocation(x - 24, y - 24);
+        syncVisualPosition();
     }
 
     // ==========================================================
@@ -209,10 +226,12 @@ public class Player extends Entity {
         if (input.isHeld(KeyEvent.VK_A) || input.isHeld(KeyEvent.VK_LEFT))  dx -= 1;
         if (input.isHeld(KeyEvent.VK_D) || input.isHeld(KeyEvent.VK_RIGHT)) dx += 1;
 
-        if (dx != 0 || dy != 0) {
+        boolean moving = dx != 0 || dy != 0;
+        if (moving) {
             double len = Math.sqrt(dx * dx + dy * dy);
             move((dx / len) * speed * dt, (dy / len) * speed * dt);
         }
+        applyDirectionalVisual(moving);
 
         if (isOverHole()) {
             fallInHole();
@@ -454,7 +473,7 @@ public class Player extends Entity {
         this.x = newX;
         this.y = newY;
         hitbox.updatePosition(x - 24, y - 24);
-        sprite.setLocation(x - 24, y - 24);
+        syncVisualPosition();
     }
 
     // ==========================================================
@@ -500,6 +519,33 @@ public class Player extends Entity {
         if (activeSwing != null) {
             activeSwing.removeFrom(canvas);
             activeSwing = null;
+        }
+    }
+
+    private void initializeDirectionalSprites() {
+        idleByDirection.put(Direction.DOWN, new GImage(PLAYER_IDLE_FRONT, 0, 0));
+        idleByDirection.put(Direction.UP, new GImage(PLAYER_IDLE_BACK, 0, 0));
+        idleByDirection.put(Direction.LEFT, new GImage(PLAYER_IDLE_LEFT, 0, 0));
+        idleByDirection.put(Direction.RIGHT, new GImage(PLAYER_IDLE_RIGHT, 0, 0));
+
+        walkByDirection.put(Direction.DOWN, new GImage(PLAYER_WALK_FRONT, 0, 0));
+        walkByDirection.put(Direction.UP, new GImage(PLAYER_WALK_BACK, 0, 0));
+        walkByDirection.put(Direction.LEFT, new GImage(PLAYER_WALK_LEFT, 0, 0));
+        walkByDirection.put(Direction.RIGHT, new GImage(PLAYER_WALK_RIGHT, 0, 0));
+
+        applyDirectionalVisual(false);
+    }
+
+    private void applyDirectionalVisual(boolean moving) {
+        Map<Direction, GImage> source;
+        source = moving ? walkByDirection : idleByDirection;
+        GImage visual = source.get(facing);
+        if (visual == null) {
+            visual = source.get(Direction.DOWN);
+        }
+        if (visual != null) {
+            animator.setFallbackFrame(visual);
+            syncVisualPosition();
         }
     }
 }

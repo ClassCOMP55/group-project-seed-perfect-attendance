@@ -47,6 +47,8 @@ public class SwordSwing {
      * TODO [GRAPHICS]: replace with a sprite sheet frame or swing arc animation.
      */
     private static final Color SWING_COLOR = new Color(255, 215, 0, 140);
+    /** Bright slash arc so attack has a clear visible animation. */
+    private static final Color SWING_ARC_COLOR = new Color(255, 245, 180, 220);
 
     // ==========================================================
     // FIELDS
@@ -66,6 +68,8 @@ public class SwordSwing {
      * TODO [GRAPHICS]: replace with animated sprite frame or arc visual.
      */
     private final GRect visual;
+    /** Animated slash arc shown during the swing lifetime. */
+    private final GArc slashArc;
 
     /**
      * Tracks enemies already damaged this swing to prevent multi-hit within one swing instance.
@@ -112,6 +116,13 @@ public class SwordSwing {
         this.visual.setFilled(true);
         this.visual.setFillColor(SWING_COLOR);
         this.visual.setColor(SWING_COLOR);
+
+        // Arc is slightly larger than the hitbox so the slash reads clearly.
+        double arcSize = SWING_SIZE * 1.45;
+        double arcX = hx + (SWING_SIZE - arcSize) / 2.0;
+        double arcY = hy + (SWING_SIZE - arcSize) / 2.0;
+        this.slashArc = new GArc(arcX, arcY, arcSize, arcSize, 0, 60);
+        this.slashArc.setColor(SWING_ARC_COLOR);
     }
 
     // ==========================================================
@@ -188,8 +199,28 @@ public class SwordSwing {
      * @param canvas The ACM GCanvas to render onto
      */
     public void draw(GCanvas canvas) {
-        // TODO [GRAPHICS]: replace placeholder GRect with a proper swing animation
+        // Keep a faint hitbox tint for readability while animating the slash arc.
         canvas.add(visual);
+
+        double t = Math.max(0.0, Math.min(1.0, currentAge / (double) LIFETIME));
+        double sweep = 60 + (180 * t);
+        switch (facing) {
+            case RIGHT:
+                slashArc.setStartAngle(-50 + 140 * t);
+                break;
+            case LEFT:
+                slashArc.setStartAngle(130 + 140 * t);
+                break;
+            case UP:
+                slashArc.setStartAngle(220 + 140 * t);
+                break;
+            case DOWN:
+            default:
+                slashArc.setStartAngle(40 + 140 * t);
+                break;
+        }
+        slashArc.setSweepAngle(sweep);
+        canvas.add(slashArc);
     }
 
     /**
@@ -200,6 +231,7 @@ public class SwordSwing {
      */
     public void removeFrom(GCanvas canvas) {
         canvas.remove(visual);
+        canvas.remove(slashArc);
     }
 
     // ==========================================================

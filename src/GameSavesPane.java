@@ -63,7 +63,7 @@ public class GameSavesPane extends NightScenePane {
             double y = (i == 0) ? y1 : (i == 1) ? y2 : y3;
             slotFrames[i] = addNightRowButton(buttonLeft, y, bw, bh);
 
-            String text = SaveManager.slotOccupied(slot)
+            String text = GameSaveIO.slotOccupied(slot)
                 ? "Load Save #" + slot
                 : "Create Save #" + slot;
             slotLabels[i] = new GLabel(text, 0, 0);
@@ -74,7 +74,7 @@ public class GameSavesPane extends NightScenePane {
 
             clearFrames[i] = null;
             clearLabels[i] = null;
-            if (SaveManager.slotOccupied(slot)) {
+            if (GameSaveIO.slotOccupied(slot)) {
                 addClearControl(i, buttonLeft, y, bw, bh, side, hGap, ox, lw);
             }
         }
@@ -171,19 +171,9 @@ public class GameSavesPane extends NightScenePane {
 
     private void handleSlot(int slot) {
         try {
-            if (SaveManager.slotOccupied(slot)) {
-                SaveData data = SaveManager.loadSave(slot);
-                GameState state = mainScreen.getGameState();
-                Player player = state.getPlayer();
-                state.setActiveSaveSlot(data.getSlot());
-                player.setHP(data.getHp());
-                player.setHasHalfDamage(data.isHasHalfDamage());
-                player.setHasReflect(data.isHasReflect());
-                player.setHasIntangible(data.isHasIntangible());
-                player.setHasMarkOfHero(data.isHasMarkOfHero());
-                // TODO: restore coins + collected items once those systems are built (P2)
-                // TODO: route to data.getRoomId() once WorldMap / room routing is wired (P2)
-                mainScreen.switchToScene1Screen();
+            if (GameSaveIO.slotOccupied(slot)) {
+                GameSaveIO.loadIntoState(slot, mainScreen.getGameState());
+                mainScreen.switchToSceneFromSave(mainScreen.getGameState().getResumeScene());
             } else {
                 mainScreen.getGameState().beginNewRunInSlot(slot);
                 // TODO: route to Zelda game-start screen once defined (P1)

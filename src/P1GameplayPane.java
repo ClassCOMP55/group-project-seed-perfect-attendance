@@ -51,6 +51,7 @@ public class P1GameplayPane extends GraphicsPane {
     private String gateHint = "";
     private boolean inputsWired;
     private boolean tilesOnCanvas;
+    private boolean wasPausedLastTick;
 
     public P1GameplayPane(MainApplication mainScreen) {
         this.mainScreen = mainScreen;
@@ -59,6 +60,7 @@ public class P1GameplayPane extends GraphicsPane {
     @Override
     public void showContent() {
         clearVisuals();
+        wasPausedLastTick = false;
         GamePlayState.setCurrent(GamePlayState.PLAYING);
         setupWorld();
         drawBackdropBehindTiles();
@@ -92,8 +94,16 @@ public class P1GameplayPane extends GraphicsPane {
         if (player == null || openingSequence == null) {
             return;
         }
-        if (GamePlayState.PAUSED.is()) {
+        if (mainScreen.isPauseModalOpen() || GamePlayState.PAUSED.is()) {
+            if (!wasPausedLastTick) {
+                player.removeSwingFrom(mainScreen.getGCanvas());
+                player.removeSpriteFromCanvas(mainScreen.getGCanvas());
+                wasPausedLastTick = true;
+            }
             return;
+        }
+        if (wasPausedLastTick) {
+            wasPausedLastTick = false;
         }
 
         List<Enemy> combatEnemies = enemiesForCombat();

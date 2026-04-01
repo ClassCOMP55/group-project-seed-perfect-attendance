@@ -121,7 +121,7 @@ public class MainApplication extends GraphicsProgram{
 
 		characterCreationPane = new CharacterCreationPane(this);
 		skyTransitionPane = new SkyTransitionPane(this);
-		scene1Pane = new P1GameplayPane(this);
+		scene1Pane = new Scene1Pane(this);
 		scene1To2TransitionPane = new Scene1To2TransitionPane(this);
 		scene2Pane = new Scene2Pane(this);
 		transitionLoading1Pane = new TransitionLoading1Pane(this);

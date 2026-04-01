@@ -257,7 +257,7 @@ public class OpeningSequence {
     // ==========================================================
 
     private void initGoatSprite() {
-        goatSprite = new GImage("assets/visuals/characters/player-1-idle-front.gif", goatX - 24, goatY - 24);
+        goatSprite = new GImage("assets/visuals/characters/normalized/player-1-idle-front.gif", goatX - 24, goatY - 24);
         goatSprite.setSize(48, 48);
         canvas.add(goatSprite);
     }

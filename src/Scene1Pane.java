@@ -1,11 +1,13 @@
 import java.awt.Color;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import acm.graphics.GImage;
 import acm.graphics.GLabel;
 import acm.graphics.GObject;
 import acm.graphics.GRect;
@@ -90,11 +92,30 @@ public class Scene1Pane extends GraphicsPane {
         new Color(255, 209, 102)   // WILDCARD      — gold
     };
 
-    // -- Sprite placeholder colours --
+    // -- Sprite fallback colours --
     private static final Color C_ORET_SPRITE      = new Color(180, 140, 60);
     private static final Color C_CAEL_SPRITE      = new Color(60, 160, 90);
     private static final Color C_CONSTRUCT_SPRITE = new Color(160, 50, 50);
     private static final Color C_PLAYER_SPRITE    = new Color(80, 110, 160);
+    private static final Color C_BG_SCRIM         = new Color(10, 8, 18, 88);
+
+    // -- Asset paths reused from the existing market debug pane --
+    private static final String MARKET_BG_PATH =
+        "assets/visuals/market-background/market-scene-1-w-characters.png";
+    private static final String NORMALIZED_SPRITE_DIR =
+        "assets/visuals/characters/normalized/";
+    private static final String PLAYER_IDLE_FRONT =
+        NORMALIZED_SPRITE_DIR + "player-1-idle-front.gif";
+    private static final String ORET_MARKET_SPRITE =
+        NORMALIZED_SPRITE_DIR + "trader-fruits-animation.gif";
+    private static final String CAELOMUND_MARKET_SPRITE =
+        NORMALIZED_SPRITE_DIR + "trader-with-weapon.gif";
+    private static final String[] CONSTRUCT_SPRITES = {
+        "assets/enemy.png",
+        "assets/enemy_melee.png",
+        "assets/enemy_ranged.png",
+        "assets/boss.png"
+    };
 
     // =========================================================
     // LAYOUT CONSTANTS (logical 700x500 design space)
@@ -128,8 +149,40 @@ public class Scene1Pane extends GraphicsPane {
     // -- Sprite positions --
     private static final double NPC_SPRITE_X = 60;
     private static final double NPC_SPRITE_Y = 60;
-    private static final double PLAYER_SPRITE_X = 520;
-    private static final double PLAYER_SPRITE_Y = 60;
+
+    // -- Walkable market layout --
+    // Oret is baked into the market background at native-BG coords (37, 177)
+    // in a 336×288 source image → logical 700×500 foot position ≈ (77, 307).
+    // WORLD_VENDOR_CENTER is the logical midpoint of the stall the player
+    // must approach to trigger dialogue.
+    private static final double WORLD_VENDOR_X        = 50;
+    private static final double WORLD_VENDOR_Y        = 225;
+    private static final double WORLD_VENDOR_W        = 70;
+    private static final double WORLD_VENDOR_H        = 90;
+    private static final double WORLD_VENDOR_CENTER_X = 100;
+    private static final double WORLD_VENDOR_CENTER_Y = 270;
+    // Player starts in the open brick-floor area to the right of the stalls.
+    private static final double PLAYER_SPAWN_X        = 420;
+    private static final double PLAYER_SPAWN_Y        = 350;
+    // Walk-bounds keep the player on the visible floor (top of brick ≈ y=185).
+    private static final double PLAYER_MIN_X          = 34;
+    private static final double PLAYER_MAX_X          = 666;
+    private static final double PLAYER_MIN_Y          = 185;
+    private static final double PLAYER_MAX_Y          = 450;
+    private static final double EXIT_MIN_Y            = 24;
+    private static final double EXIT_TRIGGER_Y        = 56;
+    // Slightly larger radius so it is easier to reach the stall from the floor.
+    private static final double VENDOR_TALK_RADIUS    = 120;
+    private static final double MARKET_PLAYER_RENDER_W = 72;
+    private static final double MARKET_PLAYER_RENDER_H = 90;
+    private static final double DEFAULT_PLAYER_RENDER_W = 48;
+    private static final double DEFAULT_PLAYER_RENDER_H = 48;
+
+    // -- Roam UI --
+    private static final Color C_STATUS_BG = new Color(10, 10, 16, 205);
+    private static final Color C_STATUS_BORDER = new Color(112, 104, 148);
+    private static final Color C_STATUS_TEXT = new Color(228, 228, 240);
+    private static final Color C_VENDOR_PROMPT = new Color(255, 235, 168);
 
     // =========================================================
     // DIALOGUE STATE
@@ -163,6 +216,44 @@ public class Scene1Pane extends GraphicsPane {
     private volatile boolean fadingOut = false;
     /** Full-screen overlay for fade transitions. */
     private GRect fadeOverlay;
+    /** Dialogue frame shown only while a conversation is active. */
+    private GRect dialogueBoxFrame;
+
+    /** Shared player instance for the walkable market layer. */
+    private Player marketPlayer;
+    /** Empty projectile list kept so Player.update can reuse combat logic safely. */
+    private final List<Projectile> projectiles = new ArrayList<>();
+    /** One-shot screen controls are attached only while this pane is visible. */
+    private boolean inputsWired;
+    /** Tracks pause edge so we can hide/show player visuals cleanly. */
+    private boolean wasPausedLastTick;
+    /** Preserves walk state across resize-driven hide/show rebuilds. */
+    private boolean preserveStateOnNextShow;
+    /** Player position in logical coordinates so resize preserves placement. */
+    private double playerLogicalX = PLAYER_SPAWN_X;
+    private double playerLogicalY = PLAYER_SPAWN_Y;
+    /** Contextual roam hint shown above the market scene. */
+    private GRect statusBg;
+    private GLabel statusLabel;
+    /** Prompt shown when the player is close enough to talk to Oret. */
+    private GLabel vendorPromptLabel;
+    /** Visual goal for the northbound exit after the dialogue is complete. */
+    private GLabel exitGuideLabel;
+
+    /**
+     * High-level market control state:
+     * APPROACH_VENDOR = free roam before the conversation starts
+     * DIALOGUE        = branching Scene 1 dialogue is active
+     * EXIT_WALK       = dialogue is over; player must walk north to leave
+     */
+    private enum MarketPhase {
+        APPROACH_VENDOR,
+        DIALOGUE,
+        EXIT_WALK
+    }
+
+    /** Current top-level mode for the walkable market flow. */
+    private MarketPhase marketPhase = MarketPhase.APPROACH_VENDOR;
 
     // =========================================================
     // DIALOGUE DATA — all nodes and choices for the scene
@@ -785,23 +876,33 @@ public class Scene1Pane extends GraphicsPane {
         hoveredChoice = -1;
         choiceBoxes.clear();
         dialogueElements.clear();
+        npcSpriteElements.clear();
 
         drawBackground();
         addSceneDebugBanner();
         drawDialogueBox();
+        drawRoamUi();
         addSettingsCornerButton();
         showPlayerHUD(mainScreen.getGameState().getPlayer());
+        wireInputOnce();
 
+        marketPlayer = mainScreen.getGameState().getPlayer();
+        wasPausedLastTick = false;
+        marketPlayer.setTileMap(null);
+        applyMarketPlayerVisualScale();
+        placePlayerAtLogical(playerLogicalX, playerLogicalY);
         GameState gs = mainScreen.getGameState();
         String ck = gs.getScene1NodeId();
         if (ck != null && !ck.isEmpty() && NODES.containsKey(ck)) {
             restoreScene1FromGameState(gs);
+        } else if (preserveStateOnNextShow) {
+            restoreRoamState();
         } else {
-            currentRejoinId = null;
-            advanceToNode("p1_opening");
+            beginApproachVendorPhase();
             // Fade in from black on fresh entry (not save restore)
             startFadeIn();
         }
+        preserveStateOnNextShow = false;
     }
 
     @Override
@@ -810,14 +911,70 @@ public class Scene1Pane extends GraphicsPane {
         fadingOut = false;
         fadeOverlay = null;
         syncScene1CheckpointToGameState();
+        unbindInput();
+        if (marketPlayer != null) {
+            marketPlayer.removeSwingFrom(mainScreen.getGCanvas());
+            marketPlayer.removeSpriteFromCanvas(mainScreen.getGCanvas());
+            marketPlayer.setSpriteRenderSize(
+                scaleX(DEFAULT_PLAYER_RENDER_W) - scaleX(0),
+                scaleY(DEFAULT_PLAYER_RENDER_H) - scaleY(0));
+        }
         for (GObject item : contents) {
             mainScreen.remove(item);
         }
         contents.clear();
         choiceBoxes.clear();
         dialogueElements.clear();
+        npcSpriteElements.clear();
         showingChoice = false;
         hoveredChoice = -1;
+        hidePlayerHUD();
+    }
+
+    @Override
+    public void refreshLayout() {
+        preserveStateOnNextShow = true;
+        capturePlayerLogicalPosition();
+        hideContent();
+        showContent();
+    }
+
+    @Override
+    public boolean needsGameLoop() {
+        return true;
+    }
+
+    @Override
+    public void onTick(double dt) {
+        if (marketPlayer == null || fadingOut) {
+            return;
+        }
+        if (mainScreen.isPauseModalOpen()) {
+            if (!wasPausedLastTick) {
+                marketPlayer.removeSwingFrom(mainScreen.getGCanvas());
+                marketPlayer.removeSpriteFromCanvas(mainScreen.getGCanvas());
+                wasPausedLastTick = true;
+            }
+            return;
+        }
+        if (wasPausedLastTick) {
+            wasPausedLastTick = false;
+        }
+        if (!mainScreen.isPauseModalOpen() && marketPhase != MarketPhase.DIALOGUE && !fadingIn) {
+            SwordSwing swingBefore = marketPlayer.getActiveSwing();
+            marketPlayer.update(mainScreen.getInputHandler(), null, projectiles, dt);
+            if (swingBefore != null && marketPlayer.getActiveSwing() == null) {
+                swingBefore.removeFrom(mainScreen.getGCanvas());
+            }
+            clampPlayerToBounds(marketPhase == MarketPhase.EXIT_WALK ? EXIT_MIN_Y : PLAYER_MIN_Y);
+            capturePlayerLogicalPosition();
+        }
+        updateStatusUi();
+        updatePlayerHUD(marketPlayer);
+        marketPlayer.draw(mainScreen.getGCanvas());
+        if (marketPhase == MarketPhase.EXIT_WALK && toLogicalY(marketPlayer.getY()) <= EXIT_TRIGGER_Y) {
+            completeSceneTransition();
+        }
     }
 
     // =========================================================
@@ -834,28 +991,40 @@ public class Scene1Pane extends GraphicsPane {
     }
 
     /**
-     * Draws the market background using placeholder rectangles.
-     * The upper area shows character sprite placeholders and a
-     * market stall strip. The graphics team will replace these
-     * with real sprites and tilemap art.
+     * Draws the market background, falling back to the original placeholder
+     * blocks if the external art is not available on disk.
      */
     private void drawBackground() {
-        // TODO [GRAPHICS]: Replace with market background tilemap/sprite
-        // Full background
-        place(rect(0, 0, mainScreen.getWidth(), mainScreen.getHeight(), C_BG, C_BG));
+        String bgPath = resolveExistingAsset(MARKET_BG_PATH);
+        if (bgPath != null) {
+            GImage bg = new GImage(bgPath, 0, 0);
+            bg.setSize(mainScreen.getWidth(), mainScreen.getHeight());
+            place(bg);
+            bg.sendToBack();
 
-        // Market stall strip (lighter band across the middle)
-        place(srect(0, 100, 700, 120, C_STALLS, C_STALLS));
+            GRect scrim = rect(0, 0, mainScreen.getWidth(), mainScreen.getHeight(),
+                C_BG_SCRIM, new Color(0, 0, 0, 0));
+            place(scrim);
 
-        // Player sprite placeholder (always visible)
-        // TODO [GRAPHICS]: Replace with player character sprite
-        drawSpriteRect(PLAYER_SPRITE_X, PLAYER_SPRITE_Y, 100, 140,
-            C_PLAYER_SPRITE, mainScreen.getGameState().getPlayerName());
+            GRect stallBand = srect(0, 92, 700, 132, new Color(22, 18, 32, 54), new Color(0, 0, 0, 0));
+            place(stallBand);
+        } else {
+            place(rect(0, 0, mainScreen.getWidth(), mainScreen.getHeight(), C_BG, C_BG));
+            place(srect(0, 100, 700, 120, C_STALLS, C_STALLS));
+        }
+
+        addPersistentSprite(WORLD_VENDOR_X, WORLD_VENDOR_Y, WORLD_VENDOR_W, WORLD_VENDOR_H,
+            new String[]{ORET_MARKET_SPRITE},
+            C_ORET_SPRITE,
+            "ORET",
+            C_ORET,
+            true);
     }
 
     /**
-     * Draws a placeholder sprite rectangle with a name label below it.
-     * These are temporary stand-ins for the graphics team.
+     * Creates a sprite visual inside the given logical box. Real image assets
+     * are preferred, but the original coloured rectangle fallback is kept so
+     * the scene remains playable during asset iteration.
      *
      * @param lx     logical X
      * @param ly     logical Y
@@ -864,19 +1033,129 @@ public class Scene1Pane extends GraphicsPane {
      * @param color  fill colour
      * @param label  name label text
      */
-    private void drawSpriteRect(double lx, double ly, double lw, double lh,
-                                Color color, String label) {
-        place(srect(lx, ly, lw, lh, color, color.darker()));
+    private GObject createSpriteVisual(double lx, double ly, double lw, double lh,
+                                       String[] candidatePaths, Color fallbackColor) {
+        String spritePath = resolveExistingAsset(candidatePaths);
+        if (spritePath == null) {
+            return srect(lx, ly, lw, lh, fallbackColor, fallbackColor.darker());
+        }
 
-        GLabel nameLbl = pixelLabel(label, 9, color.brighter());
-        double cx = scaleX(lx) + (scaleX(lx + lw) - scaleX(lx) - nameLbl.getWidth()) / 2.0;
-        nameLbl.setLocation(cx, scaleY(ly + lh + 14));
+        GImage sprite = new GImage(spritePath, 0, 0);
+        double boxX = scaleX(lx);
+        double boxY = scaleY(ly);
+        double boxW = scaleX(lx + lw) - boxX;
+        double boxH = scaleY(ly + lh) - boxY;
+        double baseWidth = sprite.getWidth() > 0 ? sprite.getWidth() : boxW;
+        double baseHeight = sprite.getHeight() > 0 ? sprite.getHeight() : boxH;
+        double scale = Math.min(boxW / baseWidth, boxH / baseHeight);
+        double width = Math.max(1.0, baseWidth * scale);
+        double height = Math.max(1.0, baseHeight * scale);
+        sprite.setSize(width, height);
+        sprite.setLocation(boxX + (boxW - width) / 2.0, boxY + (boxH - height));
+        return sprite;
+    }
+
+    private void addPersistentSprite(double lx, double ly, double lw, double lh,
+                                     String[] candidatePaths, Color fallbackColor,
+                                     String label, Color labelColor) {
+        addPersistentSprite(lx, ly, lw, lh, candidatePaths, fallbackColor, label, labelColor, false);
+    }
+
+    private void addPersistentSprite(double lx, double ly, double lw, double lh,
+                                     String[] candidatePaths, Color fallbackColor,
+                                     String label, Color labelColor, boolean labelAbove) {
+        GObject sprite = createSpriteVisual(lx, ly, lw, lh, candidatePaths, fallbackColor);
+        place(sprite);
+        addSpriteLabel(lx, ly, lw, lh, label, labelColor, labelAbove);
+    }
+
+    private void addTrackedSprite(List<GObject> tracking, double lx, double ly, double lw, double lh,
+                                  String[] candidatePaths, Color fallbackColor,
+                                  String label, Color labelColor) {
+        GObject sprite = createSpriteVisual(lx, ly, lw, lh, candidatePaths, fallbackColor);
+        tracking.add(sprite);
+        place(sprite);
+
+        GLabel nameLbl = createSpriteLabel(lx, ly, lw, lh, label, labelColor);
+        tracking.add(nameLbl);
         place(nameLbl);
+    }
+
+    private void addSpriteLabel(double lx, double ly, double lw, double lh,
+                                String label, Color labelColor) {
+        addSpriteLabel(lx, ly, lw, lh, label, labelColor, false);
+    }
+
+    private void addSpriteLabel(double lx, double ly, double lw, double lh,
+                                String label, Color labelColor, boolean labelAbove) {
+        place(createSpriteLabel(lx, ly, lw, lh, label, labelColor, labelAbove));
+    }
+
+    private GLabel createSpriteLabel(double lx, double ly, double lw, double lh,
+                                     String label, Color labelColor) {
+        return createSpriteLabel(lx, ly, lw, lh, label, labelColor, false);
+    }
+
+    private GLabel createSpriteLabel(double lx, double ly, double lw, double lh,
+                                     String label, Color labelColor, boolean labelAbove) {
+        GLabel nameLbl = pixelLabel(label, 9, labelColor);
+        double cx = scaleX(lx) + (scaleX(lx + lw) - scaleX(lx) - nameLbl.getWidth()) / 2.0;
+        double labelY;
+        if (labelAbove) {
+            labelY = scaleY(ly) - (scaleY(4) - scaleY(0));
+        } else {
+            labelY = scaleY(ly + lh + 14);
+        }
+        nameLbl.setLocation(cx, labelY);
+        return nameLbl;
+    }
+
+    private String resolveExistingAsset(String... candidatePaths) {
+        if (candidatePaths == null) {
+            return null;
+        }
+        for (String path : candidatePaths) {
+            if (path == null || path.isEmpty()) {
+                continue;
+            }
+            if (new File(path).isFile()) {
+                return path;
+            }
+        }
+        return null;
+    }
+
+    private String displayNameOrFallback(String name) {
+        if (name == null || name.trim().isEmpty()) {
+            return "PLAYER";
+        }
+        return name;
     }
 
     /** Draws the semi-transparent dialogue box frame at the bottom of the screen. */
     private void drawDialogueBox() {
-        place(srect(DBOX_X, DBOX_Y, DBOX_W, DBOX_H, C_DBOX_BG, C_DBOX_BORDER));
+        dialogueBoxFrame = srect(DBOX_X, DBOX_Y, DBOX_W, DBOX_H, C_DBOX_BG, C_DBOX_BORDER);
+        place(dialogueBoxFrame);
+        setDialogueBoxVisible(false);
+    }
+
+    private void drawRoamUi() {
+        statusBg = rect(scaleX(182), scaleY(12), scaleX(694) - scaleX(182), scaleY(52) - scaleY(12),
+            C_STATUS_BG, C_STATUS_BORDER);
+        place(statusBg);
+
+        statusLabel = pixelLabel("", 9, C_STATUS_TEXT);
+        statusLabel.setLocation(scaleX(194), scaleY(34));
+        place(statusLabel);
+
+        vendorPromptLabel = pixelLabel("Press E to talk to Oret", 9, C_VENDOR_PROMPT);
+        place(vendorPromptLabel);
+        vendorPromptLabel.setVisible(false);
+
+        exitGuideLabel = pixelLabel("NORTH EXIT", 10, C_VENDOR_PROMPT);
+        exitGuideLabel.setLocation(scaleX(292), scaleY(70));
+        place(exitGuideLabel);
+        exitGuideLabel.setVisible(false);
     }
 
     // =========================================================
@@ -902,21 +1181,19 @@ public class Scene1Pane extends GraphicsPane {
 
         // Determine which NPC to show based on the current part of the scene
         if (nodeId.startsWith("p1_")) {
-            // Part 1: Oret the vendor
-            // TODO [GRAPHICS]: Replace with Oret character sprite
-            addNpcSprite(NPC_SPRITE_X, NPC_SPRITE_Y, 100, 140, C_ORET_SPRITE, "ORET");
+            addNpcSprite(NPC_SPRITE_X, NPC_SPRITE_Y, 70, 90,
+                new String[]{ORET_MARKET_SPRITE}, C_ORET_SPRITE, "ORET", C_ORET);
         } else if (nodeId.startsWith("p2_") || nodeId.startsWith("p4_")) {
-            // Parts 2 & 4: Caelomund the goat (shorter sprite)
-            // TODO [GRAPHICS]: Replace with Caelomund goat sprite
-            addNpcSprite(NPC_SPRITE_X, NPC_SPRITE_Y + 40, 80, 100, C_CAEL_SPRITE, "CAELOMUND");
+            addNpcSprite(NPC_SPRITE_X, NPC_SPRITE_Y + 40, 80, 100,
+                new String[]{CAELOMUND_MARKET_SPRITE}, C_CAEL_SPRITE, "CAELOMUND", C_CAELOMUND);
         } else if (nodeId.startsWith("p3_intro") || nodeId.equals("p3_intro")) {
-            // Part 3 intro: show both construct and Caelomund
-            // TODO [GRAPHICS]: Replace with construct creature sprite
-            addNpcSprite(NPC_SPRITE_X - 20, NPC_SPRITE_Y - 10, 120, 160, C_CONSTRUCT_SPRITE, "CONSTRUCT");
-            addNpcSprite(NPC_SPRITE_X + 120, NPC_SPRITE_Y + 40, 60, 80, C_CAEL_SPRITE, "CAELOMUND");
+            addNpcSprite(NPC_SPRITE_X - 20, NPC_SPRITE_Y - 10, 120, 160,
+                CONSTRUCT_SPRITES, C_CONSTRUCT_SPRITE, "CONSTRUCT", C_TEXT);
+            addNpcSprite(NPC_SPRITE_X + 120, NPC_SPRITE_Y + 40, 60, 80,
+                new String[]{CAELOMUND_MARKET_SPRITE}, C_CAEL_SPRITE, "CAELOMUND", C_CAELOMUND);
         } else if (nodeId.startsWith("p3_")) {
-            // Part 3 branches: Caelomund
-            addNpcSprite(NPC_SPRITE_X, NPC_SPRITE_Y + 40, 80, 100, C_CAEL_SPRITE, "CAELOMUND");
+            addNpcSprite(NPC_SPRITE_X, NPC_SPRITE_Y + 40, 80, 100,
+                new String[]{CAELOMUND_MARKET_SPRITE}, C_CAEL_SPRITE, "CAELOMUND", C_CAELOMUND);
         }
     }
 
@@ -924,16 +1201,255 @@ public class Scene1Pane extends GraphicsPane {
      * Adds an NPC sprite placeholder to the screen and tracks it for removal.
      */
     private void addNpcSprite(double lx, double ly, double lw, double lh,
-                              Color color, String label) {
-        GRect sprite = srect(lx, ly, lw, lh, color, color.darker());
-        npcSpriteElements.add(sprite);
-        place(sprite);
+                              String[] candidatePaths, Color fallbackColor,
+                              String label, Color labelColor) {
+        addTrackedSprite(npcSpriteElements, lx, ly, lw, lh, candidatePaths, fallbackColor, label, labelColor);
+    }
 
-        GLabel nameLbl = pixelLabel(label, 8, color.brighter());
-        double cx = scaleX(lx) + (scaleX(lx + lw) - scaleX(lx) - nameLbl.getWidth()) / 2.0;
-        nameLbl.setLocation(cx, scaleY(ly + lh + 12));
-        npcSpriteElements.add(nameLbl);
-        place(nameLbl);
+    /** Removes all currently displayed NPC sprite visuals from the canvas. */
+    private void clearNpcSpriteElements() {
+        for (GObject obj : npcSpriteElements) {
+            mainScreen.remove(obj);
+            contents.remove(obj);
+        }
+        npcSpriteElements.clear();
+    }
+
+    /**
+     * Resets Scene 1 into the pre-dialogue free-roam state where the
+     * player can walk up to Oret and press E to start the conversation.
+     */
+    private void beginApproachVendorPhase() {
+        marketPhase = MarketPhase.APPROACH_VENDOR;
+        mainScreen.getGameState().clearScene1Checkpoint();
+        currentNodeId = null;
+        currentLineIndex = 0;
+        currentRejoinId = null;
+        showingChoice = false;
+        activeChoice = null;
+        clearDialogueElements();
+        clearNpcSpriteElements();
+        setDialogueBoxVisible(false);
+        placePlayerAtLogical(PLAYER_SPAWN_X, PLAYER_SPAWN_Y);
+        if (marketPlayer != null) {
+            marketPlayer.setFacing(Direction.LEFT);
+        }
+        updateStatusUi();
+    }
+
+    /**
+     * Restores the free-roam market state after a layout rebuild.
+     * Keeps the player's logical position so window resize does not
+     * throw them back to spawn.
+     */
+    private void restoreRoamState() {
+        if (marketPlayer == null) {
+            marketPlayer = mainScreen.getGameState().getPlayer();
+            marketPlayer.setTileMap(null);
+        }
+        placePlayerAtLogical(playerLogicalX, playerLogicalY);
+        setDialogueBoxVisible(false);
+        clearDialogueElements();
+        if (marketPhase != MarketPhase.EXIT_WALK) {
+            marketPhase = MarketPhase.APPROACH_VENDOR;
+        }
+        clearNpcSpriteElements();
+        updateStatusUi();
+    }
+
+    /** Starts the scripted Scene 1 conversation once the player talks to Oret. */
+    private void beginDialogueFromVendor() {
+        marketPhase = MarketPhase.DIALOGUE;
+        currentRejoinId = null;
+        advanceToNode("p1_opening");
+        updateStatusUi();
+    }
+
+    /**
+     * Ends the dialogue phase but keeps the player in control so they
+     * physically walk north out of the market before Scene 2 begins.
+     */
+    private void beginExitWalkPhase() {
+        System.out.println("[Scene 1] Dialogue complete. Waiting for player to leave market.");
+        mainScreen.getGameState().clearScene1Checkpoint();
+        currentNodeId = null;
+        currentLineIndex = 0;
+        currentRejoinId = null;
+        showingChoice = false;
+        activeChoice = null;
+        marketPhase = MarketPhase.EXIT_WALK;
+        clearDialogueElements();
+        clearNpcSpriteElements();
+        setDialogueBoxVisible(false);
+        updateStatusUi();
+    }
+
+    /** Finishes Scene 1 and begins the existing fade into the next screen. */
+    private void completeSceneTransition() {
+        if (fadingOut) {
+            return;
+        }
+        System.out.println("[Scene 1] Scene complete!");
+        mainScreen.autosaveIfSlotActive();
+        mainScreen.getGameState().printDebugSummary();
+        startFadeOut();
+    }
+
+    /** Applies the larger market-scene render size to the shared Player sprite. */
+    private void applyMarketPlayerVisualScale() {
+        if (marketPlayer == null) {
+            return;
+        }
+        marketPlayer.setSpriteRenderSize(
+            scaleX(MARKET_PLAYER_RENDER_W) - scaleX(0),
+            scaleY(MARKET_PLAYER_RENDER_H) - scaleY(0));
+    }
+
+    /** Places the player using logical scene coordinates so layout scaling stays consistent. */
+    private void placePlayerAtLogical(double logicalX, double logicalY) {
+        playerLogicalX = logicalX;
+        playerLogicalY = logicalY;
+        if (marketPlayer != null) {
+            marketPlayer.setPosition(scaleX(logicalX), scaleY(logicalY));
+        }
+    }
+
+    /** Captures the player's current position back into logical coordinates for resize restore. */
+    private void capturePlayerLogicalPosition() {
+        if (marketPlayer == null) {
+            return;
+        }
+        playerLogicalX = toLogicalX(marketPlayer.getX());
+        playerLogicalY = toLogicalY(marketPlayer.getY());
+    }
+
+    /** Converts a screen-space X position back into the 700px logical layout space. */
+    private double toLogicalX(double px) {
+        return (px - originX()) * MainApplication.WINDOW_WIDTH / mainScreen.getLayoutWidth();
+    }
+
+    /** Converts a screen-space Y position back into the 500px logical layout space. */
+    private double toLogicalY(double py) {
+        return (py - originY()) * MainApplication.WINDOW_HEIGHT / mainScreen.getLayoutHeight();
+    }
+
+    /**
+     * Keeps the player inside the market walk area.
+     * The top bound is relaxed during EXIT_WALK so the player can leave north.
+     */
+    private void clampPlayerToBounds(double minLogicalY) {
+        if (marketPlayer == null) {
+            return;
+        }
+        double clampedX = Math.max(scaleX(PLAYER_MIN_X), Math.min(scaleX(PLAYER_MAX_X), marketPlayer.getX()));
+        double clampedY = Math.max(scaleY(minLogicalY), Math.min(scaleY(PLAYER_MAX_Y), marketPlayer.getY()));
+        if (clampedX != marketPlayer.getX() || clampedY != marketPlayer.getY()) {
+            marketPlayer.setPosition(clampedX, clampedY);
+        }
+    }
+
+    /** Returns true when the player is close enough to Oret to initiate dialogue. */
+    private boolean isPlayerNearVendor() {
+        if (marketPlayer == null) {
+            return false;
+        }
+        double dx = toLogicalX(marketPlayer.getX()) - WORLD_VENDOR_CENTER_X;
+        double dy = toLogicalY(marketPlayer.getY()) - WORLD_VENDOR_CENTER_Y;
+        return dx * dx + dy * dy <= VENDOR_TALK_RADIUS * VENDOR_TALK_RADIUS;
+    }
+
+    /** Shows or hides the bottom dialogue frame without affecting its contents list. */
+    private void setDialogueBoxVisible(boolean visible) {
+        if (dialogueBoxFrame != null) {
+            dialogueBoxFrame.setVisible(visible);
+        }
+    }
+
+    /**
+     * Updates the top-of-screen helper text so the player always knows
+     * whether they should talk, choose, or walk toward the exit.
+     */
+    private void updateStatusUi() {
+        if (statusLabel == null || vendorPromptLabel == null || exitGuideLabel == null) {
+            return;
+        }
+        String message;
+        switch (marketPhase) {
+            case DIALOGUE:
+                message = showingChoice
+                    ? "Choose a card response with the mouse."
+                    : "Dialogue active. Click, Space, or E to continue.";
+                vendorPromptLabel.setVisible(false);
+                exitGuideLabel.setVisible(false);
+                break;
+            case EXIT_WALK:
+                message = "The conversation is over. Walk north to leave the market.";
+                vendorPromptLabel.setVisible(false);
+                exitGuideLabel.setVisible(true);
+                break;
+            case APPROACH_VENDOR:
+            default:
+                message = isPlayerNearVendor()
+                    ? "Press E to talk to Oret. J attacks. K toggles god mode."
+                    : "Walk up to Oret to start the market conversation. J attacks. K toggles god mode.";
+                vendorPromptLabel.setVisible(isPlayerNearVendor());
+                exitGuideLabel.setVisible(false);
+                break;
+        }
+        statusLabel.setLabel(message);
+        statusLabel.setLocation(scaleX(194), scaleY(34));
+        // Place the prompt just above the fruit stall (x ≈ 40, y ≈ 158 logical)
+        vendorPromptLabel.setLocation(scaleX(40), scaleY(158));
+        exitGuideLabel.setLocation(scaleX(292), scaleY(70));
+    }
+
+    /**
+     * Registers Scene 1-specific one-shot inputs:
+     * J = attack, K = god mode toggle, E = interact / advance dialogue.
+     */
+    private void wireInputOnce() {
+        if (inputsWired) {
+            return;
+        }
+        InputHandler input = mainScreen.getInputHandler();
+        if (input == null) {
+            return;
+        }
+        input.onPress(KeyEvent.VK_J, () -> {
+            if (!mainScreen.isPauseModalOpen() && marketPlayer != null && marketPhase != MarketPhase.DIALOGUE) {
+                marketPlayer.attack();
+            }
+        });
+        input.onPress(KeyEvent.VK_K, () -> {
+            if (!mainScreen.isPauseModalOpen() && marketPlayer != null) {
+                marketPlayer.toggleGodMode();
+                updateStatusUi();
+            }
+        });
+        input.onPress(KeyEvent.VK_E, () -> {
+            if (mainScreen.isPauseModalOpen() || fadingIn || fadingOut) {
+                return;
+            }
+            if (marketPhase == MarketPhase.DIALOGUE) {
+                advanceDialogue();
+            } else if (marketPhase == MarketPhase.APPROACH_VENDOR && isPlayerNearVendor()) {
+                beginDialogueFromVendor();
+            }
+        });
+        inputsWired = true;
+    }
+
+    /** Removes this pane's one-shot input bindings when the scene is hidden. */
+    private void unbindInput() {
+        InputHandler input = mainScreen.getInputHandler();
+        if (input == null) {
+            inputsWired = false;
+            return;
+        }
+        input.removeOnPress(KeyEvent.VK_J);
+        input.removeOnPress(KeyEvent.VK_K);
+        input.removeOnPress(KeyEvent.VK_E);
+        inputsWired = false;
     }
 
     // =========================================================
@@ -949,10 +1465,11 @@ public class Scene1Pane extends GraphicsPane {
     private void advanceToNode(String nodeId) {
         // Check for scene end
         if ("SCENE_END".equals(nodeId)) {
-            endScene();
+            beginExitWalkPhase();
             return;
         }
 
+        marketPhase = MarketPhase.DIALOGUE;
         currentNodeId = nodeId;
         currentLineIndex = 0;
         showingChoice = false;
@@ -972,6 +1489,7 @@ public class Scene1Pane extends GraphicsPane {
      */
     private void renderDialogueLine() {
         clearDialogueElements();
+        setDialogueBoxVisible(true);
 
         DialogueNode node = NODES.get(currentNodeId);
         if (node == null) return;
@@ -1006,6 +1524,7 @@ public class Scene1Pane extends GraphicsPane {
         addDialogueElement(cont);
 
         syncScene1CheckpointToGameState();
+        updateStatusUi();
     }
 
     /**
@@ -1020,6 +1539,7 @@ public class Scene1Pane extends GraphicsPane {
         hoveredChoice = -1;
         showingChoice = true;
         activeChoice = choice;
+        setDialogueBoxVisible(true);
 
         String[] texts = choice.getOptionTexts();
         CardType[] types = choice.getOptionTypes();
@@ -1053,6 +1573,7 @@ public class Scene1Pane extends GraphicsPane {
             addDialogueElement(tagLbl);
         }
         syncScene1CheckpointToGameState();
+        updateStatusUi();
     }
 
     // =========================================================
@@ -1144,7 +1665,7 @@ public class Scene1Pane extends GraphicsPane {
      */
     @Override
     public void mouseClicked(MouseEvent e) {
-        if (fadingIn || fadingOut) return;
+        if (fadingIn || fadingOut || marketPhase != MarketPhase.DIALOGUE) return;
 
         double x = e.getX(), y = e.getY();
 
@@ -1159,7 +1680,17 @@ public class Scene1Pane extends GraphicsPane {
             return; // Click outside choices — ignore
         }
 
-        // -- Advance dialogue --
+        advanceDialogue();
+    }
+
+    /**
+     * Advances the current dialogue node by one line or one branch step.
+     * Shared by mouse click, Space, and the E interact key while dialogue is open.
+     */
+    private void advanceDialogue() {
+        if (marketPhase != MarketPhase.DIALOGUE) {
+            return;
+        }
         DialogueNode node = NODES.get(currentNodeId);
         if (node == null) return;
 
@@ -1184,7 +1715,7 @@ public class Scene1Pane extends GraphicsPane {
                 advanceToNode(rejoin);
             } else {
                 // No next node, no choice, no rejoin — scene is over
-                endScene();
+                beginExitWalkPhase();
             }
         }
     }
@@ -1195,7 +1726,7 @@ public class Scene1Pane extends GraphicsPane {
      */
     @Override
     public void mouseMoved(MouseEvent e) {
-        if (!showingChoice) return;
+        if (marketPhase != MarketPhase.DIALOGUE || !showingChoice) return;
 
         int newHover = -1;
         for (int i = 0; i < choiceBoxes.size(); i++) {
@@ -1218,7 +1749,7 @@ public class Scene1Pane extends GraphicsPane {
      */
     @Override
     public void keyPressed(KeyEvent e) {
-        if (e.getKeyCode() == KeyEvent.VK_SPACE && !showingChoice) {
+        if (e.getKeyCode() == KeyEvent.VK_SPACE && marketPhase == MarketPhase.DIALOGUE && !showingChoice) {
             mouseClicked(new MouseEvent(
                 e.getComponent(), MouseEvent.MOUSE_CLICKED, e.getWhen(),
                 0, 0, 0, 1, false));
@@ -1229,28 +1760,16 @@ public class Scene1Pane extends GraphicsPane {
     // SCENE TRANSITION
     // =========================================================
 
-    /**
-     * Called when the scene's dialogue is complete.
-     * Prints a debug summary and transitions to Scene 2.
-     */
-    private void endScene() {
-        System.out.println("[Scene 1] Scene complete!");
-        mainScreen.getGameState().clearScene1Checkpoint();
-        mainScreen.autosaveIfSlotActive();
-        currentNodeId = null;
-        mainScreen.getGameState().printDebugSummary();
-        startFadeOut();
-    }
-
     /** Restores layout from {@link GameState} after load or window resize. */
     private void restoreScene1FromGameState(GameState gs) {
         String id = gs.getScene1NodeId();
         DialogueNode node = NODES.get(id);
         if (node == null) {
             currentRejoinId = null;
-            advanceToNode("p1_opening");
+            beginApproachVendorPhase();
             return;
         }
+        marketPhase = MarketPhase.DIALOGUE;
         currentNodeId = id;
         currentLineIndex = gs.getScene1LineIndex();
         currentRejoinId = gs.getScene1RejoinId();
@@ -1258,7 +1777,7 @@ public class Scene1Pane extends GraphicsPane {
         if (gs.isScene1ShowingChoice()) {
             if (!CHOICES.containsKey(id)) {
                 currentRejoinId = null;
-                advanceToNode("p1_opening");
+                beginApproachVendorPhase();
                 return;
             }
             showingChoice = false;

@@ -55,7 +55,7 @@ public class ThicketGate {
         this.isOpen = false;
         this.hitbox = new Hitbox(x, y, GATE_WIDTH, GATE_HEIGHT);
 
-        this.sprite = new GImage("assets/visuals/characters/player-1-idle-front.gif", x, y);
+        this.sprite = new GImage("assets/visuals/characters/normalized/player-1-idle-front.gif", x, y);
         this.sprite.setSize(GATE_WIDTH, GATE_HEIGHT);
     }
 
