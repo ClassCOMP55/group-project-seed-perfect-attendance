@@ -18,6 +18,10 @@ PLAN OF ACTION
 - int hp, int maxHp               — player hearts at time of save
 - int coins                       — currency at time of save
 - String roomId                   — ID of the room containing the SavePoint used (for respawn destination)
+-                                   MUST match a WorldMap room ID exactly. Valid values:
+-                                   "A1", "B1", "C1", "A2", "B2", "C2", "A3", "B3", "C3", "D1", "D2", "D3"
+-                                   SaveManager passes this to WorldMap.getRoomById() on load.
+-                                   Any other string will cause getRoomById() to return null and break the load.
 - double spawnX, spawnY           — pixel position of the SavePoint (player lands here on load)
 - boolean hasHalfDamage           — relic flag (from Player.java)
 - boolean hasReflect              — relic flag (from Player.java)

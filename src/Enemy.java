@@ -35,7 +35,7 @@ public class Enemy extends Entity {
     private static final double WAYPOINT_THRESHOLD = 8.0;
 
     /** One tile in pixels — used to build the default patrol square. */
-    private static final double TILE = 64.0;
+    private static final double TILE = 48.0; // matches TileMap.tileSize (locked 2026-04-01)
 
     /** Step size (pixels) for line-of-sight ray march — half a tile. */
     private static final double LOS_STEP = 32.0;

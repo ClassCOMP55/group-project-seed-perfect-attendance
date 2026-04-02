@@ -1,7 +1,11 @@
 /*
 Roberto: SavePoint — interactive world object (Inn Door or Save Crystal) that triggers a save
-Who RIGs it: The room / pane that contains it — calls update() each tick, draw() each frame,
+Who RIGs it: Room — holds it as a WorldObject, calls update(dt) each tick, draw() each frame,
              and registers the interact key via inputHandler.onPress(VK_J, () -> savePoint.tryInteract(...))
+
+TODO: extends WorldObject — refactor this class to extend WorldObject once WorldObject.java is built.
+      SavePoint has x, y, Hitbox (interactZone), a visual sprite, draw(), update(), onInteract() — it IS a WorldObject.
+      When refactored: remove the duplicate x, y, visual, and hitbox fields and inherit them from WorldObject.
 No extends (not an Entity — has no health, movement, or AI)
 
 ===============

@@ -33,9 +33,13 @@ public class ThicketGate {
     /** Position (top-left of sprite/hitbox). */
     private final double x, y;
 
-    /** Size of the gate in pixels. */
-    private static final int GATE_WIDTH = 64;
-    private static final int GATE_HEIGHT = 64;
+    // TODO: extends WorldObject — refactor this class to extend WorldObject once WorldObject.java is built.
+    //       ThicketGate has x, y, Hitbox, sprite, draw(), onContact() — it IS a WorldObject.
+    //       Until then it stands alone.
+
+    /** Size of the gate in pixels. Matches TileMap.tileSize (48px, locked 2026-04-01). */
+    private static final int GATE_WIDTH = 48;
+    private static final int GATE_HEIGHT = 48;
 
     // ==========================================================
     // CONSTRUCTOR

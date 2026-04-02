@@ -1,10 +1,60 @@
 import acm.graphics.*;
 
+/*
+Person 2: TileMap — 2D grid of Tile objects for one Room.
+Who RIGs it: Room — creates one TileMap per room, calls draw() and removeFrom().
+             WorldMap — rooms are initialized with TileMaps on construction.
+             Collision: Player and Entity movement queries isPassable() / isHole() each tick.
+
+===============
+TILE SIZE DECISION (locked 2026-04-01)
+===============
+- Tile size: 48px.
+- Room grid: 26 cols × 15 rows = 1248 × 720 px.
+- Window: 1280 × 720. The 32px horizontal gap is split evenly: MAP_OFFSET_X = 16px left margin.
+- MAP_OFFSET_X is applied when drawing tiles and when converting pixel coords to tile coords.
+- DO NOT change tileSize, cols, rows, or MAP_OFFSET_X without updating Tile.java,
+  Enemy.java, ThicketGate.java, and all pixel-position constants across the project.
+
+===============
+PLAN OF ACTION
+===============
+
+- CLASS ROLE
+- TileMap holds a 2D array of Tile objects for a single Room.
+- TileMap does not know which room it belongs to — that is Room's job.
+- TileMap answers collision questions: isPassable(), isHole().
+- TileMap draws and removes all its tiles from the canvas.
+
+- TILE COORDINATE SYSTEM
+- Columns: 0 (leftmost) to 25 (rightmost). Pixel x = col * 48 + MAP_OFFSET_X.
+- Rows: 0 (topmost) to 14 (bottommost). Pixel y = row * 48.
+- getTileAtPixel(px, py) must subtract MAP_OFFSET_X before dividing: col = (px - MAP_OFFSET_X) / tileSize.
+
+- ROOM LAYOUTS
+- Each named room layout is a private generateXxx() method.
+- All room methods call fillBorderWalls() first (border = WALL, interior = FLOOR).
+- Room-specific walls, holes, bridges etc. are applied on top.
+- Dummy / placeholder rooms: just fillBorderWalls() with no extra tiles.
+- Real room layouts will be built out during Person 2's implementation sprint.
+
+- SPECIAL FACTORY
+- createOpeningRoom() is a TRANSITIONAL method used by P1GameplayPane.
+  It will be removed once P1GameplayPane is replaced by the Room/WorldMap system.
+*/
+
 public class TileMap {
     private Tile[][] tiles;
-    private int cols = 20;
-    private int rows = 10;
-    private int tileSize = 64;
+    private int cols = 26;
+    private int rows = 15;
+    private int tileSize = 48;
+
+    /**
+     * Horizontal pixel offset that centers the 1248px-wide map inside the 1280px window.
+     * Map starts at x = MAP_OFFSET_X, not x = 0.
+     * All tile drawing and pixel-to-tile conversion must account for this.
+     */
+    public static final int MAP_OFFSET_X = (1280 - 26 * 48) / 2; // = 16
 
     public TileMap() {
         tiles = new Tile[rows][cols];
@@ -40,8 +90,9 @@ public class TileMap {
     }
 
     /**
-     * Compact walkable room for the opening sequence (~704×512 px), fits the default window.
-     * Border walls, floor inside, no holes so the tutorial flow is not interrupted by pits.
+     * TRANSITIONAL — used only by P1GameplayPane for the opening sequence test.
+     * Will be removed once P1GameplayPane is replaced by the Room/WorldMap system.
+     * A1 (Market) will then be a full 26×15 room built by WorldMap.
      */
     public static TileMap createOpeningRoom() {
         TileMap m = new TileMap();
@@ -138,7 +189,7 @@ public class TileMap {
     }
 
     public Tile getTileAtPixel(double px, double py) {
-        int col = (int) (px / tileSize);
+        int col = (int) ((px - MAP_OFFSET_X) / tileSize);
         int row = (int) (py / tileSize);
         if (col >= 0 && col < cols && row >= 0 && row < rows) {
             return tiles[row][col];

@@ -19,7 +19,7 @@ public class Tile {
         this.type = type;
         this.col = col;
         this.row = row;
-        this.sprite = new GRect(col * 64, row * 64, 64, 64);
+        this.sprite = new GRect(col * 48 + TileMap.MAP_OFFSET_X, row * 48, 48, 48);
         this.sprite.setFilled(true);
         switch (type) {
             case WALL:   this.sprite.setFillColor(COLOR_WALL);   break;
