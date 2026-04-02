@@ -230,6 +230,52 @@ public class WorldMap {
     private Room roomC3;
 
     // =========================================================
+    // DUNGEON EXIT MARKER (tech-demo placeholder)
+    // =========================================================
+
+    /*
+     * =====================
+     * Dungeon exit trigger bounds — placed near the west wall of D1 so the player
+     * can step left to leave the dungeon and return to C3.
+     * Adjust position/size here if the marker needs to move.
+     * // TECH DEMO: remove these constants when a real dungeon-exit door WorldObject is built.
+     * =====================
+     */
+
+    /** Left edge of the dungeon exit trigger zone (col 1, just inside the west wall of D1). */
+    private static final double DUNGEON_EXIT_X = TileMap.MAP_OFFSET_X + 1 * 48; // col 1 = 64
+
+    /** Top edge of the dungeon exit trigger zone (vertically centered in the room). */
+    private static final double DUNGEON_EXIT_Y = 6 * 48; // row 6 = 288
+
+    /** Width of the exit trigger zone (2 tiles). */
+    private static final double DUNGEON_EXIT_W = 2 * 48; // = 96
+
+    /** Height of the exit trigger zone (3 tiles). */
+    private static final double DUNGEON_EXIT_H = 3 * 48; // = 144
+
+    /** X position where the player spawns on return to C3 — offset right of the entrance marker. */
+    private static final double OVERWORLD_RETURN_X = TileMap.MAP_OFFSET_X + 14 * 48; // col 14 = 688
+
+    /** Y position where the player spawns on return to C3 — below the entrance marker. */
+    private static final double OVERWORLD_RETURN_Y = 4 * 48; // row 4 = 192
+
+    /*
+     * =====================
+     * End of dungeon exit constants.
+     * =====================
+     */
+
+    /**
+     * Red rectangle placed near the west wall of D1 as a visible stand-in for the dungeon exit door.
+     * Added to canvas when the player enters the dungeon; removed when they step on it to leave.
+     *
+     * // TECH DEMO: This GRect is a placeholder. Replace with a real WorldObject exit door in D1.
+     * // RIG POINT: Remove dungeonExitMarker and DUNGEON_EXIT_* constants once a real door is built.
+     */
+    private final GRect dungeonExitMarker;
+
+    // =========================================================
     // CONSTRUCTOR
     // =========================================================
 
@@ -242,7 +288,7 @@ public class WorldMap {
     public WorldMap(GCanvas canvas) {
         this.canvas = canvas;
 
-        // --- build the dungeon entrance marker ---
+        // --- build the dungeon entrance marker (C3) ---
         // TECH DEMO: red GRect standing in for the dungeon door in C3.
         dungeonEntranceMarker = new GRect(
             DUNGEON_ENTRANCE_X, DUNGEON_ENTRANCE_Y,
@@ -250,6 +296,16 @@ public class WorldMap {
         dungeonEntranceMarker.setFilled(true);
         dungeonEntranceMarker.setFillColor(Color.RED);
         dungeonEntranceMarker.setColor(new Color(180, 0, 0)); // darker red outline
+
+        // --- build the dungeon exit marker (D1 west wall) ---
+        // TECH DEMO: red GRect standing in for the dungeon exit door in D1.
+        // Stepping on it returns the player to C3 near the entrance marker.
+        dungeonExitMarker = new GRect(
+            DUNGEON_EXIT_X, DUNGEON_EXIT_Y,
+            DUNGEON_EXIT_W, DUNGEON_EXIT_H);
+        dungeonExitMarker.setFilled(true);
+        dungeonExitMarker.setFillColor(Color.RED);
+        dungeonExitMarker.setColor(new Color(180, 0, 0)); // darker red outline
 
         initRooms();
         wireExits();
@@ -341,8 +397,10 @@ public class WorldMap {
         overworldGrid[1][2].setExit(Direction.DOWN, true);
 
         // --- C1 → C2: CLOSED at start (bridge broken) ---
-        // RIG POINT: DrawbridgeLever.onInteract() must call openExit("C1", Direction.UP).
-        overworldGrid[2][0].setExit(Direction.UP,   false); // CLOSED — bridge not yet fixed
+        // TECH DEMO: forced open so the full overworld is walkable without the DrawbridgeLever.
+        // RIG POINT: Restore to false and let DrawbridgeLever.onInteract() call
+        //            openExit("C1", Direction.UP) once the lever interaction is implemented.
+        overworldGrid[2][0].setExit(Direction.UP,   true);  // TECH DEMO: open — normally locked until lever used
         overworldGrid[2][1].setExit(Direction.DOWN, true);  // C2 south is open from the other side
 
         // --- C2 ↔ C3 ---
@@ -352,14 +410,16 @@ public class WorldMap {
         // --- C3 → D1: handled by the dungeon entrance marker, NOT a directional exit ---
         // No exit flag is set here; enterDungeon() handles the switch directly.
 
-        // --- D1 → D2: CLOSED at start (RoomLock — all enemies must die first) ---
-        // RIG POINT: RoomLock.onUnlock() must call openExit("D1", Direction.UP).
-        dungeonRooms[0].setExit(Direction.UP,  false); // CLOSED — locked combat room
-        dungeonRooms[1].setExit(Direction.DOWN, true);
+        // --- D1 ↔ D2 ---
+        // TECH DEMO: forced open so all dungeon rooms are walkable without enemies.
+        // RIG POINT: Restore to false and let RoomLock.onUnlock() call
+        //            openExit("D1", Direction.RIGHT) once combat is implemented.
+        dungeonRooms[0].setExit(Direction.RIGHT, true); // TECH DEMO: open — normally locked by RoomLock
+        dungeonRooms[1].setExit(Direction.LEFT,  true);
 
-        // --- D2 → D3 ---
-        dungeonRooms[1].setExit(Direction.UP,  true);
-        dungeonRooms[2].setExit(Direction.DOWN, true);
+        // --- D2 ↔ D3 ---
+        dungeonRooms[1].setExit(Direction.RIGHT, true);
+        dungeonRooms[2].setExit(Direction.LEFT,  true);
     }
 
     // =========================================================
@@ -394,6 +454,13 @@ public class WorldMap {
             // RIG POINT: replace this check with WorldObject.onContact() once the real door is in C3.
             if (activeRoom == roomC3) {
                 checkDungeonEntranceTrigger(player);
+            }
+
+            // --- dungeon exit check (D1 only) ---
+            // TECH DEMO: checks if player overlaps the red exit marker in D1.
+            // RIG POINT: replace this check with WorldObject.onContact() once a real exit door is in D1.
+            if (inDungeon && activeRoom == dungeonRooms[0]) {
+                checkDungeonExitTrigger(player);
             }
         }
     }
@@ -478,6 +545,20 @@ public class WorldMap {
             canvas.remove(dungeonEntranceMarker);
         }
 
+        // --- manage dungeon exit marker visibility ---
+        // TECH DEMO: show exit marker when entering D1, hide it when leaving D1.
+        // Without this, the marker stays on canvas when the player transitions to D2/D3
+        // (because it is added directly to the canvas, not through Room.removeFrom),
+        // and it is missing when the player returns to D1 from D2.
+        // RIG POINT: remove this block once a real WorldObject exit door is built into D1
+        //            and manages its own canvas visibility through Room.addTo/removeFrom.
+        if (toRoom == dungeonRooms[0]) {
+            canvas.add(dungeonExitMarker);    // entering D1 — show the exit marker
+        }
+        if (fromRoom == dungeonRooms[0]) {
+            canvas.remove(dungeonExitMarker); // leaving D1  — hide the exit marker
+        }
+
         // --- clean up transition and resume gameplay ---
         activeTransition = null;
         GamePlayState.setCurrent(GamePlayState.PLAYING);
@@ -527,15 +608,83 @@ public class WorldMap {
         activeRoom = dungeonRooms[0];
         inDungeon  = true;
 
-        // --- put D1 on canvas ---
+        // --- put D1 on canvas, including the exit marker ---
         activeRoom.addTo(canvas);
         activeRoom.reset();
+        // TECH DEMO: add exit marker on top of the room tiles.
+        // RIG POINT: remove this line when a real WorldObject exit door is built into D1.
+        canvas.add(dungeonExitMarker);
 
-        // --- place player at south edge of D1, facing north ---
+        // --- place player in center of D1, clear of the exit marker ---
         // RIG POINT: adjust DUNGEON_SPAWN_X/Y if the real dungeon entrance position changes.
         player.setTileMap(activeRoom.getTileMap());
         player.setPosition(DUNGEON_SPAWN_X, DUNGEON_SPAWN_Y);
         player.setSpawnPosition(DUNGEON_SPAWN_X, DUNGEON_SPAWN_Y);
+
+        GamePlayState.setCurrent(GamePlayState.PLAYING);
+    }
+
+    // =========================================================
+    // DUNGEON EXIT — D1 special trigger (mirrors dungeon entrance)
+    // =========================================================
+
+    /**
+     * Checks whether the player's center overlaps the red dungeon exit marker in D1.
+     * If so, calls exitDungeon() to return them to C3 (no sliding pan).
+     *
+     * // TECH DEMO: mirrors checkDungeonEntranceTrigger() — same overlap logic, opposite direction.
+     * // RIG POINT: Replace with WorldObject.onContact() once a real exit door is built in D1.
+     *
+     * @param player the active Player
+     */
+    private void checkDungeonExitTrigger(Player player) {
+        double px = player.getX();
+        double py = player.getY();
+
+        boolean insideTrigger =
+            px >= DUNGEON_EXIT_X &&
+            px <= DUNGEON_EXIT_X + DUNGEON_EXIT_W &&
+            py >= DUNGEON_EXIT_Y &&
+            py <= DUNGEON_EXIT_Y + DUNGEON_EXIT_H;
+
+        if (insideTrigger) {
+            exitDungeon(player);
+        }
+    }
+
+    /**
+     * Instantly transitions the player from D1 back to C3 (the dungeon entrance area).
+     * No sliding animation — mirrors the door-style entrance from enterDungeon().
+     * Player is placed just below and right of the entrance marker so they don't
+     * immediately re-trigger the dungeon entrance on the next tick.
+     *
+     * // TECH DEMO: called when player touches the red exit marker in D1.
+     * // RIG POINT: Replace with a proper WorldObject exit door interaction in D1's buildD1().
+     *
+     * @param player the active Player
+     */
+    public void exitDungeon(Player player) {
+        // --- remove D1 and the exit marker from canvas ---
+        activeRoom.removeFrom(canvas);
+        canvas.remove(dungeonExitMarker);
+
+        // --- switch back to C3 ---
+        activeRoom = roomC3;
+        inDungeon  = false;
+
+        // --- put C3 on canvas, including the entrance marker ---
+        activeRoom.addTo(canvas);
+        activeRoom.reset();
+        // TECH DEMO: re-add entrance marker so C3 looks the same as before.
+        // RIG POINT: remove once the real dungeon door WorldObject manages its own visibility.
+        canvas.add(dungeonEntranceMarker);
+
+        // --- place player offset from the entrance marker so they don't re-enter ---
+        // OVERWORLD_RETURN_X/Y is just south of the marker; player faces south (away from dungeon).
+        // RIG POINT: adjust OVERWORLD_RETURN_X/Y if the real dungeon door position changes.
+        player.setTileMap(activeRoom.getTileMap());
+        player.setPosition(OVERWORLD_RETURN_X, OVERWORLD_RETURN_Y);
+        player.setSpawnPosition(OVERWORLD_RETURN_X, OVERWORLD_RETURN_Y);
 
         GamePlayState.setCurrent(GamePlayState.PLAYING);
     }
@@ -603,11 +752,13 @@ public class WorldMap {
         }
 
         // --- search dungeon chain ---
+        // Dungeon rooms run east-to-west: D1 (index 0) → D2 (index 1) → D3 (index 2).
+        // RIGHT advances deeper into the dungeon; LEFT goes back toward the entrance.
         for (int i = 0; i < DUNGEON_ROOMS; i++) {
             if (dungeonRooms[i] == activeRoom) {
-                if (direction == Direction.UP   && i + 1 < DUNGEON_ROOMS) return dungeonRooms[i + 1];
-                if (direction == Direction.DOWN && i - 1 >= 0)            return dungeonRooms[i - 1];
-                return null; // no room in that direction
+                if (direction == Direction.RIGHT && i + 1 < DUNGEON_ROOMS) return dungeonRooms[i + 1];
+                if (direction == Direction.LEFT  && i - 1 >= 0)            return dungeonRooms[i - 1];
+                return null; // no dungeon room in that direction
             }
         }
 

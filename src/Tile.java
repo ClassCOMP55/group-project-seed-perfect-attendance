@@ -77,5 +77,24 @@ public class Tile {
             sprite.move(panX, panY);
         }
     }
+
+    /**
+     * Snaps this tile's visual sprite back to its canonical grid position.
+     * Must be called before re-adding a room to the canvas after it was panned off-screen,
+     * otherwise the sprite stays at the shifted position from the last pan animation
+     * and the room appears blank on re-entry.
+     *
+     * Canonical position:
+     *   X = col * 48 + TileMap.MAP_OFFSET_X
+     *   Y = row * 48
+     *
+     * // RIG POINT: When real tile art replaces the GRect placeholders, this method still applies —
+     * //            sprite.setLocation() works on GImage as well as GRect.
+     */
+    public void resetVisualPosition() {
+        if (sprite != null) {
+            sprite.setLocation(col * 48 + TileMap.MAP_OFFSET_X, row * 48);
+        }
+    }
 }
 

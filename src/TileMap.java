@@ -204,9 +204,25 @@ public class TileMap {
         return null;
     }
 
+    /**
+     * Returns true if the given pixel position is walkable.
+     *
+     * Out-of-bounds positions (no tile at that coordinate) return {@code true} so
+     * the player can step past the tile grid's edge and trigger a room exit.
+     * This is intentional for the tech demo: all tiles are open by default, and
+     * the Room/WorldMap layer handles what happens at the boundary.
+     *
+     * // TECH DEMO: null → passable is correct because every room uses
+     * //            TileMap.createDummyAllFloor() (no border walls).
+     * // RIG POINT: When real room layouts replace buildDummy(), border WALL tiles
+     * //            will block the player before any out-of-bounds probe can fire,
+     * //            so this null-passable behavior stays safe. To block a tile later,
+     * //            call TileMap.setTileType(col, row, TileType.WALL, path) — one line.
+     */
     public boolean isPassable(double px, double py) {
         Tile tile = getTileAtPixel(px, py);
-        return tile != null && tile.isPassable();
+        if (tile == null) return true; // out-of-bounds = exit zone; let Room/WorldMap decide
+        return tile.isPassable();
     }
 
     public boolean isHole(double px, double py) {
@@ -268,6 +284,29 @@ public class TileMap {
             for (int c = 0; c < cols; c++) {
                 if (tiles[r][c] != null) {
                     tiles[r][c].pan(panX, panY);
+                }
+            }
+        }
+    }
+
+    /**
+     * Resets every tile's visual sprite back to its canonical grid position.
+     * Call this at the start of {@link Room#addTo(GCanvas)} before drawing tiles, so that
+     * any pan offset accumulated during a room-transition animation is undone before
+     * the sprites are re-added to the canvas.
+     *
+     * Without this reset, a room that was panned off-screen during a transition will redraw
+     * its tiles at the shifted (off-screen) positions, making the room appear blank on re-entry.
+     *
+     * // RIG POINT: When real room tile layouts replace the all-floor dummy, this method still
+     * //            applies — each Tile knows its own (col, row) and resets correctly regardless
+     * //            of tile type or sprite path.
+     */
+    public void resetAllPositions() {
+        for (int r = 0; r < rows; r++) {
+            for (int c = 0; c < cols; c++) {
+                if (tiles[r][c] != null) {
+                    tiles[r][c].resetVisualPosition();
                 }
             }
         }

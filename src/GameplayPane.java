@@ -112,6 +112,29 @@ public class GameplayPane extends GraphicsPane {
     private boolean firstShow = true;
 
     // =========================================================
+    // CONTROLS HINT OVERLAY (tech-demo placeholder)
+    // =========================================================
+
+    /*
+     * =====================
+     * TECH DEMO: Simple on-screen control labels so playtesters know what buttons to press.
+     * RIG POINT: Remove these labels once HUDoverlay.showAll() is wired into GameplayPane and
+     *            a proper controls indicator is part of the real HUD design.
+     *            To remove: delete the four GLabel fields below, the addControlsHint() call in
+     *            showContent(), and the removeControlsHint() call in hideContent().
+     * =====================
+     */
+
+    /** "Move: WASD" hint label — bottom-right corner. */
+    private acm.graphics.GLabel hintMove;
+    /** "Attack: J" hint label. */
+    private acm.graphics.GLabel hintAttack;
+    /** "Ability: K" hint label. */
+    private acm.graphics.GLabel hintAbility;
+    /** "Pause: ESC" hint label. */
+    private acm.graphics.GLabel hintPause;
+
+    // =========================================================
     // CONSTRUCTOR
     // =========================================================
 
@@ -158,6 +181,11 @@ public class GameplayPane extends GraphicsPane {
 
         // --- draw the player on top of the room ---
         player.draw(canvas);
+
+        // --- controls hint (tech-demo only) ---
+        // TECH DEMO: added last so it renders above tiles and entities.
+        // RIG POINT: remove this call once HUDoverlay.showAll() is wired in.
+        addControlsHint(canvas);
     }
 
     /**
@@ -177,6 +205,10 @@ public class GameplayPane extends GraphicsPane {
         if (player != null) {
             player.removeSpriteFromCanvas(canvas);
         }
+
+        // --- remove controls hint (tech-demo only) ---
+        // RIG POINT: remove this call once HUDoverlay.showAll() is wired in.
+        removeControlsHint(canvas);
     }
 
     // =========================================================
@@ -222,6 +254,12 @@ public class GameplayPane extends GraphicsPane {
 
         // --- world update (always runs; WorldMap handles state internally) ---
         worldMap.update(dt, player);
+
+        // --- keep hint labels on top of room tiles (tech-demo only) ---
+        // New room tiles added during a transition would bury the labels; re-stacking
+        // them here every tick ensures they remain visible regardless of draw order.
+        // RIG POINT: remove this call once HUDoverlay.showAll() is wired in.
+        restackHintsOnTop(canvas);
     }
 
     /**
@@ -232,6 +270,85 @@ public class GameplayPane extends GraphicsPane {
     @Override
     public boolean needsGameLoop() {
         return true;
+    }
+
+    // =========================================================
+    // CONTROLS HINT HELPERS (tech-demo only)
+    // =========================================================
+
+    /**
+     * Adds the four controls hint labels to the canvas in the bottom-right corner.
+     * Called from showContent() each time gameplay becomes the active screen.
+     *
+     * // TECH DEMO: placeholder until HUDoverlay is wired in.
+     * // RIG POINT: delete this method and its call in showContent() when the real HUD is ready.
+     */
+    private void addControlsHint(acm.graphics.GCanvas canvas) {
+        // Fixed anchor: 150px from the right edge, bottom label 80px from the bottom edge.
+        // Using a fixed X instead of label.getWidth() because ACM's GLabel.getWidth() returns 0
+        // before the label is added to the canvas, which would push every label off-screen right.
+        // 150px is wide enough to contain the longest hint text ("Move: WASD") at SansSerif-BOLD-13.
+        // TECH DEMO: adjust these two constants if the hint needs to move.
+        double hintX      = mainScreen.getLayoutWidth()  - 150;
+        double hintBottom = mainScreen.getLayoutHeight() -  80;
+        double lineHeight = 18;
+
+        String[] lines = { "Pause: ESC", "Ability: K", "Attack: J", "Move: WASD" };
+        acm.graphics.GLabel[] targets = { hintPause, hintAbility, hintAttack, hintMove };
+
+        for (int i = 0; i < lines.length; i++) {
+            acm.graphics.GLabel label = new acm.graphics.GLabel(lines[i]);
+            label.setFont("SansSerif-BOLD-13");
+            label.setColor(java.awt.Color.WHITE);
+            label.setLocation(hintX, hintBottom - i * lineHeight);
+            canvas.add(label);
+            targets[i] = label;
+        }
+
+        hintPause   = targets[0];
+        hintAbility = targets[1];
+        hintAttack  = targets[2];
+        hintMove    = targets[3];
+    }
+
+    /**
+     * Removes the four controls hint labels from the canvas.
+     * Called from hideContent() whenever gameplay is no longer the active screen.
+     *
+     * // TECH DEMO: paired with addControlsHint().
+     * // RIG POINT: delete this method and its call in hideContent() when the real HUD is ready.
+     */
+    private void removeControlsHint(acm.graphics.GCanvas canvas) {
+        if (hintMove    != null) { canvas.remove(hintMove);    hintMove    = null; }
+        if (hintAttack  != null) { canvas.remove(hintAttack);  hintAttack  = null; }
+        if (hintAbility != null) { canvas.remove(hintAbility); hintAbility = null; }
+        if (hintPause   != null) { canvas.remove(hintPause);   hintPause   = null; }
+    }
+
+    /**
+     * Re-stacks every hint label on top of the canvas z-order.
+     * Called once per tick after the world update so that room tiles added during a
+     * room-transition animation never permanently bury the hint labels.
+     *
+     * Why this is needed: when {@code RoomTransition.start()} calls {@code toRoom.addTo(canvas)},
+     * the incoming room's tiles are added to the canvas after the hint labels were originally
+     * added. In ACM, later additions sit on top, covering earlier ones. The hints become invisible
+     * and never recover on their own.
+     *
+     * In ACM, calling {@code canvas.add(object)} on an object already present in the canvas
+     * moves it to the front of the draw order — this is the standard ACM pattern for keeping
+     * a static overlay always visible above dynamic content.
+     *
+     * // TECH DEMO: only needed because hint labels are plain GLabels, not part of a managed
+     * //            HUD layer. Four canvas.add() calls per tick is negligible cost.
+     * // RIG POINT: delete this method and its call in onTick() once HUDoverlay.showAll() is
+     * //            wired in — a proper HUD layer will manage its own z-order.
+     */
+    private void restackHintsOnTop(acm.graphics.GCanvas canvas) {
+        if (hintMove    != null) canvas.add(hintMove);
+        if (hintAttack  != null) canvas.add(hintAttack);
+        if (hintAbility != null) canvas.add(hintAbility);
+        if (hintPause   != null) canvas.add(hintPause);
     }
 
     // =========================================================

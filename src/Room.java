@@ -265,6 +265,18 @@ public class Room {
     public void addTo(GCanvas canvas) {
         if (initialized) return; // already on canvas; prevent double-adding
 
+        // --- reset tile positions before drawing ---
+        // After a room-transition animation, every tile sprite may have been panned off-screen
+        // by RoomTransition.panAll(). Calling resetAllPositions() snaps each sprite back to its
+        // canonical grid coordinate before it is re-added to the canvas.
+        // Without this step, re-entering a room shows a blank white screen because all tiles
+        // are drawn outside the visible area.
+        //
+        // RIG POINT: When real room layouts replace buildDummy(), this reset is still required.
+        //            Entity.panVisual() and WorldObject.panVisual() accumulate the same kind of
+        //            offset — add parallel reset calls here once those lists are populated.
+        tileMap.resetAllPositions();
+
         // --- tiles (drawn first, at the back) ---
         tileMap.draw(canvas);
 
@@ -288,7 +300,13 @@ public class Room {
 
         // --- room ID label (tech-demo only) ---
         // TECH DEMO: visible room ID label; remove when real room art replaces buildDummy().
+        // Reset position before adding — dummyLabel.move() was called during pan animations
+        // and the label's stored location is no longer the centered position.
         if (dummyLabel != null) {
+            double approxLabelWidth = roomId.length() * 22.0;
+            double centerX = EXIT_LEFT_EDGE + (26 * 48) / 2.0 - approxLabelWidth / 2.0;
+            double centerY = EXIT_BOTTOM_EDGE / 2.0 + 12;
+            dummyLabel.setLocation(centerX, centerY);
             canvas.add(dummyLabel);
         }
 
