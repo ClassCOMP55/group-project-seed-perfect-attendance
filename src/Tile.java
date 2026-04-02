@@ -63,5 +63,19 @@ public class Tile {
 
     public int getCol() { return col; }
     public int getRow() { return row; }
+
+    /**
+     * Shifts this tile's visual sprite by (panX, panY) pixels on the canvas.
+     * Only the on-screen position changes — the tile's grid coordinates (col, row) are unchanged.
+     * Called by TileMap.panAll() during room-to-room pan animations.
+     *
+     * @param panX horizontal pixels to shift (negative = left, positive = right)
+     * @param panY vertical pixels to shift (negative = up, positive = down)
+     */
+    public void pan(double panX, double panY) {
+        if (sprite != null) {
+            sprite.move(panX, panY);
+        }
+    }
 }
 

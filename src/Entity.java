@@ -418,6 +418,22 @@ public abstract class Entity {
     public SpriteAnimator getAnimator() { return animator; }
 
     /**
+     * Shifts this entity's currently displayed sprite by (panX, panY) pixels on the canvas.
+     * Only the visual moves — internal world-position coordinates (x, y) are NOT changed.
+     * Used by RoomTransition to carry the entity along with the room pan animation.
+     *
+     * @param panX horizontal pixels to shift (negative = left, positive = right)
+     * @param panY vertical pixels to shift (negative = up, positive = down)
+     */
+    public void panVisual(double panX, double panY) {
+        GImage frame = animator.getCurrentFrame();
+        GImage currentVisual = (frame != null) ? frame : sprite;
+        if (currentVisual != null) {
+            currentVisual.move(panX, panY);
+        }
+    }
+
+    /**
      * Removes this entity's sprite (and current animation frame) from the
      * canvas. Call during scene teardown to prevent orphaned visuals.
      */

@@ -221,6 +221,58 @@ public class TileMap {
         }
     }
 
+    // =========================================================
+    // TECH-DEMO FACTORY — all-floor dummy layout
+    // =========================================================
+
+    /**
+     * Creates a 26×15 TileMap where every tile is a walkable FLOOR tile.
+     * Used by Room.buildDummy() so that exit-detection works at all four edges
+     * without border walls blocking the player.
+     *
+     * // TECH DEMO: This layout is only for placeholder/dummy rooms.
+     * // RIG POINT: Replace the buildDummy() call in each Room with a call to
+     * //            new TileMap(roomId) once that room's real layout is designed.
+     *
+     * @return a fresh all-floor TileMap ready for a dummy room
+     */
+    public static TileMap createDummyAllFloor() {
+        TileMap m = new TileMap(); // initialises the grid via generateMarket(); overwritten below
+        m.generateAllFloor();
+        return m;
+    }
+
+    /** Fills every cell in the tile grid with a FLOOR tile. No walls, no holes. */
+    private void generateAllFloor() {
+        for (int r = 0; r < rows; r++) {
+            for (int c = 0; c < cols; c++) {
+                tiles[r][c] = new Tile(Tile.TileType.FLOOR, c, r, "assets/tile_floor.png");
+            }
+        }
+    }
+
+    // =========================================================
+    // ROOM TRANSITION — pan support
+    // =========================================================
+
+    /**
+     * Shifts every tile's on-screen sprite by (panX, panY) pixels.
+     * Used by RoomTransition each animation tick to slide a room across the screen.
+     * Tile grid coordinates (col, row) are not changed — only the visual position moves.
+     *
+     * @param panX horizontal pixels to shift (negative = left, positive = right)
+     * @param panY vertical pixels to shift (negative = up, positive = down)
+     */
+    public void panAll(double panX, double panY) {
+        for (int r = 0; r < rows; r++) {
+            for (int c = 0; c < cols; c++) {
+                if (tiles[r][c] != null) {
+                    tiles[r][c].pan(panX, panY);
+                }
+            }
+        }
+    }
+
     public int getCols() {
         return cols;
     }

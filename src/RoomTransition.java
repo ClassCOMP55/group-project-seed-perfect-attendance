@@ -1,12 +1,12 @@
 /*
 Person 2: RoomTransition — sliding pan animation when the player moves between rooms
 Who RIGs it: WorldMap — calls start() when triggerTransition() fires; calls update(dt) each tick
-               while the transition is running; calls getToRoom() in finishTransition().
+               while the transition is running; calls getToRoom() / getFromRoom() in finishTransition().
              GameLoop — still fires update() every tick during TRANSITIONING state.
                RoomTransition is the ONLY thing that updates during TRANSITIONING.
 
 Extends: nothing
-Owns: fromRoom reference, toRoom reference, pixel offset state
+Owns: fromRoom reference, toRoom reference, Player reference (visual only), pixel offset state
 
 ===============
 PLAN OF ACTION
@@ -16,43 +16,45 @@ PLAN OF ACTION
 - RoomTransition handles the visual sliding pan when the player walks off an exit edge.
 - It is the ONLY class that updates during GamePlayState.TRANSITIONING.
   All enemies, projectiles, and WorldObjects are frozen during this time (Room.update() returns early).
-- RoomTransition does NOT move the Player during the pan — the player is visually carried by the
-  offset but their internal coordinates do not change until finishTransition() fires in WorldMap.
+- RoomTransition does NOT change the Player's internal coordinates during the pan —
+  the player's sprite is visually carried by the same per-tick pan offset, but their x/y
+  stay the same until WorldMap.finishTransition() syncs them to the sprite's final position.
 
 - THE ANIMATION
 - When start() is called:
     1. GamePlayState is set to TRANSITIONING.
-    2. fromRoom is already drawn on the canvas at its normal position.
-    3. toRoom is drawn on the canvas at one full screen-width or screen-height away (off-screen).
-    4. Each tick, both rooms slide toward their final positions: fromRoom slides out, toRoom slides in.
-    5. The slide covers one full room width (1248px) or height (720px) over TOTAL_STEPS ticks.
-    6. When step == TOTAL_STEPS: isComplete() returns true → WorldMap calls finishTransition().
+    2. fromRoom is already drawn on canvas at its normal position.
+    3. toRoom is added to canvas, then immediately panned one full room away (off-screen).
+    4. Each tick, both rooms AND the player's sprite slide in the same direction and by the
+       same per-tick amount — creating a seamless world-pan effect.
+    5. The player visually straddles the boundary between the two rooms during the pan,
+       as if passing through a doorway that moves with them.
+    6. When ticksElapsed == TRANSITION_TICKS: isAnimationComplete() returns true →
+       WorldMap calls finishTransition().
 
-- PIXEL OFFSETS
-- Direction.RIGHT (player exits east): fromRoom slides left (-offsetX), toRoom enters from right (+offsetX).
-- Direction.LEFT  (player exits west): fromRoom slides right, toRoom enters from left.
-- Direction.UP    (player exits north): fromRoom slides up (-offsetY), toRoom enters from below.
-- Direction.DOWN  (player exits south): fromRoom slides down, toRoom enters from above.
-- The offset is applied each tick by repositioning the room's TileMap tiles and WorldObjects on canvas.
-  (Implementation detail: simplest approach is to use a GCanvas translate or move all GObjects by delta.)
+- PIXEL PAN DIRECTION (per exit direction)
+  EXIT RIGHT → both rooms and player slide LEFT  (panX = -ROOM_WIDTH_PX  / TRANSITION_TICKS)
+  EXIT LEFT  → both rooms and player slide RIGHT (panX = +ROOM_WIDTH_PX  / TRANSITION_TICKS)
+  EXIT UP    → both rooms and player slide DOWN  (panY = +ROOM_HEIGHT_PX / TRANSITION_TICKS)
+  EXIT DOWN  → both rooms and player slide UP    (panY = -ROOM_HEIGHT_PX / TRANSITION_TICKS)
 
-- TOTAL_STEPS / SPEED
-- TOTAL_STEPS = 30 ticks (~0.5 seconds at 60fps). Gives a smooth, quick pan.
-- Each tick advances offset by (room dimension / TOTAL_STEPS) pixels.
-- Horizontal pan: step size = 1248 / 30 = 41.6px per tick.
-- Vertical pan:   step size = 720  / 30 = 24.0px per tick.
+- INITIAL OFF-SCREEN OFFSET FOR toRoom (applied once in start())
+  EXIT RIGHT → toRoom offset: +ROOM_WIDTH_PX  in X  (starts one room to the right)
+  EXIT LEFT  → toRoom offset: -ROOM_WIDTH_PX  in X  (starts one room to the left)
+  EXIT UP    → toRoom offset: -ROOM_HEIGHT_PX in Y  (starts one room above)
+  EXIT DOWN  → toRoom offset: +ROOM_HEIGHT_PX in Y  (starts one room below)
 
-- PLAYER REPOSITIONING (on complete)
-- After finishTransition(), WorldMap moves the Player to the correct spawn position in toRoom:
-    exited EAST  → player spawns at the WEST edge of toRoom (x = MAP_OFFSET_X + player width)
-    exited WEST  → player spawns at the EAST edge of toRoom
-    exited NORTH → player spawns at the SOUTH edge of toRoom
-    exited SOUTH → player spawns at the NORTH edge of toRoom
-- This is WorldMap's responsibility, not RoomTransition's.
+- PLAYER REPOSITIONING (on complete — done by WorldMap.finishTransition(), NOT here)
+  After finishTransition(), WorldMap sets the player's internal coordinates to match
+  where the sprite ended up. Expected final positions (for verification):
+    Exited RIGHT → player.x = left  edge of new room, player.y unchanged
+    Exited LEFT  → player.x = right edge of new room, player.y unchanged
+    Exited UP    → player.y = bottom edge of new room, player.x unchanged
+    Exited DOWN  → player.y = top   edge of new room, player.x unchanged
 
 - WHAT ROOMTRANSITION DOES NOT DO
 - Does not reset the new room — WorldMap calls toRoom.reset() after the transition.
-- Does not reposition the Player — WorldMap does that in finishTransition().
+- Does not reposition the Player internally — WorldMap does that in finishTransition().
 - Does not restore GamePlayState — WorldMap does that when finishTransition() completes.
 */
 
@@ -61,7 +63,7 @@ import acm.graphics.GCanvas;
 /**
  * Handles the sliding pan animation when the player moves between rooms.
  * Only active during GamePlayState.TRANSITIONING.
- * See PLAN OF ACTION above before implementing.
+ * See the PLAN OF ACTION block above for full implementation details.
  */
 public class RoomTransition {
 
@@ -69,17 +71,30 @@ public class RoomTransition {
     // CONSTANTS
     // =========================================================
 
-    /**
-     * Number of ticks the slide animation lasts (~0.5 seconds at 60fps).
-     * Horizontal step: 1248 / 30 ≈ 41.6px per tick.
-     * Vertical step:   720  / 30 = 24.0px per tick.
+    /*
+     * =====================
+     * Transition speed — adjust TRANSITION_TICKS to change how long the pan takes.
+     * At 60fps, 30 ticks = 0.5 seconds. Raise this number to slow the pan; lower it to speed it up.
+     * =====================
      */
-    private static final int TOTAL_STEPS = 30;
 
-    /** Full room width in pixels (26 cols × 48px). Used for horizontal pan distance. */
-    private static final double ROOM_WIDTH_PX = 26 * 48; // = 1248
+    /**
+     * Number of game ticks (frames) the pan animation runs for.
+     * At 60fps: 30 ticks = 0.5 seconds.
+     * Raise this value to slow the transition; lower it to make it faster.
+     */
+    private static final int TRANSITION_TICKS = 30;
 
-    /** Full room height in pixels (15 rows × 48px). Used for vertical pan distance. */
+    /*
+     * =====================
+     * End of adjustable transition speed.
+     * =====================
+     */
+
+    /** Full room width in pixels (26 columns × 48px per tile). Horizontal pan distance. */
+    private static final double ROOM_WIDTH_PX  = 26 * 48; // = 1248
+
+    /** Full room height in pixels (15 rows × 48px per tile). Vertical pan distance. */
     private static final double ROOM_HEIGHT_PX = 15 * 48; // = 720
 
     // =========================================================
@@ -92,14 +107,27 @@ public class RoomTransition {
     /** The room the player is entering. */
     private Room toRoom;
 
-    /** The direction the player exited (e.g. RIGHT means they walked off the east edge). */
+    /** The direction the player exited (e.g. RIGHT = walked off the east edge). */
     private Direction direction;
 
-    /** Current animation step (0 = not started, TOTAL_STEPS = complete). */
-    private int step;
+    /** Number of animation ticks completed so far (0 = just started, TRANSITION_TICKS = done). */
+    private int ticksElapsed;
 
-    /** The game canvas — needed to reposition room graphics each tick. */
+    /** The game canvas — needed to add toRoom graphics during start(). */
     private GCanvas canvas;
+
+    /**
+     * The active Player — sprite is panned visually each tick so the player
+     * appears to ride the transition rather than vanish.
+     * Internal x/y coordinates are NOT changed here; that is WorldMap's job.
+     */
+    private Player player;
+
+    /** How many pixels to shift horizontally each tick (negative = left, 0 = vertical pan). */
+    private double panXPerTick;
+
+    /** How many pixels to shift vertically each tick (negative = up, 0 = horizontal pan). */
+    private double panYPerTick;
 
     // =========================================================
     // START
@@ -107,25 +135,69 @@ public class RoomTransition {
 
     /**
      * Begins the transition animation.
-     * Call from WorldMap.triggerTransition() after confirming the exit is valid.
-     * Sets GamePlayState to TRANSITIONING immediately.
+     * Adds toRoom to canvas at its off-screen starting position, then pans everything
+     * TRANSITION_TICKS times toward the final positions.
+     * Sets GamePlayState to TRANSITIONING immediately so the game world freezes.
      *
-     * @param fromRoom  the room being left
-     * @param toRoom    the room being entered
+     * @param fromRoom  the room being left (already on canvas at normal position)
+     * @param toRoom    the room being entered (will be added here, positioned off-screen)
      * @param direction the exit direction the player used
      * @param canvas    the game canvas
+     * @param player    the active Player (sprite will be panned with the rooms)
      */
-    public void start(Room fromRoom, Room toRoom, Direction direction, GCanvas canvas) {
-        this.fromRoom  = fromRoom;
-        this.toRoom    = toRoom;
-        this.direction = direction;
-        this.canvas    = canvas;
-        this.step      = 0;
+    public void start(Room fromRoom, Room toRoom, Direction direction,
+                      GCanvas canvas, Player player) {
+        this.fromRoom    = fromRoom;
+        this.toRoom      = toRoom;
+        this.direction   = direction;
+        this.canvas      = canvas;
+        this.player      = player;
+        this.ticksElapsed = 0;
 
+        // Freeze all game logic for the duration of the animation
         GamePlayState.setCurrent(GamePlayState.TRANSITIONING);
 
-        // TODO: call toRoom.addTo(canvas) positioned one full room away (off-screen)
-        //       so it is ready to slide in
+        // --- calculate per-tick pan amounts ---
+        // Both rooms and the player sprite move by the same amount each tick.
+        // See PLAN OF ACTION above for the direction table.
+        switch (direction) {
+            case RIGHT:
+                panXPerTick = -ROOM_WIDTH_PX  / TRANSITION_TICKS; // slide left
+                panYPerTick = 0;
+                break;
+            case LEFT:
+                panXPerTick = +ROOM_WIDTH_PX  / TRANSITION_TICKS; // slide right
+                panYPerTick = 0;
+                break;
+            case UP:
+                panXPerTick = 0;
+                panYPerTick = +ROOM_HEIGHT_PX / TRANSITION_TICKS; // slide down
+                break;
+            case DOWN:
+                panXPerTick = 0;
+                panYPerTick = -ROOM_HEIGHT_PX / TRANSITION_TICKS; // slide up
+                break;
+            default:
+                panXPerTick = 0;
+                panYPerTick = 0;
+                break;
+        }
+
+        // --- add toRoom to canvas, then pan it one full room away (off-screen) ---
+        // All of this happens before repaint(), so there is no visible flicker.
+        toRoom.addTo(canvas);
+
+        double initialOffsetX = 0;
+        double initialOffsetY = 0;
+
+        switch (direction) {
+            case RIGHT: initialOffsetX = +ROOM_WIDTH_PX;  break; // toRoom starts to the right
+            case LEFT:  initialOffsetX = -ROOM_WIDTH_PX;  break; // toRoom starts to the left
+            case UP:    initialOffsetY = -ROOM_HEIGHT_PX; break; // toRoom starts above
+            case DOWN:  initialOffsetY = +ROOM_HEIGHT_PX; break; // toRoom starts below
+        }
+
+        toRoom.panAll(initialOffsetX, initialOffsetY);
     }
 
     // =========================================================
@@ -133,36 +205,52 @@ public class RoomTransition {
     // =========================================================
 
     /**
-     * Advances the animation by one step.
-     * Moves fromRoom and toRoom graphics by their per-tick pixel offset.
-     * Does nothing once the animation is complete.
+     * Advances the animation by one tick.
+     * Moves fromRoom, toRoom, and the player sprite by one pan step toward their final positions.
+     * Does nothing once the animation is complete — caller should check isAnimationComplete().
      *
-     * @param dt delta-time in seconds (not used for step-counting — tick-based)
+     * @param dt delta-time in seconds (not used — this animation is tick-based, not time-based)
      */
     public void update(double dt) {
-        if (isComplete()) return;
+        if (isAnimationComplete()) return;
 
-        step++;
+        ticksElapsed++;
 
-        // TODO: calculate how many pixels to move this tick based on direction and step
-        // TODO: shift all fromRoom GObjects by (-dx, -dy)
-        // TODO: shift all toRoom GObjects by the same delta (they start one room away, converge)
+        // --- slide both rooms and the player sprite by one step ---
+        // All three move by the same amount so the world appears to scroll seamlessly.
+        fromRoom.panAll(panXPerTick, panYPerTick);
+        toRoom.panAll(panXPerTick, panYPerTick);
+
+        // Move the player's visual sprite (internal coordinates unchanged until finishTransition)
+        if (player != null) {
+            player.panVisual(panXPerTick, panYPerTick);
+        }
     }
 
     // =========================================================
     // COMPLETION CHECK
     // =========================================================
 
-    /** Returns true when the animation has finished and WorldMap can call finishTransition(). */
-    public boolean isComplete() {
-        return step >= TOTAL_STEPS;
+    /**
+     * Returns true when all TRANSITION_TICKS have elapsed and the pan is finished.
+     * WorldMap polls this each tick to know when to call finishTransition().
+     *
+     * @return true if the animation has fully completed
+     */
+    public boolean isAnimationComplete() {
+        return ticksElapsed >= TRANSITION_TICKS;
     }
 
     // =========================================================
     // GETTERS — used by WorldMap in finishTransition()
     // =========================================================
 
+    /** @return the room the player is leaving */
     public Room      getFromRoom()  { return fromRoom; }
+
+    /** @return the room the player is entering */
     public Room      getToRoom()    { return toRoom; }
+
+    /** @return the direction the player exited */
     public Direction getDirection() { return direction; }
 }

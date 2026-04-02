@@ -29,6 +29,8 @@ public class MainApplication extends GraphicsProgram{
 	private GameSavesPane gameSavesPane;
 	private MarketCharacterDebug marketDebugPane;
 	private P1GameplayPane gameplayPane;
+	/** Room-based gameplay screen — drives WorldMap, Room transitions, and player movement. */
+	private GameplayPane worldMapGameplayPane;
 	private GraphicsPane currentScreen;
 
 	/** Virtual canvas size — set once on startup, fixed for 1280x720. */
@@ -88,6 +90,7 @@ public class MainApplication extends GraphicsProgram{
 		gameSavesPane = new GameSavesPane(this);
 		marketDebugPane = new MarketCharacterDebug(this);
 		gameplayPane = new P1GameplayPane(this);
+		worldMapGameplayPane = new GameplayPane(this);
 
 		syncLayoutToWindow();
 		switchToScreen(landingPane);
@@ -149,12 +152,19 @@ public class MainApplication extends GraphicsProgram{
 		switchToScreen(settingsPane);
 	}
 
-	/** Launches the A1 opening room. Creates a fresh Player if none exists. */
+	/**
+	 * Launches the room-based gameplay (WorldMap, all 12 rooms, transitions).
+	 * Creates a fresh Player if one does not already exist.
+	 *
+	 * // RIG POINT: When loading a saved game, call setPlayer(savedPlayer) and
+	 * //            worldMapGameplayPane.getWorldMap().getRoomById(savedRoomId)
+	 * //            BEFORE calling this method so the player starts at their saved location.
+	 */
 	public void switchToGameplayScreen() {
 		if (player == null) {
 			setPlayer(new Player());
 		}
-		switchToScreen(marketDebugPane);
+		switchToScreen(worldMapGameplayPane);
 	}
 
 	/** Routes to landing as a stub until the real game-over screen is built. */

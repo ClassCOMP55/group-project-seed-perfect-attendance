@@ -1,7 +1,6 @@
 /*
 Person 2: WorldMap — the entire game world: 9 overworld rooms + 3 dungeon rooms
-Who RIGs it: MainApplication (or the top-level gameplay orchestrator that replaces P1GameplayPane) —
-               creates one WorldMap instance, calls update(dt, player) and draw(canvas) each tick,
+Who RIGs it: GameplayPane — creates one WorldMap instance, calls update(dt, player) each tick,
                and passes the canvas so rooms can add/remove their graphics on transition.
              SaveManager / SaveData — reads roomId from WorldMap.getActiveRoom() on save;
                on load, calls WorldMap.setActiveRoomById(roomId) to restore the player's location.
@@ -16,9 +15,9 @@ PLAN OF ACTION
 - CLASS ROLE
 - WorldMap is the single source of truth for which room is active and how all rooms connect.
 - WorldMap creates all 12 rooms at startup, wires their exits, and manages room transitions.
-- WorldMap does NOT draw itself — it delegates draw() to the active Room (and to RoomTransition
+- WorldMap does NOT draw itself — it delegates draw to the active Room (and to RoomTransition
   during a transition animation).
-- WorldMap does NOT own the Player — the top-level orchestrator passes Player into update().
+- WorldMap does NOT own the Player — GameplayPane passes Player into update() each tick.
 
 - COORDINATE SYSTEM (overworld grid)
     Column:   A=0   B=1   C=2
@@ -53,9 +52,9 @@ PLAN OF ACTION
   A2 ↔ B2  (A2 EAST / B2 WEST)
   A3 ↔ B3  (A3 EAST / B3 WEST)
   B2 ↔ B3  (B2 NORTH / B3 SOUTH)
-  C1 → C2  (C1 NORTH — BLOCKED until FixedLever used on DrawbridgeLever)
+  C1 → C2  (C1 NORTH — BLOCKED until DrawbridgeLever is used)
   C2 ↔ C3  (C2 NORTH / C3 SOUTH)
-  C3 → D1  (C3 dungeon entrance — leads into Dungeon Room 1)
+  C3 → D1  (dungeon entrance — triggered by standing on the red GRect marker in C3)
   D1 → D2  (D1 NORTH — locked until all enemies dead — RoomLock)
   D2 → D3  (D2 NORTH)
 
@@ -63,32 +62,27 @@ PLAN OF ACTION
   B2 ↛ C2  (Forest only reachable via C1 bridge)
   B3 ↛ C3  (Dungeon only reachable via C2)
 
-- TRANSITION FLOW
+- TRANSITION FLOW (directional exits — overworld and dungeon)
   1. Room.update() detects player walks off an exit edge, fires exitCallback(Direction).
   2. WorldMap.triggerTransition(Direction d) is called.
   3. WorldMap finds the neighboring room in that direction.
-  4. Checks: is the exit open? (e.g. bridge not yet fixed → C1 NORTH is closed → block)
-  5. If open: creates a RoomTransition, sets GamePlayState = TRANSITIONING.
-  6. RoomTransition.start(fromRoom, toRoom, direction, canvas) begins the sliding pan.
-  7. When RoomTransition.isComplete(): WorldMap swaps activeRoom, calls reset() on the new room,
-     repositions Player at the opposite edge, restores GamePlayState = PLAYING.
+  4. Creates a RoomTransition, sets GamePlayState = TRANSITIONING.
+  5. RoomTransition.start() begins the sliding pan.
+  6. When RoomTransition.isAnimationComplete(): WorldMap.finishTransition() swaps activeRoom,
+     syncs player coordinates to sprite position, restores GamePlayState = PLAYING.
 
-- ACTIVE ROOM
-- WorldMap.activeRoom is the room currently being played.
-- During a transition, both fromRoom and toRoom are "active" for drawing purposes only.
-  After transition, only toRoom is active.
+- DUNGEON ENTRANCE (C3 → D1, special non-directional trigger)
+  The dungeon entrance in C3 is NOT a normal exit — it is a red GRect marker on the floor.
+  When the player's center overlaps the marker, enterDungeon() is called directly (no pan).
+  // TECH DEMO: The red GRect is a placeholder. Replace with a real door WorldObject later.
+  // RIG POINT: Replace enterDungeon() trigger with a WorldObject.onContact() callback
+  //            once the dungeon door is properly designed and added to C3's content.
 
-- DUMMY ROOMS (layout testing)
-- On construction, ALL 12 rooms are initialized as dummy rooms (floor+walls + label).
-- This means the game is immediately walkable through all 12 rooms for layout testing.
-- Real room content (enemies, objects, tile details) is added in buildXxx() methods
-  called from initRooms() during the implementation sprint.
-
-- SPECIAL ROOM BEHAVIORS TO WIRE
-- A1: PathBlocker placed on south exit after opening cutscene fires (Person 1's territory).
-     WorldMap.closeExit("A1", SOUTH) is called by the opening sequence when ready.
-- C1: NORTH exit starts CLOSED. DrawbridgeLever.onInteract() calls WorldMap.openExit("C1", NORTH).
-- D1: Has a RoomLock. RoomLock.onUnlock() calls WorldMap.openExit("D1", NORTH).
+- PLAYER REFERENCE DURING TRANSITIONS
+  WorldMap stores a reference to the Player each tick (lastTickPlayer) so that
+  triggerTransition() — which is called via Room's exit callback with no player argument —
+  can still pass the player to RoomTransition.start() and to finishTransition().
+  This reference is only valid during the update() call; it is not a permanent ownership.
 
 - WHAT WORLDMAP DOES NOT DO
 - Does not own the Player — passed in each tick.
@@ -97,16 +91,19 @@ PLAN OF ACTION
 */
 
 import acm.graphics.GCanvas;
+import acm.graphics.GRect;
+import java.awt.Color;
 
 /**
  * The entire game world: 9 overworld rooms (3×3 grid) + 3 dungeon rooms.
  * Creates all rooms at startup as navigable dummy rooms for layout testing.
- * See PLAN OF ACTION above before implementing.
+ * Manages room transitions and the dungeon entrance trigger.
+ * See PLAN OF ACTION above for full implementation details.
  */
 public class WorldMap {
 
     // =========================================================
-    // CONSTANTS
+    // CONSTANTS — room grid dimensions
     // =========================================================
 
     /** Number of overworld columns (A, B, C). */
@@ -119,64 +116,162 @@ public class WorldMap {
     public static final int DUNGEON_ROOMS = 3;
 
     // =========================================================
+    // CONSTANTS — room pixel dimensions (for transition math)
+    // =========================================================
+
+    /*
+     * =====================
+     * Room pixel dimensions — must match TileMap constants.
+     * If tile size or room dimensions change, update TileMap first.
+     * =====================
+     */
+
+    /** Full room width in pixels (26 columns × 48px). Used to sync player coords after transition. */
+    private static final double ROOM_WIDTH_PX  = 26 * 48; // = 1248
+
+    /** Full room height in pixels (15 rows × 48px). Used to sync player coords after transition. */
+    private static final double ROOM_HEIGHT_PX = 15 * 48; // = 720
+
+    /*
+     * =====================
+     * End of room pixel dimension constants.
+     * =====================
+     */
+
+    // =========================================================
+    // CONSTANTS — dungeon entrance trigger (C3 red GRect marker)
+    // =========================================================
+
+    /*
+     * =====================
+     * Dungeon entrance trigger bounds — adjust position/size here if the marker needs to move.
+     * The marker is centered near the north wall of C3.
+     * // TECH DEMO: remove these constants when the real door WorldObject replaces the marker.
+     * =====================
+     */
+
+    /** Left edge of the dungeon entrance trigger zone, in screen pixels. */
+    private static final double DUNGEON_ENTRANCE_X = TileMap.MAP_OFFSET_X + 11 * 48; // col 11 = 544
+
+    /** Top edge of the dungeon entrance trigger zone, in screen pixels. */
+    private static final double DUNGEON_ENTRANCE_Y = 1 * 48; // row 1 = 48
+
+    /** Width of the trigger zone in pixels (4 tiles). */
+    private static final double DUNGEON_ENTRANCE_W = 4 * 48; // = 192
+
+    /** Height of the trigger zone in pixels (2 tiles). */
+    private static final double DUNGEON_ENTRANCE_H = 2 * 48; // = 96
+
+    /** X position where the player spawns when entering D1 (center of room). */
+    private static final double DUNGEON_SPAWN_X    = TileMap.MAP_OFFSET_X + ROOM_WIDTH_PX / 2.0;
+
+    /** Y position where the player spawns when entering D1 (one tile above south edge). */
+    private static final double DUNGEON_SPAWN_Y    = ROOM_HEIGHT_PX - 48;
+
+    /*
+     * =====================
+     * End of dungeon entrance constants.
+     * =====================
+     */
+
+    // =========================================================
     // FIELDS
     // =========================================================
 
     /**
      * The 3×3 overworld grid.
-     * Access: overworldGrid[col][row] where col=0→A, col=1→B, col=2→C; row=0→row1 (bottom), row=2→row3 (top).
+     * Access: overworldGrid[col][row] where col=0→A, col=1→B, col=2→C;
+     *         row=0→row1 (bottom/south), row=2→row3 (top/north).
      */
     private final Room[][] overworldGrid = new Room[COLS][ROWS];
 
     /**
      * The 3 linear dungeon rooms.
-     * dungeonRooms[0] = D1 (combat), dungeonRooms[1] = D2 (puzzle+save), dungeonRooms[2] = D3 (boss).
+     * dungeonRooms[0]=D1 (combat), dungeonRooms[1]=D2 (puzzle+save), dungeonRooms[2]=D3 (boss).
      */
     private final Room[] dungeonRooms = new Room[DUNGEON_ROOMS];
 
     /** The room the player is currently in. */
     private Room activeRoom;
 
-    /** True when the player is inside the dungeon (using dungeonRooms), false for overworld. */
+    /** True when the player is inside the dungeon; false for the overworld. */
     private boolean inDungeon;
 
-    /** Handles the sliding pan animation between rooms. Null when no transition is in progress. */
+    /** Active sliding-pan animation. Null when no transition is in progress. */
     private RoomTransition activeTransition;
 
     /** The canvas — needed to add/remove room graphics during transitions. */
     private GCanvas canvas;
+
+    /**
+     * Holds the Player reference for the current update tick.
+     * Set at the start of update() so triggerTransition() (called via Room's exit callback,
+     * which has no Player parameter) can still pass the player to RoomTransition.start().
+     * This is NOT permanent ownership — it is only valid during one update() call.
+     */
+    private Player lastTickPlayer;
+
+    // =========================================================
+    // DUNGEON ENTRANCE MARKER (tech-demo placeholder)
+    // =========================================================
+
+    /**
+     * Red rectangle placed near the north wall of C3 as a visible stand-in for the dungeon door.
+     * Added to canvas when C3 becomes active; removed when the player enters the dungeon or leaves C3.
+     *
+     * // TECH DEMO: This GRect is a placeholder marker. Search "TECH DEMO" to find it.
+     * // RIG POINT: Replace with a real WorldObject door in C3's buildC3() method once designed.
+     *              At that point, remove dungeonEntranceMarker, DUNGEON_ENTRANCE_* constants,
+     *              and the marker management code in finishTransition() and enterDungeon().
+     */
+    private final GRect dungeonEntranceMarker;
+
+    /** Convenience reference to C3 — used to check when to show/hide the dungeon marker. */
+    private Room roomC3;
 
     // =========================================================
     // CONSTRUCTOR
     // =========================================================
 
     /**
-     * Creates the world map and initializes all 12 rooms as navigable dummy rooms.
-     * Wires all exit connections from the design doc.
-     * Starting room is A1 (Market).
+     * Creates the world map: initialises all 12 rooms as dummy rooms, wires exit connections,
+     * and sets the starting room to A1 (Market).
      *
      * @param canvas the game canvas (needed for room add/remove during transitions)
      */
     public WorldMap(GCanvas canvas) {
         this.canvas = canvas;
+
+        // --- build the dungeon entrance marker ---
+        // TECH DEMO: red GRect standing in for the dungeon door in C3.
+        dungeonEntranceMarker = new GRect(
+            DUNGEON_ENTRANCE_X, DUNGEON_ENTRANCE_Y,
+            DUNGEON_ENTRANCE_W, DUNGEON_ENTRANCE_H);
+        dungeonEntranceMarker.setFilled(true);
+        dungeonEntranceMarker.setFillColor(Color.RED);
+        dungeonEntranceMarker.setColor(new Color(180, 0, 0)); // darker red outline
+
         initRooms();
         wireExits();
-        // Starting room: A1
+
+        // Starting room: A1 (Market)
         activeRoom = overworldGrid[0][0];
         inDungeon  = false;
     }
 
     // =========================================================
-    // ROOM INITIALIZATION
+    // ROOM INITIALISATION
     // =========================================================
 
     /**
-     * Creates all 12 rooms and calls buildDummy() on each.
-     * During the implementation sprint, replace each buildDummy() call here with
-     * the room's real buildXxx() method once that content is ready.
+     * Creates all 12 rooms, calls buildDummy() on each, and wires each room's
+     * exit callback back to this WorldMap so transitions fire automatically.
+     *
+     * // RIG POINT: Replace each buildDummy() call here with the room's real buildXxx() method
+     *              once that room's content is designed and implemented.
      */
     private void initRooms() {
-        // Overworld rooms
+        // --- overworld rooms ---
         overworldGrid[0][0] = new Room("A1"); overworldGrid[0][0].buildDummy(); // Market (start)
         overworldGrid[1][0] = new Room("B1"); overworldGrid[1][0].buildDummy(); // Inn
         overworldGrid[2][0] = new Room("C1"); overworldGrid[2][0].buildDummy(); // Bridge
@@ -187,131 +282,262 @@ public class WorldMap {
         overworldGrid[1][2] = new Room("B3"); overworldGrid[1][2].buildDummy(); // Riddle puzzle
         overworldGrid[2][2] = new Room("C3"); overworldGrid[2][2].buildDummy(); // Dungeon Entrance
 
-        // Dungeon rooms
+        // --- dungeon rooms ---
         dungeonRooms[0] = new Room("D1"); dungeonRooms[0].buildDummy(); // Combat + RoomLock
         dungeonRooms[1] = new Room("D2"); dungeonRooms[1].buildDummy(); // Puzzle + SaveCrystal
         dungeonRooms[2] = new Room("D3"); dungeonRooms[2].buildDummy(); // Boss fight
 
-        // Wire exit callbacks so each room notifies WorldMap when the player reaches an edge
-        // TODO: for each room, call room.setExitCallback(d -> this.triggerTransition(d))
+        // --- convenience reference to C3 for dungeon entrance checks ---
+        roomC3 = overworldGrid[2][2];
+
+        // --- wire exit callbacks: each room calls triggerTransition() when the player exits ---
+        for (int col = 0; col < COLS; col++) {
+            for (int row = 0; row < ROWS; row++) {
+                final Room room = overworldGrid[col][row];
+                room.setExitCallback(direction -> triggerTransition(direction));
+            }
+        }
+        for (Room dungeonRoom : dungeonRooms) {
+            dungeonRoom.setExitCallback(direction -> triggerTransition(direction));
+        }
     }
 
     /**
      * Opens all valid exits between rooms, exactly as defined in the design doc.
-     * C1 NORTH starts CLOSED (bridge broken). All other valid exits start OPEN.
+     * C1 NORTH starts CLOSED (bridge broken). D1 NORTH starts CLOSED (RoomLock).
+     * All other connected exits start OPEN.
      */
     private void wireExits() {
-        // A1 ↔ B1
+        // --- A1 ↔ B1 ---
         overworldGrid[0][0].setExit(Direction.RIGHT, true);
         overworldGrid[1][0].setExit(Direction.LEFT,  true);
 
-        // A1 ↔ A2
+        // --- A1 ↔ A2 ---
         overworldGrid[0][0].setExit(Direction.UP,   true);
         overworldGrid[0][1].setExit(Direction.DOWN, true);
 
-        // B1 ↔ B2
+        // --- B1 ↔ B2 ---
         overworldGrid[1][0].setExit(Direction.UP,   true);
         overworldGrid[1][1].setExit(Direction.DOWN, true);
 
-        // B1 ↔ C1
+        // --- B1 ↔ C1 ---
         overworldGrid[1][0].setExit(Direction.RIGHT, true);
         overworldGrid[2][0].setExit(Direction.LEFT,  true);
 
-        // A2 ↔ A3
+        // --- A2 ↔ A3 ---
         overworldGrid[0][1].setExit(Direction.UP,   true);
         overworldGrid[0][2].setExit(Direction.DOWN, true);
 
-        // A2 ↔ B2
+        // --- A2 ↔ B2 ---
         overworldGrid[0][1].setExit(Direction.RIGHT, true);
         overworldGrid[1][1].setExit(Direction.LEFT,  true);
 
-        // A3 ↔ B3
+        // --- A3 ↔ B3 ---
         overworldGrid[0][2].setExit(Direction.RIGHT, true);
         overworldGrid[1][2].setExit(Direction.LEFT,  true);
 
-        // B2 ↔ B3
+        // --- B2 ↔ B3 ---
         overworldGrid[1][1].setExit(Direction.UP,   true);
         overworldGrid[1][2].setExit(Direction.DOWN, true);
 
-        // C1 → C2: CLOSED at start (bridge broken). DrawbridgeLever calls openExit("C1", UP).
-        overworldGrid[2][0].setExit(Direction.UP,   false); // CLOSED — bridge broken
-        overworldGrid[2][1].setExit(Direction.DOWN, true);  // C2 south is open once C1 is fixed
+        // --- C1 → C2: CLOSED at start (bridge broken) ---
+        // RIG POINT: DrawbridgeLever.onInteract() must call openExit("C1", Direction.UP).
+        overworldGrid[2][0].setExit(Direction.UP,   false); // CLOSED — bridge not yet fixed
+        overworldGrid[2][1].setExit(Direction.DOWN, true);  // C2 south is open from the other side
 
-        // C2 ↔ C3
+        // --- C2 ↔ C3 ---
         overworldGrid[2][1].setExit(Direction.UP,   true);
         overworldGrid[2][2].setExit(Direction.DOWN, true);
 
-        // C3 → D1 (dungeon entrance — treated as a special transition, not a normal exit direction)
-        // TODO: handled by a WorldObject/trigger in C3 that calls enterDungeon()
+        // --- C3 → D1: handled by the dungeon entrance marker, NOT a directional exit ---
+        // No exit flag is set here; enterDungeon() handles the switch directly.
 
-        // D1 → D2: CLOSED at start (RoomLock). RoomLock calls openExit("D1", UP) when cleared.
-        dungeonRooms[0].setExit(Direction.UP, false); // CLOSED until all enemies dead
+        // --- D1 → D2: CLOSED at start (RoomLock — all enemies must die first) ---
+        // RIG POINT: RoomLock.onUnlock() must call openExit("D1", Direction.UP).
+        dungeonRooms[0].setExit(Direction.UP,  false); // CLOSED — locked combat room
         dungeonRooms[1].setExit(Direction.DOWN, true);
 
-        // D2 → D3
+        // --- D2 → D3 ---
         dungeonRooms[1].setExit(Direction.UP,  true);
         dungeonRooms[2].setExit(Direction.DOWN, true);
     }
 
     // =========================================================
-    // UPDATE / DRAW — called each tick by the top-level orchestrator
+    // UPDATE / DRAW — called each tick by GameplayPane
     // =========================================================
 
     /**
-     * Per-tick update. Delegates to active room (or RoomTransition if animating).
+     * Per-tick update. Routes to the active RoomTransition if one is running,
+     * or to the active room's normal update otherwise.
+     * Also checks for the dungeon entrance trigger when the player is in C3.
      *
-     * @param dt     delta-time in seconds
-     * @param player the active Player
+     * @param dt     delta-time in seconds (e.g. 0.016 for ~60fps)
+     * @param player the active Player (position already updated for this tick)
      */
     public void update(double dt, Player player) {
+        // Store player reference so triggerTransition() (called via exit callback, no player arg)
+        // can pass it to RoomTransition.start() and finishTransition().
+        this.lastTickPlayer = player;
+
         if (activeTransition != null) {
-            // TODO: activeTransition.update(dt)
-            // TODO: if activeTransition.isComplete() → finishTransition()
+            // --- transition in progress: advance the pan animation ---
+            activeTransition.update(dt);
+            if (activeTransition.isAnimationComplete()) {
+                finishTransition(player);
+            }
         } else {
-            // TODO: activeRoom.update(dt, player)
+            // --- normal gameplay: update active room content ---
+            activeRoom.update(dt, player);
+
+            // --- dungeon entrance check (C3 only) ---
+            // TECH DEMO: checks if player overlaps the red GRect marker in C3.
+            // RIG POINT: replace this check with WorldObject.onContact() once the real door is in C3.
+            if (activeRoom == roomC3) {
+                checkDungeonEntranceTrigger(player);
+            }
         }
     }
 
-    /**
-     * Draws the active room (or both rooms during a transition).
-     * Called each tick after update().
-     *
-     * @param canvas the game canvas
-     */
-    public void draw(GCanvas canvas) {
-        // TODO: if transition active, draw both rooms at their offset positions
-        // TODO: else, activeRoom is already drawn (addTo was called when it became active)
-    }
-
     // =========================================================
-    // TRANSITION
+    // TRANSITION — trigger and finish
     // =========================================================
 
     /**
-     * Called by the active Room when the player walks off an exit edge.
-     * Finds the neighboring room, validates the exit is open, starts the transition.
+     * Called by a Room's exit callback when the player walks off an open exit edge.
+     * Finds the neighboring room, creates a RoomTransition, and starts the pan animation.
+     * Does nothing if a transition is already running (prevents double-triggering).
      *
-     * @param d the direction the player exited
+     * @param direction the direction the player exited
      */
-    public void triggerTransition(Direction d) {
-        // TODO: find neighborRoom based on activeRoom + direction d
-        // TODO: if exit is closed, block player movement and return
-        // TODO: activeTransition = new RoomTransition(); activeTransition.start(activeRoom, neighborRoom, d, canvas)
-        // TODO: GamePlayState.setCurrent(GamePlayState.TRANSITIONING)
+    public void triggerTransition(Direction direction) {
+        if (activeTransition != null) return; // already transitioning; ignore
+
+        // --- find the room in that direction ---
+        Room neighbor = findNeighborRoom(direction);
+        if (neighbor == null) return; // no room exists in that direction
+
+        // --- start the pan animation ---
+        activeTransition = new RoomTransition();
+        activeTransition.start(activeRoom, neighbor, direction, canvas, lastTickPlayer);
     }
 
     /**
      * Called when the transition animation completes.
-     * Swaps the active room, resets the new room, repositions the player.
+     * Swaps the active room, syncs the player's internal coordinates to their sprite position,
+     * and restores GamePlayState to PLAYING.
+     *
+     * Player coordinate correction after pan (verification table):
+     *   Exited RIGHT → player.x = left  edge of new room, player.y unchanged
+     *   Exited LEFT  → player.x = right edge of new room, player.y unchanged
+     *   Exited UP    → player.y = bottom edge of new room, player.x unchanged
+     *   Exited DOWN  → player.y = top   edge of new room, player.x unchanged
+     *
+     * @param player the active Player
      */
-    private void finishTransition() {
-        // TODO: Room newRoom = activeTransition.getToRoom()
-        // TODO: activeRoom.removeFrom(canvas)
-        // TODO: newRoom.addTo(canvas) then newRoom.reset()
-        // TODO: reposition player at the opposite edge of newRoom
-        // TODO: activeRoom = newRoom
-        // TODO: activeTransition = null
-        // TODO: GamePlayState.setCurrent(GamePlayState.PLAYING)
+    private void finishTransition(Player player) {
+        Room fromRoom  = activeTransition.getFromRoom();
+        Room toRoom    = activeTransition.getToRoom();
+        Direction exitDir = activeTransition.getDirection();
+
+        // --- remove old room from canvas ---
+        fromRoom.removeFrom(canvas);
+
+        // --- swap active room ---
+        activeRoom = toRoom;
+        inDungeon  = isDungeonRoom(toRoom);
+
+        // --- reset the new room (re-spawns enemies, resets puzzles) ---
+        activeRoom.reset();
+
+        // --- update player's tile map so collision uses the new room's layout ---
+        // RIG POINT: player.setTileMap() is called here on every room transition.
+        //            When real room tile layouts replace the all-floor dummy, collision
+        //            will automatically use the new layout.
+        player.setTileMap(activeRoom.getTileMap());
+
+        // --- sync player's internal coordinates to where their sprite landed after the pan ---
+        // The sprite was moved by ROOM_WIDTH_PX or ROOM_HEIGHT_PX total during the animation.
+        // The internal x/y haven't changed yet — we correct them here.
+        double newX = player.getX();
+        double newY = player.getY();
+        switch (exitDir) {
+            case RIGHT: newX = player.getX() - ROOM_WIDTH_PX;  break;
+            case LEFT:  newX = player.getX() + ROOM_WIDTH_PX;  break;
+            case UP:    newY = player.getY() + ROOM_HEIGHT_PX; break;
+            case DOWN:  newY = player.getY() - ROOM_HEIGHT_PX; break;
+        }
+        player.setPosition(newX, newY);
+        player.setSpawnPosition(newX, newY);
+
+        // --- manage dungeon entrance marker visibility ---
+        // TECH DEMO: show marker when entering C3, hide it when leaving C3.
+        if (toRoom == roomC3) {
+            canvas.add(dungeonEntranceMarker);
+        }
+        if (fromRoom == roomC3) {
+            canvas.remove(dungeonEntranceMarker);
+        }
+
+        // --- clean up transition and resume gameplay ---
+        activeTransition = null;
+        GamePlayState.setCurrent(GamePlayState.PLAYING);
+    }
+
+    // =========================================================
+    // DUNGEON ENTRANCE — C3 special trigger
+    // =========================================================
+
+    /**
+     * Checks whether the player's center overlaps the red dungeon entrance marker in C3.
+     * If so, calls enterDungeon() to teleport them into D1 (no sliding pan).
+     *
+     * @param player the active Player
+     */
+    private void checkDungeonEntranceTrigger(Player player) {
+        double px = player.getX();
+        double py = player.getY();
+
+        boolean insideTrigger =
+            px >= DUNGEON_ENTRANCE_X &&
+            px <= DUNGEON_ENTRANCE_X + DUNGEON_ENTRANCE_W &&
+            py >= DUNGEON_ENTRANCE_Y &&
+            py <= DUNGEON_ENTRANCE_Y + DUNGEON_ENTRANCE_H;
+
+        if (insideTrigger) {
+            enterDungeon(player);
+        }
+    }
+
+    /**
+     * Instantly transitions the player from C3 into D1 (the dungeon entrance).
+     * No sliding animation — this is a door-style transition, not a directional exit.
+     * Player is placed at the south edge of D1, facing north.
+     *
+     * // TECH DEMO: called when player touches the red GRect in C3.
+     * // RIG POINT: replace this with a proper WorldObject door interaction in C3's buildC3().
+     *
+     * @param player the active Player
+     */
+    public void enterDungeon(Player player) {
+        // --- remove C3 and the dungeon entrance marker from canvas ---
+        activeRoom.removeFrom(canvas);
+        canvas.remove(dungeonEntranceMarker);
+
+        // --- switch to D1 ---
+        activeRoom = dungeonRooms[0];
+        inDungeon  = true;
+
+        // --- put D1 on canvas ---
+        activeRoom.addTo(canvas);
+        activeRoom.reset();
+
+        // --- place player at south edge of D1, facing north ---
+        // RIG POINT: adjust DUNGEON_SPAWN_X/Y if the real dungeon entrance position changes.
+        player.setTileMap(activeRoom.getTileMap());
+        player.setPosition(DUNGEON_SPAWN_X, DUNGEON_SPAWN_Y);
+        player.setSpawnPosition(DUNGEON_SPAWN_X, DUNGEON_SPAWN_Y);
+
+        GamePlayState.setCurrent(GamePlayState.PLAYING);
     }
 
     // =========================================================
@@ -320,7 +546,7 @@ public class WorldMap {
 
     /**
      * Opens an exit in a specific room by room ID.
-     * Used by DrawbridgeLever (opens C1 NORTH) and RoomLock (opens D1 NORTH).
+     * Used by DrawbridgeLever (opens C1 UP) and RoomLock (opens D1 UP).
      *
      * @param roomId    the room to modify (e.g. "C1")
      * @param direction the exit direction to open
@@ -343,12 +569,76 @@ public class WorldMap {
     }
 
     // =========================================================
+    // HELPER — neighbor room lookup
+    // =========================================================
+
+    /**
+     * Finds the room adjacent to the current active room in the given direction.
+     * Handles both the overworld grid and the linear dungeon chain.
+     * Returns null if no room exists in that direction (edge of the map, or disconnected).
+     *
+     * Overworld grid direction → grid offset:
+     *   RIGHT → col+1   LEFT → col-1
+     *   UP    → row+1   DOWN → row-1   (row 0 = south, row 2 = north)
+     *
+     * @param direction the direction to look in
+     * @return the neighboring Room, or null if none exists
+     */
+    private Room findNeighborRoom(Direction direction) {
+        // --- search overworld grid ---
+        for (int col = 0; col < COLS; col++) {
+            for (int row = 0; row < ROWS; row++) {
+                if (overworldGrid[col][row] == activeRoom) {
+                    int neighborCol = col;
+                    int neighborRow = row;
+                    switch (direction) {
+                        case RIGHT: neighborCol = col + 1; break;
+                        case LEFT:  neighborCol = col - 1; break;
+                        case UP:    neighborRow = row + 1; break; // row 0 = south, so UP = row+1
+                        case DOWN:  neighborRow = row - 1; break;
+                    }
+                    return getOverworldRoom(neighborCol, neighborRow); // returns null if out of bounds
+                }
+            }
+        }
+
+        // --- search dungeon chain ---
+        for (int i = 0; i < DUNGEON_ROOMS; i++) {
+            if (dungeonRooms[i] == activeRoom) {
+                if (direction == Direction.UP   && i + 1 < DUNGEON_ROOMS) return dungeonRooms[i + 1];
+                if (direction == Direction.DOWN && i - 1 >= 0)            return dungeonRooms[i - 1];
+                return null; // no room in that direction
+            }
+        }
+
+        return null; // active room not found in either grid (should not happen)
+    }
+
+    /**
+     * Returns true if the given room is one of the three dungeon rooms.
+     *
+     * @param room the room to check
+     * @return true if room is D1, D2, or D3
+     */
+    private boolean isDungeonRoom(Room room) {
+        for (Room dr : dungeonRooms) {
+            if (dr == room) return true;
+        }
+        return false;
+    }
+
+    // =========================================================
     // ROOM LOOKUP
     // =========================================================
 
     /**
      * Returns the overworld room at grid position (col, row).
-     * col: 0=A, 1=B, 2=C. row: 0=row1 (bottom), 1=row2, 2=row3 (top).
+     * col: 0=A, 1=B, 2=C. row: 0=row1 (south/bottom), 1=row2, 2=row3 (north/top).
+     * Returns null if the coordinates are out of bounds.
+     *
+     * @param col column index (0–2)
+     * @param row row index (0–2)
+     * @return the Room at that grid position, or null if out of bounds
      */
     public Room getOverworldRoom(int col, int row) {
         if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return null;
@@ -356,7 +646,12 @@ public class WorldMap {
     }
 
     /**
-     * Returns the dungeon room at index (0=D1, 1=D2, 2=D3).
+     * Returns the dungeon room at the given index.
+     * 0 = D1 (combat), 1 = D2 (puzzle+save), 2 = D3 (boss).
+     * Returns null if the index is out of bounds.
+     *
+     * @param index dungeon room index (0–2)
+     * @return the dungeon Room, or null if out of bounds
      */
     public Room getDungeonRoom(int index) {
         if (index < 0 || index >= DUNGEON_ROOMS) return null;
@@ -364,8 +659,11 @@ public class WorldMap {
     }
 
     /**
-     * Finds a room by its string ID. Searches overworld grid then dungeon array.
-     * Returns null if no match found.
+     * Finds a room by its string ID. Searches overworld grid first, then dungeon rooms.
+     * Returns null if no room with that ID exists.
+     *
+     * @param roomId the room ID to search for (e.g. "A1", "D2")
+     * @return the matching Room, or null if not found
      */
     public Room getRoomById(String roomId) {
         for (int c = 0; c < COLS; c++) {
@@ -379,9 +677,9 @@ public class WorldMap {
         return null;
     }
 
-    /** Returns the room the player is currently in. */
+    /** @return the room the player is currently in */
     public Room getActiveRoom() { return activeRoom; }
 
-    /** Returns true if the player is currently inside the dungeon. */
+    /** @return true if the player is currently inside the dungeon */
     public boolean isInDungeon() { return inDungeon; }
 }

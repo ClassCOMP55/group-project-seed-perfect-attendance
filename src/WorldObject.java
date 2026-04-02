@@ -159,6 +159,22 @@ public abstract class WorldObject {
     }
 
     /**
+     * Shifts this object's sprite by (panX, panY) pixels on the canvas.
+     * Only the visual moves — the internal position (x, y) is NOT changed.
+     * Subclasses that have multiple visual elements (e.g. Chest lid) should
+     * override this method to pan all of them.
+     * Used by RoomTransition during the room pan animation.
+     *
+     * @param panX horizontal pixels to shift (negative = left, positive = right)
+     * @param panY vertical pixels to shift (negative = up, positive = down)
+     */
+    public void panVisual(double panX, double panY) {
+        if (sprite != null) {
+            sprite.move(panX, panY);
+        }
+    }
+
+    /**
      * Removes this object's sprite from the canvas.
      * Default implementation removes the sprite GImage if it is not null.
      * Subclasses with multiple visuals (e.g. Chest lid) should override.

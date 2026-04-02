@@ -96,6 +96,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
+// =========================================================
+// EXIT DETECTION — pixel thresholds (used in update)
+// =========================================================
+// These values are derived from the tile grid constants in TileMap.
+// If tile size or room dimensions ever change, update them there — not here.
+//
+// Room pixel span:
+//   X: MAP_OFFSET_X (16) to MAP_OFFSET_X + 26 * 48 = 1264
+//   Y: 0 to 15 * 48 = 720
+//
+// A player (center point) is considered to have exited when their center
+// crosses the boundary. Clamp target pushes them just inside the edge
+// so they are not re-triggered on the next tick.
+
+
 /**
  * One full screen of the game world (26×15 tiles, 1248×720px).
  * Holds a TileMap, enemies, WorldObjects, dropped items, and exit flags.
@@ -155,18 +170,46 @@ public class Room {
     private boolean initialized;
 
     // =========================================================
+    // EXIT BOUNDARY CONSTANTS
+    // =========================================================
+
+    /*
+     * =====================
+     * Exit trigger thresholds — adjust these if tile size or room dimensions change.
+     * =====================
+     */
+
+    /** Left edge of the room in pixels. Player exits LEFT when their center crosses below this. */
+    private static final double EXIT_LEFT_EDGE  = TileMap.MAP_OFFSET_X;
+
+    /** Right edge of the room in pixels. Player exits RIGHT when their center crosses above this. */
+    private static final double EXIT_RIGHT_EDGE = TileMap.MAP_OFFSET_X + 26 * 48; // = 1264
+
+    /** Top edge of the room in pixels. Player exits UP when their center crosses above this. */
+    private static final double EXIT_TOP_EDGE   = 0;
+
+    /** Bottom edge of the room in pixels. Player exits DOWN when their center crosses below this. */
+    private static final double EXIT_BOTTOM_EDGE = 15 * 48; // = 720
+
+    /*
+     * =====================
+     * End of adjustable exit values.
+     * =====================
+     */
+
+    // =========================================================
     // CONSTRUCTOR
     // =========================================================
 
     /**
-     * Creates a Room with the given ID and a default empty TileMap.
+     * Creates a Room with the given ID and an empty placeholder TileMap.
      * WorldMap calls buildDummy() immediately after construction for layout testing.
      *
      * @param roomId unique string ID (e.g. "A1", "D2")
      */
     public Room(String roomId) {
         this.roomId = roomId;
-        this.tileMap = new TileMap(); // default 26×15 floor+border-wall layout
+        this.tileMap = new TileMap(); // temporary market layout; replaced by buildDummy() or buildXxx()
 
         // All exits closed by default — WorldMap opens the correct ones after construction.
         for (Direction d : Direction.values()) {
@@ -180,12 +223,30 @@ public class Room {
 
     /**
      * Sets up this room as a navigable placeholder for layout testing.
-     * Adds a centered label showing the room ID so the team knows where they are.
-     * Call from WorldMap during initialization. Replace with buildXxx() during content sprint.
+     * Uses an all-floor tile layout (no border walls) so exit detection fires correctly.
+     * Adds a centered label with the room ID for navigation reference.
+     *
+     * // TECH DEMO: This is a placeholder. Replace this call in WorldMap.initRooms() with
+     * //            a room-specific buildXxx() method when real content is ready.
+     * // RIG POINT: Replace all-floor TileMap with new TileMap(roomId) for real tile layouts.
      */
     public void buildDummy() {
-        // TODO: create a GLabel at the center of the room (x=640, y=360) with roomId text
-        // TODO: set label font and color so it is visible against the tile floor
+        // --- all-floor tile map (no border walls) ---
+        // TECH DEMO: border walls are intentionally absent so the player can reach exit edges.
+        // RIG POINT: swap to new TileMap(roomId) once real room layouts are designed.
+        this.tileMap = TileMap.createDummyAllFloor();
+
+        // --- room ID label centered in the room ---
+        // TECH DEMO: visible debug label; remove when real room art is in place.
+        dummyLabel = new GLabel(roomId);
+        dummyLabel.setFont("SansSerif-BOLD-36");
+        dummyLabel.setColor(Color.WHITE);
+        // Approximate center — GLabel width is not known until rendered on canvas,
+        // so we offset from the room's pixel center using a rough character-width estimate.
+        double approxLabelWidth = roomId.length() * 22.0;
+        double centerX = EXIT_LEFT_EDGE + (26 * 48) / 2.0 - approxLabelWidth / 2.0;
+        double centerY = EXIT_BOTTOM_EDGE / 2.0 + 12; // +12 to account for label ascent
+        dummyLabel.setLocation(centerX, centerY);
     }
 
     // =========================================================
@@ -193,28 +254,80 @@ public class Room {
     // =========================================================
 
     /**
-     * Adds all room graphics to the canvas.
-     * Call once when this room becomes the active room (after transition completes).
+     * Adds all room graphics to the canvas in back-to-front draw order.
+     * Safe to call repeatedly — returns immediately if already initialized.
+     * Called by WorldMap / RoomTransition when this room becomes visible.
+     *
+     * Draw order: tiles → dropped items → world objects → entities → room label
      *
      * @param canvas the game canvas
      */
     public void addTo(GCanvas canvas) {
-        // TODO: tileMap.draw(canvas)
-        // TODO: draw droppedItems, objects, entities (in draw-order: drops → objects → entities)
-        // TODO: add dummyLabel to canvas if not null
+        if (initialized) return; // already on canvas; prevent double-adding
+
+        // --- tiles (drawn first, at the back) ---
+        tileMap.draw(canvas);
+
+        // --- dropped items (coins, loot) ---
+        // RIG POINT: Item.draw() must be implemented before dropped items appear.
+        for (Item item : droppedItems) {
+            item.draw(canvas);
+        }
+
+        // --- world objects (signs, chests, pushblocks, etc.) ---
+        for (WorldObject obj : objects) {
+            obj.draw(canvas);
+        }
+
+        // --- entities (enemies, projectiles) ---
+        // RIG POINT: Entity.draw() is already implemented; add enemies to the entities list
+        //            in each room's buildXxx() method.
+        for (Entity entity : entities) {
+            entity.draw(canvas);
+        }
+
+        // --- room ID label (tech-demo only) ---
+        // TECH DEMO: visible room ID label; remove when real room art replaces buildDummy().
+        if (dummyLabel != null) {
+            canvas.add(dummyLabel);
+        }
+
         initialized = true;
     }
 
     /**
      * Removes all room graphics from the canvas.
-     * Call when this room is leaving (transition starts) or the game exits.
+     * Called when this room is transitioning out or the game is exiting.
+     * Sets initialized = false so addTo() can be called again on re-entry.
      *
      * @param canvas the game canvas
      */
     public void removeFrom(GCanvas canvas) {
-        // TODO: tileMap.removeFrom(canvas)
-        // TODO: remove droppedItems, objects, entities from canvas
-        // TODO: remove dummyLabel from canvas if not null
+        if (!initialized) return; // nothing to remove
+
+        // --- tiles ---
+        tileMap.removeFrom(canvas);
+
+        // --- dropped items ---
+        for (Item item : droppedItems) {
+            item.removeFrom(canvas);
+        }
+
+        // --- world objects ---
+        for (WorldObject obj : objects) {
+            obj.removeFrom(canvas);
+        }
+
+        // --- entities ---
+        for (Entity entity : entities) {
+            entity.removeSpriteFromCanvas(canvas);
+        }
+
+        // --- room ID label ---
+        if (dummyLabel != null) {
+            canvas.remove(dummyLabel);
+        }
+
         initialized = false;
     }
 
@@ -223,25 +336,110 @@ public class Room {
     // =========================================================
 
     /**
-     * Per-tick update for all room content.
+     * Per-tick update for all room content: enemy AI, player contacts, and exit detection.
      * FREEZE CONTRACT: returns immediately unless GamePlayState == PLAYING.
+     * Player movement/input is handled by GameplayPane before this is called.
      *
-     * @param dt    delta-time in seconds
-     * @param player the active Player (for enemy AI, contact checks, exit detection)
+     * @param dt     delta-time in seconds (e.g. 0.016 for ~60fps)
+     * @param player the active Player (position already updated for this tick)
      */
     public void update(double dt, Player player) {
-        // FREEZE CHECK — this must be the first thing in this method, no exceptions.
+        // --- freeze check ---
+        // This must be the very first line — no game logic runs unless the state is PLAYING.
+        // PAUSED, DIALOGUE, CUTSCENE, and TRANSITIONING all return here immediately.
         if (!GamePlayState.PLAYING.is()) return;
 
-        // TODO: update all entities (enemy AI, projectile movement)
-        // TODO: check player contact with each WorldObject (obj.onContact(player))
-        // TODO: check dropped item overlap with player (item.onCollect(player) if overlapping)
-        // TODO: check SwordSwing overlap with Grass and TrainingDummy objects (obj.onHit())
-        // TODO: check player walking into PushBlock (tryPush)
-        // TODO: update WorldObjects that need per-tick logic (PressureButtons, etc.)
-        // TODO: if roomLock != null, call roomLock.update(entities)
-        // TODO: check exit detection (player walked off an edge)
-        // TODO: remove dead enemies from entities list; drop coins if applicable
+        // --- entity updates (enemy AI, projectile movement) ---
+        // RIG POINT: call entity.update(dt) for each enemy once enemy AI is implemented.
+        for (Entity entity : entities) {
+            entity.update(dt);
+        }
+
+        // --- world object per-tick logic (pressure buttons, animated objects) ---
+        // RIG POINT: PressureButton and similar objects need update(dt) called here.
+        for (WorldObject obj : objects) {
+            obj.update(dt);
+        }
+
+        // --- player contact with world objects (e.g. ThicketGate auto-opens on touch) ---
+        // RIG POINT: onContact() for ThicketGate, Coin drops, and similar touch-triggered objects.
+        for (WorldObject obj : objects) {
+            if (player.getHitbox().overlaps(obj.getHitbox())) {
+                obj.onContact(player);
+            }
+        }
+
+        // --- dropped item pickup (player walks over a ground drop) ---
+        // RIG POINT: implement Item.onCollect() and Hitbox overlap for item pickup.
+        // Skipped for tech demo — no items are in any room yet.
+
+        // --- sword hit detection (Grass cut, TrainingDummy react) ---
+        // RIG POINT: check player.getActiveSwing() hitbox against Grass and TrainingDummy objects.
+        // Skipped for tech demo — no sword-reactive objects in dummy rooms.
+
+        // --- push block detection ---
+        // RIG POINT: detect player walking into a PushBlock and call tryPush(direction).
+        // Skipped for tech demo — no puzzle rooms have content yet.
+
+        // --- room lock check ---
+        // RIG POINT: roomLock.update(entities) checks if all enemies are dead → opens exit.
+        if (roomLock != null) {
+            roomLock.update(entities);
+        }
+
+        // --- remove dead enemies, trigger coin drops ---
+        // RIG POINT: iterate entities with an Iterator, remove dead ones, call dropCoins().
+        // Skipped for tech demo — no enemies exist in dummy rooms.
+
+        // --- exit detection ---
+        // Uses if / else if to guarantee only ONE exit fires per tick, even if the player
+        // is at a corner moving diagonally. The second direction is naturally caught on the
+        // next tick after the first transition completes (TRANSITIONING freeze blocks re-entry).
+        detectAndFireExit(player);
+    }
+
+    /**
+     * Checks if the player's center has crossed any exit edge.
+     * If the exit in that direction is OPEN, fires exitCallback with the direction.
+     * If the exit is CLOSED, clamps the player back inside the room boundary.
+     *
+     * Uses if / else if — only one exit can fire per tick (diagonal corner safety).
+     *
+     * @param player the active Player
+     */
+    private void detectAndFireExit(Player player) {
+        double px = player.getX();
+        double py = player.getY();
+
+        if (px < EXIT_LEFT_EDGE) {
+            // --- left (west) edge ---
+            if (exits.getOrDefault(Direction.LEFT, false)) {
+                if (exitCallback != null) exitCallback.accept(Direction.LEFT);
+            } else {
+                player.setPosition(EXIT_LEFT_EDGE + 1, py); // clamp back inside
+            }
+        } else if (px > EXIT_RIGHT_EDGE) {
+            // --- right (east) edge ---
+            if (exits.getOrDefault(Direction.RIGHT, false)) {
+                if (exitCallback != null) exitCallback.accept(Direction.RIGHT);
+            } else {
+                player.setPosition(EXIT_RIGHT_EDGE - 1, py);
+            }
+        } else if (py < EXIT_TOP_EDGE) {
+            // --- top (north) edge ---
+            if (exits.getOrDefault(Direction.UP, false)) {
+                if (exitCallback != null) exitCallback.accept(Direction.UP);
+            } else {
+                player.setPosition(px, EXIT_TOP_EDGE + 1);
+            }
+        } else if (py > EXIT_BOTTOM_EDGE) {
+            // --- bottom (south) edge ---
+            if (exits.getOrDefault(Direction.DOWN, false)) {
+                if (exitCallback != null) exitCallback.accept(Direction.DOWN);
+            } else {
+                player.setPosition(px, EXIT_BOTTOM_EDGE - 1);
+            }
+        }
     }
 
     // =========================================================
@@ -249,19 +447,32 @@ public class Room {
     // =========================================================
 
     /**
-     * Resets this room to its initial state for re-entry.
-     * Enemies re-spawn. Items that reset on re-entry (e.g. puzzle push blocks) are restored.
-     * Called by WorldMap when the player enters this room from a transition.
+     * Resets this room to its initial state when the player enters or re-enters it.
+     * Called by WorldMap after a transition completes (both first entry and re-entry).
      *
-     * NOTE: Chests that have been opened do NOT reset — their open state is tracked by SaveData.
-     * NOTE: ThicketGates that have been opened do NOT reset — their open state is saved.
-     * NOTE: OreNode that has been mined does NOT reset.
+     * Rules:
+     *   - Enemies re-spawn (cleared and re-added from the room's original enemy list).
+     *   - Puzzle objects (PushBlocks, PressureButtons) restore to starting positions.
+     *   - Persistent objects (Chests, ThicketGates, OreNode) keep their saved state.
+     *
+     * NOTE: Chests that have been opened do NOT reset — state is tracked by SaveData.
+     * NOTE: ThicketGates that have been opened do NOT reset — state is tracked by SaveData.
+     * NOTE: OreNode that has been mined does NOT reset — state is tracked by SaveData.
      */
     public void reset() {
-        // TODO: clear entities list and re-add all original enemies for this room
-        // TODO: reset PushBlocks to their starting positions (puzzle rooms only)
-        // TODO: restore PressureButtons to unpressed state (puzzle rooms only)
-        // TODO: keep Chests, ThicketGates, OreNode in their current saved state
+        // --- enemies ---
+        // RIG POINT: clear entities list and re-add all original enemies for this room.
+        //            Each room's buildXxx() method will keep an "original enemy list" to copy from.
+        //            Example: entities.clear(); entities.addAll(originalEnemies);
+        // Skipped for tech demo — no enemies exist in dummy rooms.
+
+        // --- push blocks (puzzle rooms only) ---
+        // RIG POINT: iterate objects, find PushBlock instances, call pushBlock.resetPosition().
+        // Skipped for tech demo — no puzzle rooms have content yet.
+
+        // --- pressure buttons (puzzle rooms only) ---
+        // RIG POINT: iterate objects, find PressureButton instances, call pressureButton.reset().
+        // Skipped for tech demo — no pressure buttons exist yet.
     }
 
     // =========================================================
@@ -273,10 +484,17 @@ public class Room {
         this.roomLock = lock;
     }
 
-    /** Returns true when all enemies in the entities list are dead (or list is empty). */
+    /**
+     * Returns true when all enemies in this room are dead (or when there are no enemies).
+     * Used by RoomLock to determine when the north exit should unlock.
+     *
+     * @return true if every entity in the list is dead, or if the list is empty
+     */
     public boolean isCleared() {
-        // TODO: return entities.stream().allMatch(e -> !e.isAlive())  — or equivalent loop
-        return entities.isEmpty();
+        for (Entity entity : entities) {
+            if (entity.isAlive()) return false;
+        }
+        return true; // empty list also returns true (no enemies = already cleared)
     }
 
     // =========================================================
@@ -307,6 +525,49 @@ public class Room {
      */
     public void setExitCallback(Consumer<Direction> callback) {
         this.exitCallback = callback;
+    }
+
+    // =========================================================
+    // ROOM TRANSITION — pan support
+    // =========================================================
+
+    /**
+     * Shifts every visual element in this room by (panX, panY) pixels on the canvas.
+     * Internal positions (tile grid, entity coordinates, object positions) are NOT changed.
+     * Called by RoomTransition each animation tick to slide both rooms across the screen.
+     *
+     * Elements panned: tiles, world objects, entities, the room ID label (if present).
+     *
+     * @param panX horizontal pixels to shift (negative = left, positive = right)
+     * @param panY vertical pixels to shift (negative = up, positive = down)
+     */
+    public void panAll(double panX, double panY) {
+        // --- tiles ---
+        tileMap.panAll(panX, panY);
+
+        // --- world objects ---
+        for (WorldObject obj : objects) {
+            obj.panVisual(panX, panY);
+        }
+
+        // --- entities (enemies, projectiles) ---
+        for (Entity entity : entities) {
+            entity.panVisual(panX, panY);
+        }
+
+        // --- dropped items ---
+        // RIG POINT: call item.panVisual(panX, panY) once Item.panVisual() is implemented.
+        // Skipped for tech demo — no items are in any room yet.
+
+        // --- tech-demo room ID label ---
+        if (dummyLabel != null) {
+            dummyLabel.move(panX, panY); // GLabel inherits move() from GObject
+        }
+
+        // --- ThicketGates ---
+        // RIG POINT: call gate.panVisual(panX, panY) for each gate once ThicketGate
+        //            extends WorldObject and panVisual() is available on it.
+        // Skipped for tech demo — no rooms have ThicketGates in the dummy layout.
     }
 
     // =========================================================
