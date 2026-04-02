@@ -75,7 +75,13 @@ public class MainApplication extends GraphicsProgram{
 		SwingUtilities.invokeLater(() -> {
 			java.awt.Window w = SwingUtilities.getWindowAncestor(getGCanvas());
 			if (w instanceof JFrame) {
-				((JFrame) w).setTitle(GAME_TITLE);
+				JFrame frame = (JFrame) w;
+				frame.setTitle(GAME_TITLE);
+				// Remove ACM's menu bar — it steals vertical space and creates whitespace
+				frame.setJMenuBar(null);
+				// Repack so the canvas fills exactly 1280x720 with no extra chrome
+				getGCanvas().setPreferredSize(new java.awt.Dimension(WINDOW_WIDTH, WINDOW_HEIGHT));
+				frame.pack();
 			}
 		});
 		pauseModal = new PauseModal(this);

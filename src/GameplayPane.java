@@ -51,6 +51,7 @@ PLAN OF ACTION
   (HUD and PauseModal are already wired into MainApplication and draw on top of everything.)
 */
 
+import java.awt.event.KeyEvent;
 import java.util.Collections;
 
 import acm.graphics.GCanvas;
@@ -99,6 +100,9 @@ public class GameplayPane extends GraphicsPane {
      * Created once in the constructor and kept for the lifetime of the application.
      */
     private final WorldMap worldMap;
+
+    /** Prevents double-wiring input keys across multiple showContent() calls. */
+    private boolean inputsWired;
 
     /**
      * Tracks whether showContent() has been called for the first time.
@@ -186,6 +190,9 @@ public class GameplayPane extends GraphicsPane {
         // TECH DEMO: added last so it renders above tiles and entities.
         // RIG POINT: remove this call once HUDoverlay.showAll() is wired in.
         addControlsHint(canvas);
+
+        // --- wire attack / ability keys ---
+        wireInputOnce();
     }
 
     /**
@@ -195,6 +202,8 @@ public class GameplayPane extends GraphicsPane {
      */
     @Override
     public void hideContent() {
+        unwireInput();
+
         GCanvas canvas = mainScreen.getGCanvas();
         Player player  = mainScreen.getPlayer();
 
@@ -233,6 +242,9 @@ public class GameplayPane extends GraphicsPane {
         Player player = mainScreen.getPlayer();
         if (player == null) return;
 
+        // --- freeze everything while pause modal is open ---
+        if (mainScreen.isPauseModalOpen()) return;
+
         GCanvas canvas = mainScreen.getGCanvas();
 
         // --- player input and animation (PLAYING state only) ---
@@ -270,6 +282,48 @@ public class GameplayPane extends GraphicsPane {
     @Override
     public boolean needsGameLoop() {
         return true;
+    }
+
+    // =========================================================
+    // INPUT WIRING — attack (J) and ability (K)
+    // =========================================================
+
+    /**
+     * Binds discrete-action keys (attack, ability) via InputHandler.onPress().
+     * WASD movement is already handled inside Player.update() via isHeld().
+     * Called from showContent(); safe to call multiple times (no-ops after first).
+     */
+    private void wireInputOnce() {
+        if (inputsWired) return;
+        InputHandler input = mainScreen.getInputHandler();
+        if (input == null) return;
+
+        input.onPress(KeyEvent.VK_J, () -> {
+            if (!mainScreen.isPauseModalOpen() && GamePlayState.PLAYING.is()) {
+                Player p = mainScreen.getPlayer();
+                if (p != null) p.attack();
+            }
+        });
+
+        input.onPress(KeyEvent.VK_K, () -> {
+            if (!mainScreen.isPauseModalOpen() && GamePlayState.PLAYING.is()) {
+                Player p = mainScreen.getPlayer();
+                if (p != null) p.toggleGodMode();
+            }
+        });
+
+        inputsWired = true;
+    }
+
+    /**
+     * Unbinds the keys wired in wireInputOnce(). Called from hideContent().
+     */
+    private void unwireInput() {
+        InputHandler input = mainScreen.getInputHandler();
+        if (input == null) { inputsWired = false; return; }
+        input.removeOnPress(KeyEvent.VK_J);
+        input.removeOnPress(KeyEvent.VK_K);
+        inputsWired = false;
     }
 
     // =========================================================

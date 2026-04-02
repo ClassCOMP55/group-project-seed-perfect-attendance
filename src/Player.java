@@ -59,6 +59,9 @@ public class Player extends Entity {
     /** Active sword swing (null when not attacking). */
     private SwordSwing activeSwing;
 
+    /** Swing that just expired — held until draw() can remove its visuals from the canvas. */
+    private SwordSwing expiredSwing;
+
     /** Cooldown ticks remaining before another swing is allowed. */
     private int attackCooldownTicks;
 
@@ -233,6 +236,7 @@ public class Player extends Entity {
         if (activeSwing != null) {
             activeSwing.update(enemies, projectiles, hasReflect);
             if (activeSwing.isExpired()) {
+                expiredSwing = activeSwing;
                 activeSwing = null;
             }
         }
@@ -492,6 +496,12 @@ public class Player extends Entity {
     public void draw(GCanvas canvas) {
         applySpriteVisibility(shouldShowSprite());
         super.draw(canvas);
+
+        // Clean up expired swing visuals from the canvas
+        if (expiredSwing != null) {
+            expiredSwing.removeFrom(canvas);
+            expiredSwing = null;
+        }
 
         // Draw active sword swing
         if (activeSwing != null) {
