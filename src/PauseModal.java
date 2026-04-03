@@ -1280,6 +1280,7 @@ public class PauseModal extends GraphicsPane
   private void addPauseHeartsLikeHud(double originX, double originY, int filledSegments)
   {
     pauseHeartDisplay = new HeartDisplay(Player.DEFAULT_HEART_COUNT, PAUSE_HEART_CELL_SIZE);
+    applySharedHeartPalette(pauseHeartDisplay);
     pauseHeartDisplay.show(this, originX, originY);
     pauseHeartDisplay.setFilledHalfHearts(filledSegments);
   }

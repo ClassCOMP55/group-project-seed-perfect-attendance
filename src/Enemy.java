@@ -22,6 +22,7 @@
  */
 import acm.graphics.*;
 import acm.util.RandomGenerator;
+import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -114,6 +115,20 @@ public class Enemy extends Entity {
 
     /** Probability of dropping a coin on death (0.0–1.0). */
     private static final double COIN_DROP_CHANCE = 0.5;
+    /** Enemy overlay heart size in pixels per heart cell. */
+    private static final double COMBAT_OVERLAY_HEART_CELL_SIZE = 3.0;
+    /** Vertical gap between the name label and the hearts. */
+    private static final double COMBAT_OVERLAY_NAME_GAP = 4.0;
+    /** Padding above the enemy hitbox before the overlay starts. */
+    private static final double COMBAT_OVERLAY_TOP_PAD = 10.0;
+    /** Clamp overlays inside the room's top edge. */
+    private static final double COMBAT_OVERLAY_SCREEN_PAD = 6.0;
+
+    private static final Color COMBAT_OVERLAY_NAME_COLOR = new Color(255, 244, 214);
+    private static final Color COMBAT_OVERLAY_HEART_FULL = new Color(232, 45, 34);
+    private static final Color COMBAT_OVERLAY_HEART_EMPTY = new Color(108, 33, 30);
+    private static final Color COMBAT_OVERLAY_HEART_BORDER = new Color(70, 18, 17);
+    private static final Color COMBAT_OVERLAY_HEART_SHADOW = new Color(38, 10, 10);
 
     // ==========================================================
     // FIELDS
@@ -146,6 +161,11 @@ public class Enemy extends Entity {
      * Subclasses reset this to their attack rate (e.g. 60 = ~1s at 60fps) after attacking.
      */
     protected int attackCooldownTicks;
+
+    /** Floating pixel-heart display shown above the enemy during gameplay. */
+    private HeartDisplay combatHeartDisplay;
+    /** Enemy name shown above the hearts. */
+    private GLabel combatNameLabel;
 
     // ── Spawn tracking ──────────────────────────────────────────────────────
 
@@ -611,6 +631,7 @@ public class Enemy extends Entity {
     @Override
     public void draw(GCanvas canvas) {
         if (animState == AnimState.DEATH) {
+            removeCombatOverlay();
             if (deathVisualOnCanvas == null) return;
 
             if (!deathSpriteAdded) {
@@ -624,10 +645,19 @@ public class Enemy extends Entity {
             return;
         }
         super.draw(canvas);
+        updateCombatOverlay(canvas);
+    }
+
+    @Override
+    public void panVisual(double panX, double panY) {
+        super.panVisual(panX, panY);
+        if (combatHeartDisplay != null) combatHeartDisplay.moveBy(panX, panY);
+        if (combatNameLabel != null) combatNameLabel.move(panX, panY);
     }
 
     @Override
     public void removeSpriteFromCanvas(GCanvas canvas) {
+        removeCombatOverlay();
         super.removeSpriteFromCanvas(canvas);
         if (deathVisualOnCanvas != null) {
             canvas.remove(deathVisualOnCanvas);
@@ -648,6 +678,117 @@ public class Enemy extends Entity {
      */
     public boolean onDeath() {
         return rgen.nextDouble() < COIN_DROP_CHANCE;
+    }
+
+    // ==========================================================
+    // COMBAT OVERLAY
+    // ==========================================================
+
+    /**
+     * Returns the label shown above this enemy in the combat overlay.
+     * Defaults to a spaced version of the class name, e.g. "Melee Enemy".
+     */
+    public String getDisplayName() {
+        String simpleName = getClass().getSimpleName();
+        if (simpleName == null || simpleName.isEmpty()) {
+            return "Enemy";
+        }
+        StringBuilder spaced = new StringBuilder();
+        for (int i = 0; i < simpleName.length(); i++) {
+            char ch = simpleName.charAt(i);
+            if (i > 0 && Character.isUpperCase(ch) && Character.isLowerCase(simpleName.charAt(i - 1))) {
+                spaced.append(' ');
+            }
+            spaced.append(ch);
+        }
+        return spaced.toString();
+    }
+
+    /** Converts half-heart max health into the number of visible hearts to render. */
+    private int getCombatOverlayHeartCount() {
+        int unitsPerHeart = Math.max(1, Player.HALF_HEARTS_PER_HEART);
+        return Math.max(1, (maxHealth + unitsPerHeart - 1) / unitsPerHeart);
+    }
+
+    /** Creates, positions, and updates the name + heart cluster. */
+    private void updateCombatOverlay(GCanvas canvas) {
+        if (canvas == null || health <= 0) {
+            removeCombatOverlay();
+            return;
+        }
+
+        if (combatNameLabel == null) {
+            combatNameLabel = new GLabel(getDisplayName());
+            combatNameLabel.setFont("SansSerif-BOLD-10");
+            combatNameLabel.setColor(COMBAT_OVERLAY_NAME_COLOR);
+        }
+        if (combatHeartDisplay == null) {
+            combatHeartDisplay = new HeartDisplay(getCombatOverlayHeartCount(), COMBAT_OVERLAY_HEART_CELL_SIZE);
+            combatHeartDisplay.setColors(
+                COMBAT_OVERLAY_HEART_FULL,
+                COMBAT_OVERLAY_HEART_EMPTY,
+                COMBAT_OVERLAY_HEART_BORDER
+            );
+            combatHeartDisplay.setShadowColor(COMBAT_OVERLAY_HEART_SHADOW);
+            combatHeartDisplay.show(canvas, 0, 0);
+        }
+
+        if (combatNameLabel.getParent() == null) {
+            canvas.add(combatNameLabel);
+        }
+
+        combatHeartDisplay.setFilledHalfHearts(health);
+
+        double heartsWidth = combatHeartDisplay.getWidth();
+        double heartsHeight = combatHeartDisplay.getHeight();
+        double labelHeight = combatNameLabel.getAscent() + combatNameLabel.getDescent();
+        double overlayWidth = Math.max(heartsWidth, combatNameLabel.getWidth());
+        double overlayCenterX = x;
+
+        if (tileMap != null) {
+            double minCenterX = TileMap.MAP_OFFSET_X + overlayWidth / 2.0 + 2.0;
+            double maxCenterX = TileMap.MAP_OFFSET_X + tileMap.getWidthPixels() - overlayWidth / 2.0 - 2.0;
+            if (minCenterX <= maxCenterX) {
+                overlayCenterX = Math.max(minCenterX, Math.min(maxCenterX, overlayCenterX));
+            }
+        }
+
+        double totalHeight = labelHeight + COMBAT_OVERLAY_NAME_GAP + heartsHeight;
+        double topY = Math.max(COMBAT_OVERLAY_SCREEN_PAD, hitbox.y - COMBAT_OVERLAY_TOP_PAD - totalHeight);
+        double nameBaselineY = topY + combatNameLabel.getAscent();
+        combatNameLabel.setLocation(overlayCenterX - combatNameLabel.getWidth() / 2.0, nameBaselineY);
+
+        double heartsX = overlayCenterX - heartsWidth / 2.0;
+        double heartsY = nameBaselineY + combatNameLabel.getDescent() + COMBAT_OVERLAY_NAME_GAP;
+        combatHeartDisplay.setPosition(heartsX, heartsY);
+
+        sendCombatOverlayToFront();
+    }
+
+    /** Removes every gameplay overlay object associated with this enemy. */
+    private void removeCombatOverlay() {
+        if (combatHeartDisplay != null) {
+            combatHeartDisplay.remove();
+            combatHeartDisplay = null;
+        }
+        removeFromParent(combatNameLabel);
+        combatNameLabel = null;
+    }
+
+    /** Small helper so overlay teardown works without requiring a canvas parameter. */
+    private void removeFromParent(GObject obj) {
+        if (obj == null || obj.getParent() == null) {
+            return;
+        }
+        if (obj.getParent() instanceof GCanvas) {
+            ((GCanvas) obj.getParent()).remove(obj);
+        }
+    }
+
+    /** Keeps the overlay above the enemy sprite after draw() swaps animation frames. */
+    private void sendCombatOverlayToFront() {
+        if (combatHeartDisplay != null) combatHeartDisplay.bringToFront();
+        if (combatNameLabel != null) combatNameLabel.sendToFront();
     }
 
     // ==========================================================

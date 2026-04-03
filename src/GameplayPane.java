@@ -1051,10 +1051,10 @@ public class GameplayPane extends GraphicsPane {
             canvas.add(aggroCircle);
             debugObjects.add(aggroCircle);
 
-            // --- health bar (green/red) above enemy ---
+            // --- debug health bar (green/red) below enemy ---
             double barW = 40, barH = 4;
             double barX = ex - barW / 2;
-            double barY = eh.y - 14;
+            double barY = eh.y + eh.height + 8;
 
             acm.graphics.GRect bgBar = new acm.graphics.GRect(barX, barY, barW, barH);
             bgBar.setFilled(true);
@@ -1106,21 +1106,22 @@ public class GameplayPane extends GraphicsPane {
             }
 
             // --- enemy attack cooldown bar (magenta) ---
-            double eBarY = barY - 8;
+            double eBarY = barY + barH + 8;
             if (e.getAttackCooldown() > 0) {
                 drawCooldownBar(canvas, barX, eBarY, barW, barH,
                     e.getAttackCooldown(), 180,
                     java.awt.Color.MAGENTA, "ATK");
-                eBarY -= 10;
+                eBarY += 12;
             }
 
             // --- state label ---
             String stateText = (e.isAggro() ? "CHASE" : "PATROL")
                 + " | " + e.getAnimState().name()
-                + " | HP " + e.getHealth();
-            acm.graphics.GLabel stateLbl = new acm.graphics.GLabel(stateText, barX, eBarY - 2);
+                + " | HP " + e.getHealth() + "/" + e.getMaxHealth();
+            acm.graphics.GLabel stateLbl = new acm.graphics.GLabel(stateText, 0, 0);
             stateLbl.setFont("SansSerif-BOLD-9");
             stateLbl.setColor(java.awt.Color.WHITE);
+            stateLbl.setLocation(barX, eBarY + stateLbl.getAscent());
             canvas.add(stateLbl);
             debugObjects.add(stateLbl);
         }

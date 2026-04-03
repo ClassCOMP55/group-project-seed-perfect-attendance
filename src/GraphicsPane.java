@@ -327,6 +327,10 @@ public class GraphicsPane {
 	private static final Color HUD_BAR_BLUE = new Color(53, 132, 215);
 	private static final Color HUD_BAR_GREEN = new Color(93, 181, 82);
 	private static final Color HUD_BAR_DISABLED = new Color(87, 102, 70);
+	protected static final Color SHARED_HEART_FULL = new Color(232, 45, 34);
+	protected static final Color SHARED_HEART_EMPTY = new Color(108, 33, 30);
+	protected static final Color SHARED_HEART_BORDER = new Color(70, 18, 17);
+	protected static final Color SHARED_HEART_SHADOW = new Color(38, 10, 10);
 
 	private static final String HUD_PORTRAIT_PATH =
 		"assets/visuals/characters/normalized/player-1-idle-front.gif";
@@ -424,7 +428,7 @@ public class GraphicsPane {
 		double heartY = barY + Math.max(0.0, (topBarH - heartHeight) / 2.0);
 
 		hudHeartDisplay = new HeartDisplay(Player.DEFAULT_HEART_COUNT, heartCellSize);
-		hudHeartDisplay.setColors(HUD_BAR_RED, HUD_BAR_TRACK, HUD_BAR_BORDER);
+		applySharedHeartPalette(hudHeartDisplay);
 		hudHeartDisplay.show(this, heartX, heartY);
 
 		double attackBarY = barY + topBarH + barGap;
@@ -488,6 +492,14 @@ public class GraphicsPane {
 			centerX - targetWidth * HUD_PORTRAIT_ANCHOR_X,
 			centerY - targetHeight * HUD_PORTRAIT_ANCHOR_Y);
 		return portrait;
+	}
+
+	protected void applySharedHeartPalette(HeartDisplay heartDisplay) {
+		if (heartDisplay == null) {
+			return;
+		}
+		heartDisplay.setColors(SHARED_HEART_FULL, SHARED_HEART_EMPTY, SHARED_HEART_BORDER);
+		heartDisplay.setShadowColor(SHARED_HEART_SHADOW);
 	}
 
 	/**

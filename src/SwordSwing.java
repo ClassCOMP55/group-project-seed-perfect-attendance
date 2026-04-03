@@ -4,7 +4,7 @@
  * A short-lived combat hitbox and visual created in front of the player on attack.
  * Lives for LIFETIME = 10 ticks (~167ms at 60fps).
  *
- * Each tick, update() checks overlap against all active enemies (dealing 1 damage,
+ * Each tick, update() checks overlap against all active enemies (dealing 1 damage = half a heart,
  * once per swing instance) and stubs projectile reflection for when Projectile.java
  * is written.
  *
@@ -132,7 +132,7 @@ public class SwordSwing {
     /**
      * Advances the swing by one tick and performs hit detection.
      *
-     * Each alive enemy whose hitbox overlaps this swing takes 1 damage.
+     * Each alive enemy whose hitbox overlaps this swing takes 1 damage (half a heart).
      * Each enemy is only damaged once per swing instance (tracked via alreadyHit).
      *
      * Projectile reflection is stubbed with a TODO comment — parameter is List<Object>

@@ -13,7 +13,7 @@ import java.util.Collections;
  *   Attack:  deals meleeDamage when hitboxes overlap, on a 45-tick (~0.75s) cooldown.
  *
  * Stats (Zelda-feel):
- *   Health 3 — survives 3 sword hits, feels sturdy but fair
+ *   Health 3 hearts — survives 6 sword hits at half-heart damage per swing
  *   Patrol 55 px/s — slightly sluggish patrol
  *   Chase 110 px/s — faster than patrol, threatening pursuit
  *   Aggro 224 px — 3.5-tile detection radius
@@ -27,6 +27,8 @@ public class MeleeEnemy extends Enemy {
     // ==========================================================
 
     private static final String SPRITE_DIR = "assets/visuals/skeley-mob-1/normalized/";
+    /** Matches the player's 3-heart scale in half-heart health units. */
+    private static final int MAX_HEALTH = Player.DEFAULT_HEART_COUNT * Player.HALF_HEARTS_PER_HEART;
 
     // ==========================================================
     // FIELDS
@@ -55,7 +57,7 @@ public class MeleeEnemy extends Enemy {
      */
     public MeleeEnemy(double x, double y, TileMap tileMap) {
         super(x, y, SPRITE_DIR + "skeley-mob-1-idle-front.gif", tileMap,
-              3,      // maxHealth  — 3 hits to kill
+              MAX_HEALTH, // maxHealth  — 3 hearts in half-heart units
               55.0,   // patrolSpeed (px/s)
               110.0,  // chaseSpeed  (px/s) — fast pursuit
               224.0); // aggroRange  (px)   — 3.5 tiles
