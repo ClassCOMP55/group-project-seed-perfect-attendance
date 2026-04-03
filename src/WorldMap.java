@@ -575,9 +575,19 @@ public class WorldMap {
         Room neighbor = findNeighborRoom(direction);
         if (neighbor == null) return; // no room exists in that direction
 
+        // --- prepare the destination room before it is drawn into the pan ---
+        prepareRoomForEntry(neighbor);
+
         // --- start the pan animation ---
         activeTransition = new RoomTransition();
         activeTransition.start(activeRoom, neighbor, direction, canvas, lastTickPlayer);
+    }
+
+    /** Resets transient room state before the room becomes visible on screen. */
+    private void prepareRoomForEntry(Room room) {
+        if (room != null) {
+            room.reset();
+        }
     }
 
     /**
@@ -604,9 +614,6 @@ public class WorldMap {
         // --- swap active room ---
         activeRoom = toRoom;
         inDungeon  = isDungeonRoom(toRoom);
-
-        // --- reset the new room (re-spawns enemies, resets puzzles) ---
-        activeRoom.reset();
 
         // --- update player's tile map so collision uses the new room's layout ---
         // RIG POINT: player.setTileMap() is called here on every room transition.
@@ -679,9 +686,11 @@ public class WorldMap {
         activeRoom = dungeonRooms[0];
         inDungeon  = true;
 
+        // --- reset D1 before drawing so entry never flashes stale room state ---
+        prepareRoomForEntry(activeRoom);
+
         // --- put D1 on canvas, including the exit marker ---
         activeRoom.addTo(canvas);
-        activeRoom.reset();
         syncSpecialMarkersToActiveRoom();
 
         // --- place player in center of D1, clear of the exit marker ---
@@ -741,9 +750,11 @@ public class WorldMap {
         activeRoom = roomC3;
         inDungeon  = false;
 
+        // --- reset C3 before drawing so room-local temporary state is ready immediately ---
+        prepareRoomForEntry(activeRoom);
+
         // --- put C3 on canvas, including the entrance marker ---
         activeRoom.addTo(canvas);
-        activeRoom.reset();
         syncSpecialMarkersToActiveRoom();
 
         // --- place player offset from the entrance marker so they don't re-enter ---

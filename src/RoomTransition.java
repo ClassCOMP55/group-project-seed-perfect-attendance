@@ -53,7 +53,8 @@ PLAN OF ACTION
     Exited DOWN  → player.y = top   edge of new room, player.x unchanged
 
 - WHAT ROOMTRANSITION DOES NOT DO
-- Does not reset the new room — WorldMap calls toRoom.reset() after the transition.
+- Does not reset the new room — WorldMap prepares toRoom before start() so the pan
+  already shows the room's correct re-entry state.
 - Does not reposition the Player internally — WorldMap does that in finishTransition().
 - Does not restore GamePlayState — WorldMap does that when finishTransition() completes.
 */
