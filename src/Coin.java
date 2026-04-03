@@ -41,6 +41,7 @@ PLAN OF ACTION
 */
 
 import acm.graphics.GCanvas;
+import acm.graphics.GLabel;
 import acm.graphics.GRect;
 
 import java.awt.Color;
@@ -70,6 +71,9 @@ public class Coin extends Item {
 
     /** Placeholder visual shown on the ground until a real coin sprite is wired. */
     private GRect worldSprite;
+
+    /** World label shown above the dropped coin (e.g., "coin +1"). */
+    private GLabel worldLabel;
 
     // =========================================================
     // CONSTRUCTOR
@@ -103,6 +107,14 @@ public class Coin extends Item {
         this.worldSprite.setFilled(true);
         this.worldSprite.setFillColor(COIN_COLOR);
         this.worldSprite.setColor(Color.BLACK);
+
+        this.worldLabel = new GLabel("coin +" + this.value);
+        this.worldLabel.setFont("SansSerif-BOLD-10");
+        this.worldLabel.setColor(new Color(255, 220, 120));
+        this.worldLabel.setLocation(
+            topLeftX + (24.0 - worldLabel.getWidth()) / 2.0,
+            topLeftY - 4.0
+        );
     }
 
     // =========================================================
@@ -129,12 +141,16 @@ public class Coin extends Item {
     public void draw(GCanvas canvas) {
         if (inWorld && worldSprite != null) {
             canvas.add(worldSprite);
+            if (worldLabel != null) {
+                canvas.add(worldLabel);
+            }
         }
     }
 
     @Override
     public void removeFrom(GCanvas canvas) {
         if (worldSprite != null) canvas.remove(worldSprite);
+        if (worldLabel != null) canvas.remove(worldLabel);
     }
 
     /** Coins are not usable from inventory. */
