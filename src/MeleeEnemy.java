@@ -107,20 +107,16 @@ public class MeleeEnemy extends Enemy {
             anim.addFrames(dirs[d], Collections.singletonList(animSprites[0][d]));
         }
 
-        // Death GIF paths (fresh GImage created each death to avoid stale state)
-        deathGifPaths = new String[] {
-            SPRITE_DIR + "skeley-mob-1-death-front.gif",
-            SPRITE_DIR + "skeley-mob-1-death-back.gif",
-            SPRITE_DIR + "skeley-mob-1-death-left.gif",
-            SPRITE_DIR + "skeley-mob-1-death-right.gif"
-        };
-        // Static last-frame PNGs — swapped in after the GIF plays once
-        deathFinalPaths = new String[] {
-            SPRITE_DIR + "skeley-mob-1-death-front-final.png",
-            SPRITE_DIR + "skeley-mob-1-death-back-final.png",
-            SPRITE_DIR + "skeley-mob-1-death-left-final.png",
-            SPRITE_DIR + "skeley-mob-1-death-right-final.png"
-        };
+        // Runtime death uses extracted PNG frames instead of the animated GIF,
+        // so the sequence cannot loop back to a standing pose.
+        String[] deathDirs = { "front", "back", "left", "right" };
+        deathFramePathsByDirection = new String[4][10];
+        for (int dir = 0; dir < deathDirs.length; dir++) {
+            for (int frame = 0; frame < 10; frame++) {
+                deathFramePathsByDirection[dir][frame] =
+                    SPRITE_DIR + "skeley-mob-1-death-" + deathDirs[dir] + "-frame-" + frame + ".png";
+            }
+        }
     }
 
     // ==========================================================

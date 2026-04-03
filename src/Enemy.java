@@ -56,17 +56,15 @@ public class Enemy extends Entity {
     protected double deathAnimDuration  = 1.40;
 
     /**
-     * Death GIF sprite paths (one per direction: DOWN=0, UP=1, LEFT=2, RIGHT=3).
-     * Stored as paths so a fresh GImage is created each death, avoiding stale
-     * GIF state from previous plays. Populated by subclass.
+     * Manual death-animation frame paths by direction.
+     * Layout: deathFramePathsByDirection[dirIndex][frameIndex].
+     *
+     * We intentionally avoid animated GIF playback for enemy death because ACM's
+     * GIF rendering can loop/restart unpredictably at runtime. By stepping through
+     * extracted PNG frames ourselves, the animation can only move forward and then
+     * freeze on the final "on the floor" frame.
      */
-    protected String[] deathGifPaths;
-
-    /**
-     * Static final-frame PNG paths for the death animation (one per direction).
-     * Swapped in after the GIF plays once to prevent looping. Populated by subclass.
-     */
-    protected String[] deathFinalPaths;
+    protected String[][] deathFramePathsByDirection;
 
     /** The death GIF or final-frame PNG currently on canvas — managed manually. */
     private GImage deathVisualOnCanvas;
@@ -77,11 +75,17 @@ public class Enemy extends Entity {
     /** True once we've swapped from GIF to static PNG (freeze on floor). */
     private boolean deathFrozen = false;
 
-    /** Tick counter for the death GIF duration (counts down in ticks, not seconds). */
-    private int deathAnimTicksLeft = 0;
+    /** Direction the enemy was facing when death started. Locks the death anim orientation. */
+    private Direction deathFacing = Direction.DOWN;
 
-    /** How many ticks the death GIF should play before freezing (~1.3s at 60fps). */
-    private static final int DEATH_GIF_TICKS = 78;
+    /** Current frame index inside the manual death animation. */
+    private int deathFrameIndex = 0;
+
+    /** Countdown until the next manual death frame swap. */
+    private double deathFrameTimer = 0;
+
+    /** Each skeleton death frame lasts 140ms in the source animation. */
+    private static final double DEATH_FRAME_DURATION = 0.14;
 
     /** Extra time to keep the frozen floor pose visible before despawning. */
     private static final double DEATH_FROZEN_LINGER = 0.45;
@@ -278,7 +282,7 @@ public class Enemy extends Entity {
         if (animTimer > 0) {
             animTimer -= dt;
             if (animState == AnimState.DEATH) {
-                tickDeathAnimation();
+                tickDeathAnimation(dt);
                 return; // frozen during death — no movement, no AI
             }
             if (animTimer <= 0) {
@@ -498,8 +502,10 @@ public class Enemy extends Entity {
     private void triggerDeathAnimation() {
         deathFrozen = false;
         deathSpriteAdded = false;
-        deathAnimTicksLeft = DEATH_GIF_TICKS;
-        deathVisualOnCanvas = buildDeathVisual(deathGifPaths);
+        deathFacing = (facing != null) ? facing : Direction.DOWN;
+        deathFrameIndex = 0;
+        deathFrameTimer = DEATH_FRAME_DURATION;
+        deathVisualOnCanvas = buildDeathVisual(0);
         getAnimator().clearFrames();
     }
 
@@ -507,27 +513,65 @@ public class Enemy extends Entity {
      * Called every tick while dying. Counts down the GIF play time,
      * then swaps to the static final-frame PNG.
      */
-    private void tickDeathAnimation() {
+    private void tickDeathAnimation(double dt) {
         if (deathFrozen) return;
-        deathAnimTicksLeft--;
-        if (deathAnimTicksLeft <= 0) {
-            GImage previousVisual = deathVisualOnCanvas;
-            deathVisualOnCanvas = buildDeathVisual(deathFinalPaths);
-            if (previousVisual != null && previousVisual.getParent() != null) {
-                ((GCanvas) previousVisual.getParent()).remove(previousVisual);
-            }
+        deathFrameTimer -= dt;
+        while (deathFrameTimer <= 0 && !deathFrozen) {
+            deathFrameTimer += DEATH_FRAME_DURATION;
+            advanceDeathFrame();
+        }
+    }
+
+    /**
+     * Advances to the next extracted death frame. Once the final frame is reached,
+     * the enemy stays frozen on the floor pose until despawn.
+     */
+    private void advanceDeathFrame() {
+        String[] framePaths = getDeathFramePaths();
+        if (framePaths == null || framePaths.length == 0) {
+            deathFrozen = true;
+            return;
+        }
+        if (deathFrameIndex >= framePaths.length - 1) {
+            deathFrozen = true;
+            return;
+        }
+
+        deathFrameIndex++;
+        GImage previousVisual = deathVisualOnCanvas;
+        deathVisualOnCanvas = buildDeathVisual(deathFrameIndex);
+        if (previousVisual != null && previousVisual.getParent() != null) {
+            ((GCanvas) previousVisual.getParent()).remove(previousVisual);
+        }
+
+        if (deathFrameIndex >= framePaths.length - 1) {
             deathFrozen = true;
         }
     }
 
     /**
-     * Builds a fresh death visual for the current facing direction and centers it.
+     * Returns the extracted death-frame path list for the direction locked at death time.
      */
-    private GImage buildDeathVisual(String[] paths) {
+    private String[] getDeathFramePaths() {
+        if (deathFramePathsByDirection == null || deathFramePathsByDirection.length == 0) {
+            return null;
+        }
+        int dirIdx = dirToIndex(deathFacing);
+        String[] paths = deathFramePathsByDirection[dirIdx];
+        if (paths == null || paths.length == 0) {
+            paths = deathFramePathsByDirection[0];
+        }
+        return paths;
+    }
+
+    /**
+     * Builds a fresh death visual for a specific extracted frame and centers it.
+     */
+    private GImage buildDeathVisual(int frameIndex) {
+        String[] paths = getDeathFramePaths();
         if (paths == null || paths.length == 0) return null;
-        int dirIdx = dirToIndex(facing);
-        String path = paths[dirIdx];
-        if (path == null) path = paths[0];
+        int clampedIndex = Math.max(0, Math.min(frameIndex, paths.length - 1));
+        String path = paths[clampedIndex];
         if (path == null) return null;
 
         GImage visual = new GImage(path);
@@ -557,9 +601,7 @@ public class Enemy extends Entity {
             if (deathVisualOnCanvas == null) return;
 
             if (!deathSpriteAdded) {
-                GImage frame = getAnimator().getCurrentFrame();
-                if (frame != null) canvas.remove(frame);
-                if (sprite != null) canvas.remove(sprite);
+                super.removeSpriteFromCanvas(canvas);
                 deathSpriteAdded = true;
             }
             syncDeathVisualPosition();
@@ -580,7 +622,9 @@ public class Enemy extends Entity {
         }
         deathSpriteAdded = false;
         deathFrozen = false;
-        deathAnimTicksLeft = 0;
+        deathFacing = Direction.DOWN;
+        deathFrameIndex = 0;
+        deathFrameTimer = 0;
     }
 
     /**
