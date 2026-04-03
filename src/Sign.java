@@ -1,7 +1,7 @@
 /*
 Person 4: Sign — a readable sign that opens the DialogueBox when the player interacts with it
 Who RIGs it: Room — holds Sign instances in its WorldObject list.
-               When the J key fires: Room finds the WorldObject the player is facing and calls onInteract(player).
+               When the E key fires: Room finds the WorldObject the player is facing and calls onInteract(player).
                Room must also pass a Dialogue reference so Sign can open it.
 
 Extends: WorldObject
@@ -12,7 +12,7 @@ PLAN OF ACTION
 
 - CLASS ROLE
 - Sign is a stationary, non-blocking world decoration with text.
-- Pressing J while facing a Sign opens the Dialogue overlay with the sign's stored lines.
+- Pressing E while facing a Sign opens the Dialogue overlay with the sign's stored lines.
 - Sign does NOT have enemies, combat, or any per-tick logic — it is completely passive.
 - Sign IS passable — it does not block the player's movement (hitbox is used for interact range only).
 
@@ -24,8 +24,8 @@ PLAN OF ACTION
 - onInteract() BEHAVIOR
   1. Check that dialogue is not already open (prevent double-trigger).
   2. Call dialogue.open(dialogueLines) to show the text.
-  3. GamePlayState is set to DIALOGUE inside Dialogue.open() — Sign does not set it.
-  4. Player reads through lines. When dialogue closes, GamePlayState returns to PLAYING automatically.
+  3. Sign sets GamePlayState to DIALOGUE before opening the overlay.
+  4. When the final line closes, Sign restores GamePlayState to PLAYING in the callback.
 
 - NOTE ON DIALOGUE REFERENCE
 - Sign holds a reference to the shared Dialogue instance.
@@ -40,15 +40,18 @@ PLAN OF ACTION
 */
 
 import acm.graphics.GCanvas;
+import acm.graphics.GLabel;
 import acm.graphics.GRect;
 
 import java.awt.Color;
 
 /**
- * A readable sign. Opens Dialogue with stored text lines when the player presses J while facing it.
+ * A readable sign. Opens Dialogue with stored text lines when the player presses E while facing it.
  * See PLAN OF ACTION above before implementing.
  */
 public class Sign extends WorldObject {
+    private static final double TITLE_BASELINE_Y = -10.0;
+    private static final double HINT_BASELINE_Y = 64.0;
 
     // =========================================================
     // CONSTANTS
@@ -56,6 +59,9 @@ public class Sign extends WorldObject {
 
     /** Placeholder sign color until real sprite is wired. */
     private static final Color SIGN_COLOR = new Color(160, 110, 60);
+    private static final Color SIGN_EDGE_COLOR = new Color(104, 70, 34);
+    private static final Color SIGN_LABEL_COLOR = new Color(245, 231, 192);
+    private static final Color SIGN_HINT_COLOR = new Color(222, 241, 184);
 
     // =========================================================
     // FIELDS
@@ -70,6 +76,10 @@ public class Sign extends WorldObject {
     /** Placeholder visual until real sign sprite is ready. */
     private GRect placeholder;
 
+    /** Floating helper text above and below the sign for quick testing. */
+    private final GLabel titleLabel;
+    private final GLabel hintLabel;
+
     // =========================================================
     // CONSTRUCTOR
     // =========================================================
@@ -82,12 +92,23 @@ public class Sign extends WorldObject {
      */
     public Sign(double x, double y, String[] dialogueLines, Dialogue dialogue) {
         super(x, y, 48, 48);
-        this.dialogueLines = dialogueLines;
+        this.dialogueLines = dialogueLines == null ? new String[0] : dialogueLines.clone();
         this.dialogue      = dialogue;
 
         this.placeholder = new GRect(x, y, 48, 48);
         this.placeholder.setFilled(true);
         this.placeholder.setFillColor(SIGN_COLOR);
+        this.placeholder.setColor(SIGN_EDGE_COLOR);
+
+        this.titleLabel = new GLabel("Sign", x, y);
+        this.titleLabel.setFont("SansSerif-BOLD-14");
+        this.titleLabel.setColor(SIGN_LABEL_COLOR);
+
+        this.hintLabel = new GLabel("e to interact", x, y);
+        this.hintLabel.setFont("SansSerif-PLAIN-12");
+        this.hintLabel.setColor(SIGN_HINT_COLOR);
+
+        resetVisualPosition();
     }
 
     // =========================================================
@@ -96,26 +117,63 @@ public class Sign extends WorldObject {
 
     @Override
     public void draw(GCanvas canvas) {
-        if (visible) canvas.add(placeholder);
+        if (!visible) return;
+        resetVisualPosition();
+        canvas.add(placeholder);
+        canvas.add(titleLabel);
+        canvas.add(hintLabel);
+        positionLabels();
     }
 
     @Override
     public void removeFrom(GCanvas canvas) {
         canvas.remove(placeholder);
+        canvas.remove(titleLabel);
+        canvas.remove(hintLabel);
+    }
+
+    @Override
+    public boolean isInteractable() {
+        return true;
+    }
+
+    @Override
+    public void panVisual(double panX, double panY) {
+        placeholder.move(panX, panY);
+        titleLabel.move(panX, panY);
+        hintLabel.move(panX, panY);
+    }
+
+    @Override
+    public void resetVisualPosition() {
+        placeholder.setLocation(x, y);
+        positionLabels();
+    }
+
+    private void positionLabels() {
+        double centerX = x + placeholder.getWidth() / 2.0;
+        titleLabel.setLocation(centerX - titleLabel.getWidth() / 2.0, y + TITLE_BASELINE_Y);
+        hintLabel.setLocation(centerX - hintLabel.getWidth() / 2.0, y + HINT_BASELINE_Y);
     }
 
     /**
      * Opens the Dialogue overlay with this sign's text.
-     * Called by Room when the player presses J while facing this sign.
+     * Called by Room when the player presses E while facing this sign.
      *
      * @param p the Player interacting (not used here, but required by WorldObject signature)
      */
     @Override
     public void onInteract(Player p) {
-        if (dialogue == null) return;
-        // TODO: if (dialogue.isOpen()) return; — prevent double-trigger
-        // TODO: dialogue.open(dialogueLines)
-        // GamePlayState → DIALOGUE is handled inside Dialogue.open()
+        if (dialogue == null || dialogue.isOpen()) return;
+        if (dialogueLines == null || dialogueLines.length == 0) return;
+
+        GamePlayState.setCurrent(GamePlayState.DIALOGUE);
+        dialogue.open(
+            dialogueLines,
+            "Sign",
+            false,
+            () -> GamePlayState.setCurrent(GamePlayState.PLAYING)
+        );
     }
 
     // =========================================================

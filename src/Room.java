@@ -56,8 +56,9 @@ PLAN OF ACTION
 - PLAYER INTERACTION ROUTING (called each tick during PLAYING)
 - Contact checks: for each WorldObject in objects, call obj.onContact(player) each tick.
     ThicketGate auto-opens on contact. Coin drops auto-collect on contact.
-- Interact key: Room registers the J key via InputHandler.onPress(). When J is pressed,
-    Room finds the nearest WorldObject whose hitbox overlaps the player and calls onInteract(player).
+- Interact key: GameplayPane routes the E key to Room.tryInteract(player).
+    Room picks the nearest interactable WorldObject that is overlapping or in front of the player
+    and calls onInteract(player).
 - Sword hits: Room checks SwordSwing hitbox against all Grass and TrainingDummy objects each tick.
     Calls obj.onHit() when overlap is detected.
 - Push: Room detects player walking into PushBlock (player hitbox + direction) and calls tryPush().
@@ -201,6 +202,12 @@ public class Room {
     /** Bottom edge of the room in pixels. Player exits DOWN when their center crosses below this. */
     private static final double EXIT_BOTTOM_EDGE = 15 * 48; // = 720
 
+    /** Max center-to-center distance allowed for generic sign / NPC interaction. */
+    private static final double INTERACT_RADIUS_PX = 96.0;
+
+    /** Minimum forward-facing alignment required when not already overlapping the object. */
+    private static final double INTERACT_ALIGNMENT_MIN = 0.35;
+
     /*
      * =====================
      * End of adjustable exit values.
@@ -299,6 +306,7 @@ public class Room {
 
         // --- world objects (signs, chests, pushblocks, etc.) ---
         for (WorldObject obj : objects) {
+            obj.resetVisualPosition();
             obj.draw(canvas);
         }
 
@@ -547,6 +555,66 @@ public class Room {
         }
     }
 
+    /**
+     * Routes the room's generic use / talk input to the nearest interactable WorldObject.
+     *
+     * @param player the active Player
+     * @return true if a room object handled the interaction
+     */
+    public boolean tryInteract(Player player) {
+        WorldObject target = findInteractTarget(player);
+        if (target == null) {
+            return false;
+        }
+        target.onInteract(player);
+        return true;
+    }
+
+    /** Picks the best nearby interactable based on distance plus the player's facing direction. */
+    private WorldObject findInteractTarget(Player player) {
+        if (player == null || objects.isEmpty()) {
+            return null;
+        }
+
+        Direction facing = player.getFacing() == null ? Direction.DOWN : player.getFacing();
+        double[] facingDelta = facing.toDelta();
+        double bestScore = Double.NEGATIVE_INFINITY;
+        WorldObject bestTarget = null;
+
+        for (WorldObject obj : objects) {
+            if (obj == null || !obj.isVisible() || !obj.isInteractable() || obj.getHitbox() == null) {
+                continue;
+            }
+
+            Hitbox objectHitbox = obj.getHitbox();
+            boolean overlapping = player.getHitbox().overlaps(objectHitbox);
+            double[] objectCenter = objectHitbox.getCenter();
+            double dx = objectCenter[0] - player.getX();
+            double dy = objectCenter[1] - player.getY();
+            double distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (!overlapping && distance > INTERACT_RADIUS_PX) {
+                continue;
+            }
+
+            double alignment = 1.0;
+            if (!overlapping && distance > 0.001) {
+                alignment = (dx * facingDelta[0] + dy * facingDelta[1]) / distance;
+                if (alignment < INTERACT_ALIGNMENT_MIN) {
+                    continue;
+                }
+            }
+
+            double score = (overlapping ? 500.0 : 0.0) + alignment * 100.0 - distance;
+            if (score > bestScore) {
+                bestScore = score;
+                bestTarget = obj;
+            }
+        }
+
+        return bestTarget;
+    }
+
     // =========================================================
     // RESET — called on re-entry
     // =========================================================
@@ -565,6 +633,15 @@ public class Room {
      * NOTE: OreNode that has been mined does NOT reset — state is tracked by SaveData.
      */
     public void reset() {
+        // --- transient dropped items ---
+        // Grass/coin debug drops should not persist across room exits.
+        if (canvas != null) {
+            for (Item item : droppedItems) {
+                item.removeFrom(canvas);
+            }
+        }
+        droppedItems.clear();
+
         // --- enemies ---
         // D1 currently registers respawn factories through addRespawningEntity().
         // Other combat rooms can opt into the same behavior once their real enemy layouts exist.
@@ -573,13 +650,9 @@ public class Room {
                 for (Entity entity : entities) {
                     entity.removeSpriteFromCanvas(canvas);
                 }
-                for (Item item : droppedItems) {
-                    item.removeFrom(canvas);
-                }
             }
 
             entities.clear();
-            droppedItems.clear();
 
             if (roomLock != null) {
                 roomLock.reset();
@@ -592,6 +665,13 @@ public class Room {
                 if (initialized && canvas != null) {
                     entity.draw(canvas);
                 }
+            }
+        }
+
+        // --- resettable harvestables ---
+        for (WorldObject obj : objects) {
+            if (obj instanceof Grass) {
+                ((Grass) obj).reset();
             }
         }
 

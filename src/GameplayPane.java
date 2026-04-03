@@ -218,7 +218,7 @@ public class GameplayPane extends GraphicsPane {
     }
 
     private void rebuildWorldMap() {
-        this.worldMap = new WorldMap(mainScreen.getGCanvas());
+        this.worldMap = new WorldMap(mainScreen.getGCanvas(), mainScreen.getDialogue());
     }
 
     // =========================================================
@@ -562,11 +562,11 @@ public class GameplayPane extends GraphicsPane {
     }
 
     // =========================================================
-    // INPUT WIRING — attack (J) and relic ability (K)
+    // INPUT WIRING — attack, use/talk, and relic ability
     // =========================================================
 
     /**
-     * Binds discrete-action keys (attack, ability) via InputHandler.onPress().
+     * Binds discrete-action keys (attack, use / talk, ability) via InputHandler.onPress().
      * WASD movement is already handled inside Player.update() via isHeld().
      * K → {@link Player#activateIntangible()} (relic + cooldown gated inside Player; no on-screen hint here).
      * Called from showContent(); safe to call multiple times (no-ops after first).
@@ -596,6 +596,10 @@ public class GameplayPane extends GraphicsPane {
         input.onPress(KeyEvent.VK_E, () -> {
             if (!mainScreen.isPauseModalOpen() && GamePlayState.PLAYING.is()) {
                 Player p = mainScreen.getPlayer();
+                Room activeRoom = worldMap.getActiveRoom();
+                if (p != null && activeRoom != null && activeRoom.tryInteract(p)) {
+                    return;
+                }
                 SavePoint savePoint = worldMap.getActiveSavePoint();
                 if (p != null && savePoint != null) {
                     savePoint.tryInteract(
@@ -899,7 +903,7 @@ public class GameplayPane extends GraphicsPane {
     private void showCoinGainPopup(int gainedCoins) {
         clearCoinGainPopup();
 
-        String popupText = gainedCoins == 1 ? "+1 coin" : "+" + gainedCoins + " coins";
+        String popupText = gainedCoins == 1 ? "coin +1" : "coins +" + gainedCoins;
         coinGainLabel = new acm.graphics.GLabel(popupText, 0, 0);
         coinGainLabel.setFont("SansSerif-BOLD-18");
         coinGainLabel.setColor(new java.awt.Color(255, 224, 122));

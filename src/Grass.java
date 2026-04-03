@@ -45,6 +45,7 @@ PLAN OF ACTION
 */
 
 import acm.graphics.GCanvas;
+import acm.graphics.GLabel;
 import acm.graphics.GRect;
 
 import java.awt.Color;
@@ -64,8 +65,20 @@ public class Grass extends WorldObject {
     /** Default coin drop probability (50%). TBD per design doc. */
     private static final float DEFAULT_COIN_DROP_CHANCE = 0.5f;
 
+    /** Time in seconds before a cut grass tile becomes harvestable again. */
+    private static final double REGROW_DURATION_SECONDS = 5.0;
+
     /** Placeholder grass color until real sprite is wired. */
     private static final Color GRASS_COLOR = new Color(60, 160, 60);
+
+    /** Border color so the debug patch reads clearly on top of the floor tile. */
+    private static final Color GRASS_BORDER_COLOR = new Color(26, 92, 26);
+
+    /** Ready-state debug label color. */
+    private static final Color DEBUG_LABEL_READY_COLOR = new Color(245, 255, 245);
+
+    /** Regrowth-state debug label color. */
+    private static final Color DEBUG_LABEL_GROWING_COLOR = new Color(255, 236, 140);
 
     // =========================================================
     // FIELDS
@@ -87,6 +100,12 @@ public class Grass extends WorldObject {
     /** Placeholder visual until real grass sprite is ready. */
     private GRect placeholder;
 
+    /** Small always-on debug label so testers can identify the patch quickly. */
+    private GLabel debugLabel;
+
+    /** Seconds remaining before the tile regrows. 0 means harvestable now. */
+    private double regrowTimerSeconds;
+
     // =========================================================
     // CONSTRUCTOR
     // =========================================================
@@ -97,14 +116,31 @@ public class Grass extends WorldObject {
      * @param dropCallback called with a new Coin if the coin-drop roll succeeds; may be null
      */
     public Grass(double x, double y, Consumer<Item> dropCallback) {
+        this(x, y, DEFAULT_COIN_DROP_CHANCE, dropCallback);
+    }
+
+    /**
+     * @param x              top-left world pixel X
+     * @param y              top-left world pixel Y
+     * @param coinDropChance probability of dropping a coin when harvested
+     * @param dropCallback   called with a new Coin if the coin-drop roll succeeds; may be null
+     */
+    public Grass(double x, double y, float coinDropChance, Consumer<Item> dropCallback) {
         super(x, y, 48, 48);
-        this.isCut          = false;
-        this.coinDropChance = DEFAULT_COIN_DROP_CHANCE;
-        this.dropCallback   = dropCallback;
+        this.isCut             = false;
+        this.coinDropChance    = Math.max(0.0f, Math.min(1.0f, coinDropChance));
+        this.dropCallback      = dropCallback;
+        this.regrowTimerSeconds = 0.0;
 
         this.placeholder = new GRect(x, y, 48, 48);
         this.placeholder.setFilled(true);
         this.placeholder.setFillColor(GRASS_COLOR);
+        this.placeholder.setColor(GRASS_BORDER_COLOR);
+
+        this.debugLabel = new GLabel("grass");
+        this.debugLabel.setFont("SansSerif-BOLD-10");
+
+        refreshVisualState();
     }
 
     // =========================================================
@@ -113,14 +149,28 @@ public class Grass extends WorldObject {
 
     @Override
     public void draw(GCanvas canvas) {
-        if (!isCut && visible) {
-            canvas.add(placeholder);
-        }
+        if (!visible) return;
+        refreshVisualState();
+        canvas.add(placeholder);
+        canvas.add(debugLabel);
     }
 
     @Override
     public void removeFrom(GCanvas canvas) {
         canvas.remove(placeholder);
+        canvas.remove(debugLabel);
+    }
+
+    @Override
+    public void update(double dt) {
+        if (!isCut) return;
+
+        regrowTimerSeconds -= dt;
+        if (regrowTimerSeconds <= 0.0) {
+            finishRegrow();
+        } else {
+            updateDebugLabel();
+        }
     }
 
     /**
@@ -132,9 +182,14 @@ public class Grass extends WorldObject {
         if (isCut) return;
 
         isCut = true;
-        // TODO: hide placeholder (canvas.remove) or play cut animation
-        // TODO: if (Math.random() < coinDropChance && dropCallback != null)
-        //           dropCallback.accept(new Coin(x + 16, y + 16))
+        regrowTimerSeconds = REGROW_DURATION_SECONDS;
+        hitbox.updatePosition(-99999, -99999);
+        placeholder.setVisible(false);
+        updateDebugLabel();
+
+        if (dropCallback != null && Math.random() < coinDropChance) {
+            dropCallback.accept(new Coin(x + 24, y + 24));
+        }
     }
 
     // =========================================================
@@ -144,7 +199,9 @@ public class Grass extends WorldObject {
     /** Restores this grass to its uncut state for room re-entry. */
     public void reset() {
         isCut = false;
-        // TODO: re-add placeholder to canvas (or let Room.addTo re-draw)
+        regrowTimerSeconds = 0.0;
+        hitbox.updatePosition(x, y);
+        refreshVisualState();
     }
 
     // =========================================================
@@ -152,4 +209,47 @@ public class Grass extends WorldObject {
     // =========================================================
 
     public boolean isCut() { return isCut; }
+
+    @Override
+    public void panVisual(double panX, double panY) {
+        placeholder.move(panX, panY);
+        debugLabel.move(panX, panY);
+    }
+
+    /** Restores the tile to its ready state after the grow timer completes. */
+    private void finishRegrow() {
+        isCut = false;
+        regrowTimerSeconds = 0.0;
+        hitbox.updatePosition(x, y);
+        refreshVisualState();
+    }
+
+    /** Keeps placeholder visibility, label text, and label placement in sync with the current state. */
+    private void refreshVisualState() {
+        placeholder.setLocation(x, y);
+        placeholder.setVisible(visible && !isCut);
+        debugLabel.setVisible(visible);
+        updateDebugLabel();
+    }
+
+    /** Shows either the ready label or the remaining grow timer. */
+    private void updateDebugLabel() {
+        if (isCut) {
+            int tenthsRemaining = (int) Math.ceil(Math.max(0.0, regrowTimerSeconds) * 10.0);
+            double shownSeconds = tenthsRemaining / 10.0;
+            debugLabel.setColor(DEBUG_LABEL_GROWING_COLOR);
+            debugLabel.setLabel(String.format("grow %.1fs", shownSeconds));
+        } else {
+            debugLabel.setColor(DEBUG_LABEL_READY_COLOR);
+            debugLabel.setLabel("grass");
+        }
+        centerDebugLabel();
+    }
+
+    /** Centers the debug label within the tile after every label-width change. */
+    private void centerDebugLabel() {
+        double labelX = x + (48 - debugLabel.getWidth()) / 2.0;
+        double labelY = y + 30.0;
+        debugLabel.setLocation(labelX, labelY);
+    }
 }

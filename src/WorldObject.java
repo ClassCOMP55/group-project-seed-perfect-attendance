@@ -1,7 +1,7 @@
 /*
 Person 2: WorldObject — abstract base class for every static interactive object placed in a Room
 Who RIGs it: Room — holds a List<WorldObject>, calls draw(), update(dt), and routes player interaction:
-               - J key press → room calls onInteract(player) on nearby objects
+               - E key press → room calls onInteract(player) on nearby objects
                - Per-tick contact check → room calls onContact(player) for objects that react on touch
                - SwordSwing hit check → room calls onHit() for objects that react to sword (Grass, TrainingDummy)
 
@@ -23,7 +23,7 @@ PLAN OF ACTION
 - ABSTRACT vs CONCRETE METHODS
 - draw(GCanvas) is abstract — every subclass must implement its own visual.
 - update(double dt) has a default no-op body — subclasses override only if they need per-tick logic.
-- onInteract(Player) has a default no-op body — subclasses override if they respond to the J key.
+- onInteract(Player) has a default no-op body — subclasses override if they respond to the E key.
 - onContact(Player) has a default no-op body — subclasses override if they respond to player touch.
 - onHit() has a default no-op body — subclasses override if they respond to a SwordSwing hit.
 - removeFrom(GCanvas) has a default implementation using the sprite field.
@@ -131,13 +131,21 @@ public abstract class WorldObject {
     }
 
     /**
-     * Called by Room when the player presses the interact key (J) while facing and close to this object.
+     * Called by Room when the player presses the interact key (E) while facing and close to this object.
      * Default: no-op. Override in Sign, Chest, DrawbridgeLever, OreNode, SavePoint.
      *
      * @param p the Player interacting
      */
     public void onInteract(Player p) {
         // no-op by default
+    }
+
+    /**
+     * Whether this object should be considered by Room.tryInteract().
+     * Objects that only react to contact or sword hits can keep the default false.
+     */
+    public boolean isInteractable() {
+        return false;
     }
 
     /**
@@ -171,6 +179,16 @@ public abstract class WorldObject {
     public void panVisual(double panX, double panY) {
         if (sprite != null) {
             sprite.move(panX, panY);
+        }
+    }
+
+    /**
+     * Snaps the visual back to its canonical room position before Room.addTo() redraws it.
+     * Needed for placeholder objects that use custom GRects instead of the shared sprite field.
+     */
+    public void resetVisualPosition() {
+        if (sprite != null) {
+            sprite.setLocation(x, y);
         }
     }
 

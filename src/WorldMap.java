@@ -207,6 +207,9 @@ public class WorldMap {
     /** The canvas — needed to add/remove room graphics during transitions. */
     private GCanvas canvas;
 
+    /** Shared dialogue overlay used by starter-room signs and NPCs. */
+    private final Dialogue dialogue;
+
     /**
      * Holds the Player reference for the current update tick.
      * Set at the start of update() so triggerTransition() (called via Room's exit callback,
@@ -280,6 +283,31 @@ public class WorldMap {
     private static final double START_SAVE_POINT_X = TileMap.MAP_OFFSET_X + 5 * 48;
     private static final double START_SAVE_POINT_Y = 7 * 48;
 
+    /** Debug grass patch in A1: placed in the upper-right test area near the marked sketch. */
+    private static final int STARTER_GRASS_PATCH_START_COL = 15;
+    private static final int STARTER_GRASS_PATCH_START_ROW = 2;
+    private static final int STARTER_GRASS_PATCH_COLS = 6;
+    private static final int STARTER_GRASS_PATCH_ROWS = 2;
+
+    /** Starter sign + NPC positions in A1 so room dialogue can be tested immediately from spawn. */
+    private static final double START_SIGN_X = TileMap.MAP_OFFSET_X + 15 * 48;
+    private static final double START_SIGN_Y = 7 * 48;
+    private static final double START_NPC_X  = TileMap.MAP_OFFSET_X + 10 * 48;
+    private static final double START_NPC_Y  = 7 * 48;
+
+    private static final String[] START_SIGN_LINES = {
+        "Spawn Island Test Sign",
+        "Press E near a sign or NPC to interact.",
+        "Press J or Space to advance dialogue.",
+        "This room is now wired through the live world map."
+    };
+
+    private static final String[] START_NPC_LINES = {
+        "Welcome to the spawn island.",
+        "I am a placeholder NPC living in A1 so we can test room dialogue in real rooms.",
+        "If you can talk to me and read the sign, the live interaction path is working."
+    };
+
     /** Reserved story-flag prefix used to encode exact exit states in the save file. */
     private static final String EXIT_FLAG_PREFIX = "wm_exit:";
 
@@ -302,8 +330,9 @@ public class WorldMap {
      *
      * @param canvas the game canvas (needed for room add/remove during transitions)
      */
-    public WorldMap(GCanvas canvas) {
+    public WorldMap(GCanvas canvas, Dialogue dialogue) {
         this.canvas = canvas;
+        this.dialogue = dialogue;
 
         // --- build the dungeon entrance marker (C3) ---
         // TECH DEMO: red GRect standing in for the dungeon door in C3.
@@ -368,6 +397,8 @@ public class WorldMap {
         populateD1();
 
         installStarterSavePoint();
+        installStarterGrassPatch();
+        installSpawnIslandDialogueTestObjects();
 
         // --- wire exit callbacks: each room calls triggerTransition() when the player exits ---
         for (int col = 0; col < COLS; col++) {
@@ -413,6 +444,42 @@ public class WorldMap {
             SavePoint.SavePointType.SAVE_CRYSTAL,
             START_SAVE_POINT_X,
             START_SAVE_POINT_Y
+        ));
+    }
+
+    /** Seeds a small 2×3 debug grass patch into A1 near the opening spawn. */
+    private void installStarterGrassPatch() {
+        Room startRoom = overworldGrid[0][0];
+        if (startRoom == null) {
+            return;
+        }
+
+        int tileSize = startRoom.getTileMap().getTileSize();
+        for (int row = 0; row < STARTER_GRASS_PATCH_ROWS; row++) {
+            for (int col = 0; col < STARTER_GRASS_PATCH_COLS; col++) {
+                double worldX = TileMap.MAP_OFFSET_X + (STARTER_GRASS_PATCH_START_COL + col) * tileSize;
+                double worldY = (STARTER_GRASS_PATCH_START_ROW + row) * tileSize;
+
+                // Debug patch: every cut guarantees a coin so the harvest loop is easy to verify.
+                startRoom.addObject(new Grass(worldX, worldY, 1.0f, startRoom::addDroppedItem));
+            }
+        }
+    }
+
+    /** Seeds a simple sign + NPC into A1 so room dialogue can be exercised from spawn. */
+    private void installSpawnIslandDialogueTestObjects() {
+        Room startRoom = overworldGrid[0][0];
+        if (startRoom == null) {
+            return;
+        }
+
+        startRoom.addObject(new Sign(START_SIGN_X, START_SIGN_Y, START_SIGN_LINES, dialogue));
+        startRoom.addObject(new WorldNpc(
+            START_NPC_X,
+            START_NPC_Y,
+            "Spawn Island Villager",
+            START_NPC_LINES,
+            dialogue
         ));
     }
 
