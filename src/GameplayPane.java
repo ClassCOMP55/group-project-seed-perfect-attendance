@@ -285,12 +285,13 @@ public class GameplayPane extends GraphicsPane {
     }
 
     // =========================================================
-    // INPUT WIRING — attack (J) and ability (K)
+    // INPUT WIRING — attack (J) and relic ability (K)
     // =========================================================
 
     /**
      * Binds discrete-action keys (attack, ability) via InputHandler.onPress().
      * WASD movement is already handled inside Player.update() via isHeld().
+     * K → {@link Player#activateIntangible()} (relic + cooldown gated inside Player; no on-screen hint here).
      * Called from showContent(); safe to call multiple times (no-ops after first).
      */
     private void wireInputOnce() {
@@ -305,10 +306,13 @@ public class GameplayPane extends GraphicsPane {
             }
         });
 
+        // Relic intangible: logic + blue aura live in Player; return value ignored (no toast HUD yet).
         input.onPress(KeyEvent.VK_K, () -> {
             if (!mainScreen.isPauseModalOpen() && GamePlayState.PLAYING.is()) {
                 Player p = mainScreen.getPlayer();
-                if (p != null) p.toggleGodMode();
+                if (p != null) {
+                    p.activateIntangible();
+                }
             }
         });
 
@@ -347,7 +351,8 @@ public class GameplayPane extends GraphicsPane {
         double hintBottom = mainScreen.getLayoutHeight() -  80;
         double lineHeight = 18;
 
-        String[] lines = { "Pause: ESC", "Ability: K", "Attack: J", "Move: WASD" };
+        // “Relic ability” = intangible invuln after obtaining relic (see Player.hasIntangible / chests / save).
+        String[] lines = { "Pause: ESC", "Relic ability: K", "Attack: J", "Move: WASD" };
         acm.graphics.GLabel[] targets = { hintPause, hintAbility, hintAttack, hintMove };
 
         for (int i = 0; i < lines.length; i++) {

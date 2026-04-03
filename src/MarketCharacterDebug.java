@@ -108,9 +108,6 @@ public class MarketCharacterDebug extends GraphicsPane {
     private static final Color DEBUG_SWING_BOX = new Color(255, 215, 80, 200);
     private static final Color DEBUG_PLAYER_DOT = new Color(80, 220, 255);
     private static final Color DEBUG_ENEMY_DOT = new Color(255, 110, 110);
-    private static final Color DEBUG_GODMODE_BADGE_BG = new Color(52, 26, 84, 220);
-    private static final Color DEBUG_GODMODE_BADGE_BORDER = new Color(255, 225, 120, 220);
-    private static final Color DEBUG_GODMODE_BADGE_TEXT = new Color(255, 245, 210);
     private static final int DEBUG_LINE_COUNT = 13;
     private static final double DEBUG_PANEL_WIDTH = 360.0;
     private static final double DEBUG_MAP_PANEL_WIDTH = 150.0;
@@ -148,7 +145,6 @@ public class MarketCharacterDebug extends GraphicsPane {
     private GRect debugMapPanelBg;
     private GRect zoneBannerBg;
     private GRect playerHitboxFrame;
-    private GRect playerGodModeBadgeBg;
     private GRect swingHitboxFrame;
     private GRect dummyHitboxFrame;
     private GOval playerCenterDot;
@@ -158,7 +154,6 @@ public class MarketCharacterDebug extends GraphicsPane {
     private GLabel zoneBannerTitle;
     private GLabel zoneBannerSubtitle;
     private GLabel dummyRespawnLabel;
-    private GLabel playerGodModeBadgeLabel;
     private String currentSpritePath;
     private String dummySpritePath = IDLE_FRONT;
     private double playerX, playerY;
@@ -283,7 +278,7 @@ public class MarketCharacterDebug extends GraphicsPane {
 
         placeZoneBannerVisuals();
 
-        controlsLabel = new GLabel("J/LMB attack  |  K god mode  |  F2 death  |  F3 debug  |  ESC menu", 0, 0);
+        controlsLabel = new GLabel("J/LMB attack  |  K relic intangible  |  F2 death  |  F3 debug  |  ESC menu", 0, 0);
         controlsLabel.setFont("Monospaced-BOLD-12");
         controlsLabel.setColor(new Color(255, 240, 170));
         controlsLabel.setLocation(10, h - 12);
@@ -543,9 +538,11 @@ public class MarketCharacterDebug extends GraphicsPane {
                 startAttackPreview();
             }
         });
+        // K: Player.activateIntangible — relic forced on in setUpDebugCombatState so the ability is testable.
+        // This pane draws playerSprite, not combatPlayer.draw(); blue aura from Player may not appear here.
         input.onPress(KeyEvent.VK_K, () -> {
             if (!mainScreen.isPauseModalOpen() && combatPlayer != null) {
-                combatPlayer.toggleGodMode();
+                combatPlayer.activateIntangible();
                 syncDebugAvatarVisibility();
                 updateDebugOverlayVisuals();
             }
@@ -675,6 +672,10 @@ public class MarketCharacterDebug extends GraphicsPane {
     private void setUpDebugCombatState() {
         if (!preserveStateOnNextShow || combatPlayer == null) {
             combatPlayer = new Player();
+        }
+        // So K always exercises the real relic path in this debug scene (not representative of new saves).
+        if (combatPlayer != null) {
+            combatPlayer.setHasIntangible(true);
         }
         Player statePlayer = mainScreen.getPlayer();
         if (combatPlayer != null && statePlayer != null) {
@@ -817,17 +818,6 @@ public class MarketCharacterDebug extends GraphicsPane {
         playerHitboxFrame.setColor(DEBUG_PLAYER_BOX);
         place(playerHitboxFrame);
 
-        playerGodModeBadgeBg = new GRect(0, 0, 1, 1);
-        playerGodModeBadgeBg.setFilled(true);
-        playerGodModeBadgeBg.setFillColor(DEBUG_GODMODE_BADGE_BG);
-        playerGodModeBadgeBg.setColor(DEBUG_GODMODE_BADGE_BORDER);
-        place(playerGodModeBadgeBg);
-
-        playerGodModeBadgeLabel = new GLabel("godmode: on", 0, 0);
-        playerGodModeBadgeLabel.setFont("Monospaced-BOLD-11");
-        playerGodModeBadgeLabel.setColor(DEBUG_GODMODE_BADGE_TEXT);
-        place(playerGodModeBadgeLabel);
-
         swingHitboxFrame = new GRect(0, 0, 1, 1);
         swingHitboxFrame.setFilled(false);
         swingHitboxFrame.setColor(DEBUG_SWING_BOX);
@@ -943,12 +933,6 @@ public class MarketCharacterDebug extends GraphicsPane {
         if (playerHitboxFrame != null) {
             playerHitboxFrame.setVisible(show);
         }
-        if (playerGodModeBadgeBg != null) {
-            playerGodModeBadgeBg.setVisible(show && combatPlayer.isGodModeEnabled());
-        }
-        if (playerGodModeBadgeLabel != null) {
-            playerGodModeBadgeLabel.setVisible(show && combatPlayer.isGodModeEnabled());
-        }
         if (playerCenterDot != null) {
             playerCenterDot.setVisible(show);
         }
@@ -997,13 +981,13 @@ public class MarketCharacterDebug extends GraphicsPane {
         List<String> lines = new ArrayList<>();
         lines.add(String.format("debug=on fps=%.1f win=%.0fx%.0f",
             fpsSmoothed, mainScreen.getWidth(), mainScreen.getHeight()));
-        lines.add(String.format("state=%s face=%s timer=%.2f hp=%d god=%s fade=%d",
+        lines.add(String.format("state=%s face=%s timer=%.2f hp=%d intangible=%s cd=%d",
             previewMode.name().toLowerCase(),
             facingName(previewMode == PreviewMode.DYING ? deathFacing : lastFacing),
             previewTimerSec,
             combatPlayer.getHP(),
-            combatPlayer.isGodModeEnabled() ? "on" : "off",
-            combatPlayer.getGodModeFadeTicks()));
+            combatPlayer.isIntangibleActive() ? "on" : "off",
+            combatPlayer.getIntangibleCooldownTicks()));
         lines.add(String.format("zone=%s (%s) target=%s trans=%s prog=%.2f",
             zoneId(currentZoneCol, currentZoneRow),
             zoneShortName(currentZoneCol, currentZoneRow),
@@ -1078,21 +1062,6 @@ public class MarketCharacterDebug extends GraphicsPane {
         playerHitboxFrame.setLocation(playerHitbox.x, playerHitbox.y);
         playerHitboxFrame.setSize(playerHitbox.width, playerHitbox.height);
         playerHitboxFrame.sendToFront();
-
-        if (combatPlayer.isGodModeEnabled() && playerGodModeBadgeBg != null && playerGodModeBadgeLabel != null) {
-            double paddingX = 6.0;
-            double badgeHeight = 18.0;
-            double badgeWidth = playerGodModeBadgeLabel.getWidth() + paddingX * 2.0;
-            double badgeX = playerHitbox.x + playerHitbox.width - badgeWidth + 4.0;
-            double badgeY = playerHitbox.y - badgeHeight - 6.0;
-            playerGodModeBadgeBg.setLocation(badgeX, badgeY);
-            playerGodModeBadgeBg.setSize(badgeWidth, badgeHeight);
-            playerGodModeBadgeBg.sendToFront();
-            playerGodModeBadgeLabel.setLocation(
-                badgeX + paddingX,
-                badgeY + badgeHeight - 5.0);
-            playerGodModeBadgeLabel.sendToFront();
-        }
 
         if (dummyHitboxFrame != null && showMarketObjects) {
             dummyHitboxFrame.sendToFront();

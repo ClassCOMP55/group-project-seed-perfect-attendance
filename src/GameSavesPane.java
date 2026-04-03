@@ -168,12 +168,17 @@ public class GameSavesPane extends NightScenePane {
 
     private void handleSlot(int slot) {
         try {
+            SaveData loaded = null;
             if (SaveManager.slotOccupied(slot)) {
-                SaveData data = SaveManager.loadSave(slot);
-                // TODO: apply SaveData fields to Player once full load-restore is implemented (P1)
-                System.out.println("Loaded save slot " + slot + ": " + data);
+                loaded = SaveManager.loadSave(slot);
+                System.out.println("Loaded save slot " + slot + ": " + loaded);
             }
             mainScreen.switchToGameplayScreen();
+            // Restore relic flags from save (new games rely on MainApplication.DEV_GRANT_INTANGIBLE_RELIC_ON_NEW_GAME).
+            Player p = mainScreen.getPlayer();
+            if (p != null && loaded != null) {
+                p.setHasIntangible(loaded.isHasIntangible());
+            }
         } catch (Exception ex) {
             System.err.println("Save slot " + slot + ": " + ex.getMessage());
             ex.printStackTrace();

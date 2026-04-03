@@ -183,7 +183,7 @@ public class P1GameplayPane extends GraphicsPane {
 
     private void drawStaticUi() {
         helpLabel = new GLabel(
-            "WASD walk  E talk near gold dots (3)  J attack  K god mode  E advance dialogue", 0, 0);
+            "WASD walk  E talk near gold dots (3)  J attack  K relic ability  E advance dialogue", 0, 0);
         helpLabel.setFont("SansSerif-BOLD-12");
         helpLabel.setColor(new Color(220, 220, 235));
         helpLabel.setLocation(12, 22);
@@ -328,12 +328,18 @@ public class P1GameplayPane extends GraphicsPane {
                 player.attack();
             }
         });
+        // K: same entry point as GameplayPane; extra branches explain why activateIntangible() returned false.
         input.onPress(KeyEvent.VK_K, () -> {
             if (!mainScreen.isPauseModalOpen() && GamePlayState.PLAYING.is()) {
-                player.toggleGodMode();
-                gateHint = player.isGodModeEnabled()
-                    ? "God mode ON. Incoming hits fade through you."
-                    : "God mode OFF.";
+                if (player.activateIntangible()) {
+                    gateHint = "Relic ability — invulnerable (blue aura).";
+                } else if (!player.hasIntangible()) {
+                    gateHint = "Need the intangible relic for K.";
+                } else if (player.isIntangibleActive()) {
+                    gateHint = "Intangible already active.";
+                } else {
+                    gateHint = "Intangible recharging.";
+                }
                 updatePhaseLabel();
             }
         });
@@ -366,9 +372,13 @@ public class P1GameplayPane extends GraphicsPane {
 
     private void updatePhaseLabel() {
         if (phaseLabel != null && openingSequence != null) {
+            // Relic K-ability: active / cooldown / ready (ticks from Player.getIntangibleCooldownTicks).
             phaseLabel.setLabel("Phase: " + openingSequence.getCurrentPhase().name()
                 + " | Villagers: " + openingSequence.getNPCsTalkedTo() + "/3"
-                + " | God: " + (player != null && player.isGodModeEnabled() ? "ON" : "OFF"));
+                + " | Intangible: "
+                + (player == null ? "—"
+                    : player.isIntangibleActive() ? "active"
+                    : (player.getIntangibleCooldownTicks() > 0 ? "CD" : "ready")));
         }
     }
 

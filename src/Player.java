@@ -1,4 +1,5 @@
 import acm.graphics.*;
+import java.awt.Color;
 import java.awt.event.KeyEvent;
 import java.util.EnumMap;
 import java.util.ArrayList;
@@ -36,14 +37,20 @@ public class Player extends Entity {
     /** Cooldown ticks between sword swings. */
     private static final int ATTACK_COOLDOWN = 20;
 
-    /** Ticks the intangible ability lasts when activated. */
-    private static final int INTANGIBLE_DURATION = 25;
+    /**
+     * Intangible ability: active window length in game ticks.
+     * Tuned for {@code GameLoop} default 16 ms/tick (~62.5 ticks/s).
+     * Debug: if duration feels wrong, verify {@link GameLoop#getTickRate()} (ms per tick) and retune with
+     * {@code Math.round(seconds * 1000.0 / tickRateMs)}.
+     */
+    private static final int INTANGIBLE_DURATION = 312;
 
-    /** Cooldown ticks for the intangible ability after use. */
-    private static final int INTANGIBLE_COOLDOWN = 300;
-
-    /** Length of the brief fade pulse when god mode absorbs a hit. */
-    private static final int GOD_MODE_FADE_TICKS = 14;
+    /**
+     * Intangible ability: ticks until {@link #activateIntangible()} can succeed again (~60 s at 16 ms/tick).
+     * Set equal to full cooldown on each activation; decrements every tick alongside
+     * {@link #intangibleActiveTicks}, so the ability stays locked out until this reaches 0.
+     */
+    private static final int INTANGIBLE_COOLDOWN = 3750;
 
     // ==========================================================
     // FIELDS — identity
@@ -98,11 +105,15 @@ public class Player extends Entity {
     /** Cooldown ticks remaining before intangible can be used again. */
     private int intangibleCooldownTicks;
 
-    /** Toggleable debug invulnerability. */
-    private boolean godModeEnabled;
+    /**
+     * Visual-only GOval for relic invulnerability; not a hitbox.
+     * Lazily created on first intangible frame; must be removed in {@link #removeSpriteFromCanvas}
+     * and when ability ends so we do not orphan GObjects on the canvas.
+     */
+    private GOval intangibleAura;
 
-    /** Short fade-style pulse after god mode absorbs a hit. */
-    private int godModeFadeTicks;
+    /** Tracks whether {@link #intangibleAura} was {@code canvas.add}'d (for safe remove / pan). */
+    private boolean intangibleAuraOnCanvas;
 
     // ==========================================================
     // FIELDS — progression (Task 24)
@@ -206,13 +217,15 @@ public class Player extends Entity {
     public void update(InputHandler input, List<Enemy> enemies, List<Projectile> projectiles, double dt) {
         if (iframesTicks > 0) iframesTicks--;
         if (attackCooldownTicks > 0) attackCooldownTicks--;
-        if (godModeFadeTicks > 0) godModeFadeTicks--;
+
+        // Relic intangible: countdown active window, then clear flag (takeDamage checks isIntangibleActive).
         if (intangibleActiveTicks > 0) {
             intangibleActiveTicks--;
             if (intangibleActiveTicks <= 0) {
                 isIntangibleActive = false;
             }
         }
+        // Cooldown counts every tick including while active — see INTANGIBLE_COOLDOWN javadoc.
         if (intangibleCooldownTicks > 0) intangibleCooldownTicks--;
 
         double dx = 0;
@@ -284,17 +297,26 @@ public class Player extends Entity {
     // ==========================================================
 
     /**
-     * Activates the intangible ability if available.
-     * Called by InputHandler one-shot action on ability key.
+     * Relic-gated invulnerability (bound to K from gameplay panes). No-ops silently if gated;
+     * callers that need user feedback should branch on the return value or query getters.
+     *
+     * @return true only if this call started a new intangible window
      */
-    public void activateIntangible() {
-        if (!hasIntangible) return;
-        if (intangibleCooldownTicks > 0) return;
-        if (isIntangibleActive) return;
+    public boolean activateIntangible() {
+        if (!hasIntangible) {
+            return false; // obtain relic first (chest / save / setHasIntangible)
+        }
+        if (intangibleCooldownTicks > 0) {
+            return false; // still recharging — inspect getIntangibleCooldownTicks()
+        }
+        if (isIntangibleActive) {
+            return false; // already invulnerable this window
+        }
 
         isIntangibleActive = true;
         intangibleActiveTicks = INTANGIBLE_DURATION;
         intangibleCooldownTicks = INTANGIBLE_COOLDOWN;
+        return true;
     }
 
     /** @return true if the intangible window is currently active */
@@ -312,57 +334,15 @@ public class Player extends Entity {
         return INTANGIBLE_COOLDOWN;
     }
 
-    /** Toggles persistent no-damage debug mode. */
-    public void toggleGodMode() {
-        godModeEnabled = !godModeEnabled;
-        if (!godModeEnabled) {
-            godModeFadeTicks = 0;
-            applySpriteVisibility(true);
-        }
-    }
-
-    /** @return true while debug god mode is enabled */
-    public boolean isGodModeEnabled() {
-        return godModeEnabled;
-    }
-
-    /** @return remaining ticks on the god-mode hit fade pulse */
-    public int getGodModeFadeTicks() {
-        return godModeFadeTicks;
-    }
-
     /**
-     * Returns whether the body sprite should be visible this tick.
-     * God mode uses a brief fade-style pulse when a hit is absorbed.
+     * Returns whether the body sprite should be visible this tick (post-hit i-frame flicker).
      */
     public boolean shouldShowSprite() {
         boolean visible = true;
-
-        if (godModeFadeTicks > 0) {
-            int elapsed = GOD_MODE_FADE_TICKS - godModeFadeTicks;
-            double progress = GOD_MODE_FADE_TICKS <= 1
-                ? 1.0
-                : elapsed / (double) (GOD_MODE_FADE_TICKS - 1);
-
-            if (progress < 0.25) {
-                visible = elapsed % 2 == 0;
-            } else if (progress < 0.55) {
-                visible = false;
-            } else if (progress < 0.85) {
-                visible = elapsed % 2 == 0;
-            }
-        }
-
         if (iframesTicks > 0 && iframesTicks % 4 < 2) {
             visible = false;
         }
         return visible;
-    }
-
-    private void triggerGodModeFade() {
-        if (godModeFadeTicks <= 0) {
-            godModeFadeTicks = GOD_MODE_FADE_TICKS;
-        }
     }
 
     private void applySpriteVisibility(boolean visible) {
@@ -387,11 +367,8 @@ public class Player extends Entity {
      */
     @Override
     public void takeDamage(int amount) {
-        if (godModeEnabled) {
-            triggerGodModeFade();
-            return;
-        }
         if (iframesTicks > 0) return;
+        // Relic ability: full invulnerability for projectile/enemy/contact damage paths that use takeDamage.
         if (isIntangibleActive) return;
 
         if (hasHalfDamage) {
@@ -495,6 +472,12 @@ public class Player extends Entity {
     @Override
     public void draw(GCanvas canvas) {
         applySpriteVisibility(shouldShowSprite());
+        // Z-order: add/update aura before super.draw() so Entity.draw() puts the sprite on top.
+        if (isIntangibleActive) {
+            updateIntangibleAura(canvas);
+        } else {
+            removeIntangibleAuraFromCanvas(canvas);
+        }
         super.draw(canvas);
 
         // Clean up expired swing visuals from the canvas
@@ -507,6 +490,69 @@ public class Player extends Entity {
         if (activeSwing != null) {
             activeSwing.draw(canvas);
         }
+    }
+
+    /**
+     * RoomTransition pans the player sprite each tick; keep the blue aura aligned or it will drift.
+     */
+    @Override
+    public void panVisual(double panX, double panY) {
+        super.panVisual(panX, panY);
+        if (intangibleAura != null && intangibleAuraOnCanvas) {
+            intangibleAura.move(panX, panY);
+        }
+    }
+
+    /**
+     * Teardown when leaving gameplay / room: aura must leave with the player or it sticks on canvas.
+     */
+    @Override
+    public void removeSpriteFromCanvas(GCanvas canvas) {
+        removeIntangibleAuraFromCanvas(canvas);
+        super.removeSpriteFromCanvas(canvas);
+    }
+
+    /**
+     * Positions and styles the intangible halo (pulsing size + opaque blue intensity).
+     * Uses fully opaque {@link Color}s — ACM/Swing often ignores alpha on {@link GOval}, which made the aura invisible.
+     * Re-adds the oval each frame before {@code super.draw} so it stays above room tiles (new tiles added during
+     * transitions would otherwise bury a one-time {@code add}).
+     */
+    private void updateIntangibleAura(GCanvas canvas) {
+        if (intangibleAura == null) {
+            intangibleAura = new GOval(0, 0, 64, 64);
+            intangibleAura.setFilled(true);
+        }
+        int elapsed = INTANGIBLE_DURATION - intangibleActiveTicks;
+        // Two sine rates: slow “breathing” + faster flicker reads as a magical pulse in motion.
+        double slow = 0.5 + 0.5 * Math.sin(elapsed * 0.25);
+        double fast = 0.5 + 0.5 * Math.sin(elapsed * 1.15);
+        double blend = 0.55 * slow + 0.45 * fast;
+        int r = (int) (25 + 40 * blend);
+        int g = (int) (95 + 110 * blend);
+        int b = (int) (195 + 60 * blend);
+        r = Math.min(255, Math.max(0, r));
+        g = Math.min(255, Math.max(0, g));
+        b = Math.min(255, Math.max(0, b));
+        intangibleAura.setFillColor(new Color(r, g, b));
+        intangibleAura.setColor(new Color(Math.min(255, r + 50), Math.min(255, g + 45), Math.min(255, b + 25)));
+        double diameter = 54 + 20 * slow + 8 * fast;
+        intangibleAura.setSize(diameter, diameter);
+        intangibleAura.setLocation(x - diameter / 2, y - diameter / 2);
+        if (intangibleAuraOnCanvas) {
+            canvas.remove(intangibleAura);
+        }
+        canvas.add(intangibleAura);
+        intangibleAuraOnCanvas = true;
+    }
+
+    /** Called when intangible ends or canvas is cleared; keeps intangibleAura reusable next activation. */
+    private void removeIntangibleAuraFromCanvas(GCanvas canvas) {
+        if (canvas == null || intangibleAura == null || !intangibleAuraOnCanvas) {
+            return;
+        }
+        canvas.remove(intangibleAura);
+        intangibleAuraOnCanvas = false;
     }
 
     /**

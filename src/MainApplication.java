@@ -15,6 +15,13 @@ public class MainApplication extends GraphicsProgram{
 	/** Shown in the OS window title bar (replaces default "Graphics Window"). */
 	public static final String GAME_TITLE = "So There's This Wizard That's a Goat";
 
+	/**
+	 * If true, the first {@link Player} created in {@link #switchToGameplayScreen()} starts with the intangible
+	 * relic so {@code K} works without opening a chest. Set {@code false} when the relic is only awarded in-world.
+	 * Save loads override this in {@link GameSavesPane} via {@link SaveData#isHasIntangible()}.
+	 */
+	public static final boolean DEV_GRANT_INTANGIBLE_RELIC_ON_NEW_GAME = true;
+
 	private PauseModal pauseModal;
 	private Dialogue dialogue;
 	private GameLoop gameLoop;
@@ -168,7 +175,11 @@ public class MainApplication extends GraphicsProgram{
 	 */
 	public void switchToGameplayScreen() {
 		if (player == null) {
-			setPlayer(new Player());
+			Player p = new Player();
+			if (DEV_GRANT_INTANGIBLE_RELIC_ON_NEW_GAME) {
+				p.setHasIntangible(true);
+			}
+			setPlayer(p);
 		}
 		switchToScreen(worldMapGameplayPane);
 	}
