@@ -311,14 +311,14 @@ public class GameplayPane extends GraphicsPane {
                 dt
             );
 
-            // Sync animation frame and sprite position after movement
-            player.draw(canvas);
-
-            // --- player death check ---
+            // --- player death check (before draw so the death sprite renders immediately) ---
             if (!player.isAlive()) {
                 player.triggerDeathAnimation();
                 deathDelayTicks = DEATH_DELAY;
             }
+
+            // Sync animation frame and sprite position after movement
+            player.draw(canvas);
         }
 
         // --- world update (always runs; WorldMap handles state internally) ---
@@ -558,6 +558,12 @@ public class GameplayPane extends GraphicsPane {
             eRect.setColor(java.awt.Color.RED);
             canvas.add(eRect);
             debugObjects.add(eRect);
+
+            // --- line from enemy to player (red when aggro, dim when patrolling) ---
+            acm.graphics.GLine toPlayer = new acm.graphics.GLine(ex, ey, player.getX(), player.getY());
+            toPlayer.setColor(e.isAggro() ? java.awt.Color.RED : new java.awt.Color(255, 0, 0, 40));
+            canvas.add(toPlayer);
+            debugObjects.add(toPlayer);
 
             // --- aggro range circle (yellow) ---
             double aggroR = 224; // MeleeEnemy aggroRange
