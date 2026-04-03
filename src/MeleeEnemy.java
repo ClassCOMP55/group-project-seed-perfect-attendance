@@ -1,3 +1,6 @@
+import acm.graphics.GImage;
+import java.util.Collections;
+
 /**
  * MeleeEnemy.java
  *
@@ -18,6 +21,12 @@
  * Person 3 — Combat & Enemies
  */
 public class MeleeEnemy extends Enemy {
+
+    // ==========================================================
+    // CONSTANTS — sprite asset paths
+    // ==========================================================
+
+    private static final String SPRITE_DIR = "assets/visuals/skeley-mob-1/normalized/";
 
     // ==========================================================
     // FIELDS
@@ -45,13 +54,58 @@ public class MeleeEnemy extends Enemy {
      * @param tileMap Tile map for collision and line-of-sight
      */
     public MeleeEnemy(double x, double y, TileMap tileMap) {
-        super(x, y, "assets/enemy_melee.png", tileMap,
+        super(x, y, SPRITE_DIR + "skeley-mob-1-idle-front.gif", tileMap,
               3,      // maxHealth  — 3 hits to kill
               55.0,   // patrolSpeed (px/s)
               110.0,  // chaseSpeed  (px/s) — fast pursuit
               224.0); // aggroRange  (px)   — 3.5 tiles
         this.meleeDamage = 1;
         this.meleeRange  = 48.0; // one entity-width; informational
+        loadAllSprites();
+
+        // Normalized sprites are 64x64 (cropped from padded originals).
+        // Render at 72x72 so the skeleton is slightly larger than the 48x48 player.
+        // Content fills ~70% of the 64px canvas, so visible skeleton ≈ 50x55 px.
+        // Tweak this single value to scale enemies up/down.
+        setSpriteRenderSize(72, 72);
+    }
+
+    /**
+     * Loads all 16 skeleton GIFs (4 states × 4 directions) into the animSprites
+     * lookup table and sets the initial IDLE frames in the SpriteAnimator.
+     *
+     * AnimState ordinals: IDLE=0, ATTACK=1, DAMAGE=2, DEATH=3
+     * Direction indices:  DOWN=0, UP=1, LEFT=2, RIGHT=3
+     */
+    private void loadAllSprites() {
+        String[][] names = {
+            // IDLE
+            { "skeley-mob-1-idle-front.gif",   "skeley-mob-1-idle-back.gif",
+              "skeley-mob-1-idle-left.gif",     "skeley-mob-1-idle-right.gif"   },
+            // ATTACK
+            { "skeley-mob-1-attack-front.gif",  "skeley-mob-1-attack-back.gif",
+              "skeley-mob-1-attack-left.gif",    "skeley-mob-1-attack-right.gif" },
+            // DAMAGE
+            { "skeley-mob-1-damage-front.gif",  "skeley-mob-1-damage-back.gif",
+              "skeley-mob-1-damage-left.gif",    "skeley-mob-1-damage-right.gif" },
+            // DEATH
+            { "skeley-mob-1-death-front.gif",   "skeley-mob-1-death-back.gif",
+              "skeley-mob-1-death-left.gif",     "skeley-mob-1-death-right.gif"  },
+        };
+
+        animSprites = new GImage[4][4];
+        for (int state = 0; state < 4; state++) {
+            for (int dir = 0; dir < 4; dir++) {
+                animSprites[state][dir] = new GImage(SPRITE_DIR + names[state][dir]);
+            }
+        }
+
+        // Set initial IDLE frames in the animator
+        SpriteAnimator anim = getAnimator();
+        Direction[] dirs = { Direction.DOWN, Direction.UP, Direction.LEFT, Direction.RIGHT };
+        for (int d = 0; d < dirs.length; d++) {
+            anim.addFrames(dirs[d], Collections.singletonList(animSprites[0][d]));
+        }
     }
 
     // ==========================================================
@@ -74,10 +128,15 @@ public class MeleeEnemy extends Enemy {
     protected void tryAttack(Entity target) {
         if (target == null) return;
         if (attackCooldownTicks > 0) return;
+        if (animState == AnimState.DAMAGE || animState == AnimState.DEATH) return;
 
         if (hitbox.overlaps(target.getHitbox())) {
             target.takeDamage(meleeDamage);
             attackCooldownTicks = 45;
+            if (animState != AnimState.DEATH) {
+                setAnimState(AnimState.ATTACK);
+                animTimer = attackAnimDuration;
+            }
         }
     }
 }

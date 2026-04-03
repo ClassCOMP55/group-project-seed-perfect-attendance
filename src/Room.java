@@ -169,6 +169,9 @@ public class Room {
     /** True once addTo(canvas) has been called. Prevents double-adding sprites. */
     private boolean initialized;
 
+    /** Canvas reference stored by addTo() — needed to remove dead-entity sprites mid-tick. */
+    private GCanvas canvas;
+
     // =========================================================
     // EXIT BOUNDARY CONSTANTS
     // =========================================================
@@ -264,6 +267,7 @@ public class Room {
      */
     public void addTo(GCanvas canvas) {
         if (initialized) return; // already on canvas; prevent double-adding
+        this.canvas = canvas;
 
         // --- reset tile positions before drawing ---
         // After a room-transition animation, every tile sprite may have been panned off-screen
@@ -368,9 +372,21 @@ public class Room {
         if (!GamePlayState.PLAYING.is()) return;
 
         // --- entity updates (enemy AI, projectile movement) ---
-        // RIG POINT: call entity.update(dt) for each enemy once enemy AI is implemented.
         for (Entity entity : entities) {
-            entity.update(dt);
+            if (entity instanceof Enemy) {
+                ((Enemy) entity).update(dt, player);
+            } else {
+                entity.update(dt);
+            }
+        }
+
+        // --- redraw entities so animator frame swaps remove the old frame from canvas ---
+        // Without this, direction changes leave ghost sprites because draw() is the only
+        // method that calls canvas.remove(lastDrawnVisual) before adding the new frame.
+        if (canvas != null) {
+            for (Entity entity : entities) {
+                entity.draw(canvas);
+            }
         }
 
         // --- world object per-tick logic (pressure buttons, animated objects) ---
@@ -392,8 +408,14 @@ public class Room {
         // Skipped for tech demo — no items are in any room yet.
 
         // --- sword hit detection (Grass cut, TrainingDummy react) ---
-        // RIG POINT: check player.getActiveSwing() hitbox against Grass and TrainingDummy objects.
-        // Skipped for tech demo — no sword-reactive objects in dummy rooms.
+        SwordSwing swing = player.getActiveSwing();
+        if (swing != null) {
+            for (WorldObject obj : objects) {
+                if (obj.isVisible() && swing.getHitbox().overlaps(obj.getHitbox())) {
+                    obj.onHit();
+                }
+            }
+        }
 
         // --- push block detection ---
         // RIG POINT: detect player walking into a PushBlock and call tryPush(direction).
@@ -406,8 +428,19 @@ public class Room {
         }
 
         // --- remove dead enemies, trigger coin drops ---
-        // RIG POINT: iterate entities with an Iterator, remove dead ones, call dropCoins().
-        // Skipped for tech demo — no enemies exist in dummy rooms.
+        java.util.Iterator<Entity> eit = entities.iterator();
+        while (eit.hasNext()) {
+            Entity e = eit.next();
+            if (!e.isAlive()) {
+                if (canvas != null) e.removeSpriteFromCanvas(canvas);
+                if (e instanceof Enemy && ((Enemy) e).onDeath()) {
+                    Coin coin = new Coin(e.getX(), e.getY());
+                    droppedItems.add(coin);
+                    if (canvas != null) coin.draw(canvas);
+                }
+                eit.remove();
+            }
+        }
 
         // --- exit detection ---
         // Uses if / else if to guarantee only ONE exit fires per tick, even if the player
@@ -615,4 +648,18 @@ public class Room {
     public List<Item>       getDroppedItems(){ return droppedItems; }
     public RoomLock         getRoomLock()    { return roomLock; }
     public boolean          isInitialized()  { return initialized; }
+
+    /** Returns only the Enemy instances from the entity list. */
+    public List<Enemy> getEnemies() {
+        List<Enemy> enemies = new ArrayList<>();
+        for (Entity e : entities) {
+            if (e instanceof Enemy) enemies.add((Enemy) e);
+        }
+        return enemies;
+    }
+
+    /** Returns an empty list — placeholder until projectile system is wired in. */
+    public List<Projectile> getProjectiles() {
+        return new ArrayList<>();
+    }
 }

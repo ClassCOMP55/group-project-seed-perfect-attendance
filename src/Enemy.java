@@ -28,6 +28,34 @@ import java.util.List;
 public class Enemy extends Entity {
 
     // ==========================================================
+    // ANIMATION STATE
+    // ==========================================================
+
+    /** Visual animation states for enemies. */
+    public enum AnimState { IDLE, ATTACK, DAMAGE, DEATH }
+
+    /** Current animation state — drives which GIF set the SpriteAnimator uses. */
+    protected AnimState animState = AnimState.IDLE;
+
+    /**
+     * Countdown timer (seconds) for one-shot animations (ATTACK, DAMAGE, DEATH).
+     * When this reaches 0, the enemy transitions back to IDLE (or stays dead).
+     */
+    protected double animTimer = 0;
+
+    /**
+     * Per-state GImage lookup: animSprites[state][direction].
+     * Populated by subclass constructors (e.g. MeleeEnemy.loadAllSprites()).
+     * Null entries are fine — the animator falls back to whatever is loaded.
+     */
+    protected GImage[][] animSprites;
+
+    /** Duration in seconds for each one-shot animation. Set by subclass. */
+    protected double attackAnimDuration = 1.12;
+    protected double damageAnimDuration = 0.56;
+    protected double deathAnimDuration  = 1.40;
+
+    // ==========================================================
     // CONSTANTS
     // ==========================================================
 
@@ -148,20 +176,23 @@ public class Enemy extends Entity {
     // ==========================================================
 
     /**
-     * Builds a 4-point clockwise square patrol path centered on the spawn point,
-     * with each waypoint offset by one tile (64px) in a cardinal direction:
-     *   North → East → South → West
-     *
-     * If walls block some waypoints, Entity.move() self-corrects — the enemy simply
-     * stops at the wall and the next tick advances to the following waypoint once the
-     * threshold is reached. No passability check needed at construction time.
+     * Builds a randomized patrol path centered on the spawn point.
+     * Each enemy gets 3-6 waypoints scattered within a 1-3 tile radius,
+     * so no two enemies walk the same route.
      */
     private void buildDefaultPatrolPath() {
         patrolPath = new ArrayList<>();
-        patrolPath.add(new double[]{ spawnX,        spawnY - TILE }); // north
-        patrolPath.add(new double[]{ spawnX + TILE, spawnY        }); // east
-        patrolPath.add(new double[]{ spawnX,        spawnY + TILE }); // south
-        patrolPath.add(new double[]{ spawnX - TILE, spawnY        }); // west
+        int numPoints = 3 + rgen.nextInt(4); // 3 to 6 waypoints
+        double radius = TILE * (1 + rgen.nextDouble() * 2); // 1-3 tiles from spawn
+
+        for (int i = 0; i < numPoints; i++) {
+            double angle = 2 * Math.PI * i / numPoints + rgen.nextDouble() * 0.6 - 0.3;
+            double dist  = radius * (0.5 + rgen.nextDouble() * 0.5);
+            patrolPath.add(new double[]{
+                spawnX + Math.cos(angle) * dist,
+                spawnY + Math.sin(angle) * dist
+            });
+        }
     }
 
     /**
@@ -204,7 +235,22 @@ public class Enemy extends Entity {
             attackCooldownTicks--;
         }
 
-        // 2. Re-evaluate aggro every tick:
+        // 2. Tick down one-shot animation timers (DAMAGE, DEATH, ATTACK)
+        if (animTimer > 0) {
+            animTimer -= dt;
+            if (animState == AnimState.DEATH) {
+                applyAnimVisual(); // keep syncing the death GIF to facing
+                return; // frozen during death — no movement, no AI
+            }
+            if (animTimer <= 0) {
+                setAnimState(AnimState.IDLE);
+            } else if (animState == AnimState.DAMAGE) {
+                applyAnimVisual(); // keep syncing the damage GIF to facing
+                return; // stagger — skip movement while hurt
+            }
+        }
+
+        // 3. Re-evaluate aggro every tick:
         //    Requires target in range AND unobstructed line of sight.
         if (target != null) {
             double dist = distanceTo(target);
@@ -213,7 +259,7 @@ public class Enemy extends Entity {
             isAggro = false;
         }
 
-        // 3. Chase + attack if aggro; otherwise patrol
+        // 4. Chase + attack if aggro; otherwise patrol
         if (isAggro && target != null) {
             chase(dt, target);
             tryAttack(target);
@@ -221,13 +267,16 @@ public class Enemy extends Entity {
             patrol(dt);
         }
 
-        // 4. Hole-fall respawn: reset to spawn point, sync hitbox and sprite manually
+        // 5. Hole-fall respawn: reset to spawn point, sync hitbox and sprite manually
         if (isOverHole()) {
             x = spawnX;
             y = spawnY;
             hitbox.updatePosition(x - 24, y - 24);
             sprite.setLocation(x - 24, y - 24);
         }
+
+        // 6. Sync visual — pick the right GIF for (animState, facing) every tick
+        applyAnimVisual();
     }
 
     // ==========================================================
@@ -311,16 +360,88 @@ public class Enemy extends Entity {
     }
 
     // ==========================================================
+    // ANIMATION STATE MANAGEMENT
+    // ==========================================================
+
+    /**
+     * Transitions to a new animation state. The actual GIF swap happens in
+     * applyAnimVisual(), which runs every tick — same pattern as Player's
+     * applyDirectionalVisual().
+     */
+    protected void setAnimState(AnimState state) {
+        if (state == animState) return;
+        animState = state;
+    }
+
+    /**
+     * Resolves the current (animState, facing) to a GImage and pushes it into
+     * both the animator's frame list AND fallback frame. Called every tick at the
+     * end of update() to seamlessly blend between idle/walk/attack/damage/death.
+     *
+     * Must update the frame list (not just the fallback) because getCurrentFrame()
+     * checks framesByDirection first and only falls back when the list is empty.
+     */
+    protected void applyAnimVisual() {
+        if (animSprites == null) return;
+        int stateIdx = animState.ordinal();
+        int dirIdx = dirToIndex(facing);
+        GImage visual = animSprites[stateIdx][dirIdx];
+        if (visual == null) {
+            visual = animSprites[stateIdx][0]; // fallback to DOWN
+        }
+        if (visual != null) {
+            SpriteAnimator anim = getAnimator();
+            anim.addFrames(facing, java.util.Collections.singletonList(visual));
+            anim.setFallbackFrame(visual);
+            syncVisualPosition();
+        }
+    }
+
+    /** Maps Direction enum to the animSprites column index. */
+    private int dirToIndex(Direction d) {
+        if (d == null) return 0;
+        switch (d) {
+            case DOWN:  return 0;
+            case UP:    return 1;
+            case LEFT:  return 2;
+            case RIGHT: return 3;
+            default:    return 0;
+        }
+    }
+
+    /**
+     * Override takeDamage to trigger the DAMAGE animation.
+     * The enemy staggers (skips movement) for the duration of the hurt GIF.
+     */
+    @Override
+    public void takeDamage(int amount) {
+        super.takeDamage(amount);
+        if (health <= 0) {
+            setAnimState(AnimState.DEATH);
+            animTimer = deathAnimDuration;
+        } else if (animState != AnimState.DEATH) {
+            setAnimState(AnimState.DAMAGE);
+            animTimer = damageAnimDuration;
+        }
+    }
+
+    /**
+     * Enemy is only considered "dead" (removable) after the death animation finishes.
+     * Health 0 + DEATH state + timer expired = truly dead.
+     */
+    @Override
+    public boolean isAlive() {
+        if (health > 0) return true;
+        return animState == AnimState.DEATH && animTimer > 0;
+    }
+
+    // ==========================================================
     // DEATH
     // ==========================================================
 
     /**
      * Called by the Room when isAlive() first returns false.
      * Returns true if a Coin should be spawned at this enemy's last position.
-     *
-     * TODO [ANIMATION]: trigger death animation here before removing the enemy from the canvas.
-     * TODO [COIN]: Room checks the return value and spawns a Coin at (getX(), getY()).
-     *              Coin class does not exist yet — the return boolean is the interface.
      *
      * @return true ~50% of the time (COIN_DROP_CHANCE)
      */
@@ -395,4 +516,7 @@ public class Enemy extends Entity {
 
     /** @return ticks remaining on attack cooldown (0 = ready to attack) */
     public int getAttackCooldown() { return attackCooldownTicks; }
+
+    /** @return current animation state (IDLE, ATTACK, DAMAGE, DEATH) */
+    public AnimState getAnimState() { return animState; }
 }

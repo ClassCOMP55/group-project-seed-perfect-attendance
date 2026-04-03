@@ -52,8 +52,6 @@ PLAN OF ACTION
 */
 
 import java.awt.event.KeyEvent;
-import java.util.Collections;
-
 import acm.graphics.GCanvas;
 
 /**
@@ -137,6 +135,19 @@ public class GameplayPane extends GraphicsPane {
     private acm.graphics.GLabel hintAbility;
     /** "Pause: ESC" hint label. */
     private acm.graphics.GLabel hintPause;
+    /** Debug shortcut hints — separated visually from the gameplay controls. */
+    private acm.graphics.GLabel hintDebug;
+    private acm.graphics.GLabel hintDebug2;
+
+    // =========================================================
+    // DEBUG OVERLAY (F6)
+    // =========================================================
+
+    /** True when the F6 debug overlay is visible. */
+    private boolean debugOverlayOn = false;
+
+    /** Transient GObjects drawn each tick for the debug overlay — cleared and redrawn every frame. */
+    private final java.util.List<acm.graphics.GObject> debugObjects = new java.util.ArrayList<>();
 
     // =========================================================
     // CONSTRUCTOR
@@ -218,6 +229,9 @@ public class GameplayPane extends GraphicsPane {
         // --- remove controls hint (tech-demo only) ---
         // RIG POINT: remove this call once HUDoverlay.showAll() is wired in.
         removeControlsHint(canvas);
+
+        // --- remove debug overlay ---
+        clearDebugOverlay(canvas);
     }
 
     // =========================================================
@@ -251,12 +265,11 @@ public class GameplayPane extends GraphicsPane {
         // Skipped during TRANSITIONING so the player cannot move mid-pan.
         // Also skipped during PAUSED, DIALOGUE, and CUTSCENE (those states freeze input).
         if (GamePlayState.PLAYING.is()) {
-            // RIG POINT: Replace Collections.emptyList() with the active room's entity/projectile
-            //            lists once enemies and projectiles are populated in rooms.
+            Room activeRoom = worldMap.getActiveRoom();
             player.update(
                 mainScreen.getInputHandler(),
-                Collections.emptyList(), // enemies — none in dummy rooms yet
-                null,                    // projectiles — none in dummy rooms yet
+                activeRoom.getEnemies(),
+                activeRoom.getProjectiles(),
                 dt
             );
 
@@ -266,6 +279,11 @@ public class GameplayPane extends GraphicsPane {
 
         // --- world update (always runs; WorldMap handles state internally) ---
         worldMap.update(dt, player);
+
+        // --- debug overlay (F6) ---
+        if (debugOverlayOn && GamePlayState.PLAYING.is()) {
+            drawDebugOverlay(canvas, player);
+        }
 
         // --- keep hint labels on top of room tiles (tech-demo only) ---
         // New room tiles added during a transition would bury the labels; re-stacking
@@ -316,6 +334,20 @@ public class GameplayPane extends GraphicsPane {
             }
         });
 
+        // Debug: toggle combat overlay
+        input.onPress(KeyEvent.VK_F6, () -> {
+            debugOverlayOn = !debugOverlayOn;
+            if (!debugOverlayOn) clearDebugOverlay(mainScreen.getGCanvas());
+        });
+
+        // Debug: teleport to dungeon D1
+        input.onPress(KeyEvent.VK_F5, () -> {
+            if (!mainScreen.isPauseModalOpen() && GamePlayState.PLAYING.is()) {
+                Player p = mainScreen.getPlayer();
+                if (p != null) worldMap.enterDungeon(p);
+            }
+        });
+
         inputsWired = true;
     }
 
@@ -327,6 +359,10 @@ public class GameplayPane extends GraphicsPane {
         if (input == null) { inputsWired = false; return; }
         input.removeOnPress(KeyEvent.VK_J);
         input.removeOnPress(KeyEvent.VK_K);
+        input.removeOnPress(KeyEvent.VK_F5);
+        input.removeOnPress(KeyEvent.VK_F6);
+        debugOverlayOn = false;
+        clearDebugOverlay(mainScreen.getGCanvas());
         inputsWired = false;
     }
 
@@ -368,6 +404,20 @@ public class GameplayPane extends GraphicsPane {
         hintAbility = targets[1];
         hintAttack  = targets[2];
         hintMove    = targets[3];
+
+        String[] debugLines = { "Debug: F6", "Dungeon: F5" };
+        acm.graphics.GLabel prev = null;
+        for (int i = 0; i < debugLines.length; i++) {
+            acm.graphics.GLabel lbl = new acm.graphics.GLabel(debugLines[i]);
+            lbl.setFont("SansSerif-BOLD-13");
+            lbl.setColor(new java.awt.Color(255, 200, 100));
+            lbl.setLocation(hintX, hintBottom + (i + 1) * lineHeight + 6);
+            canvas.add(lbl);
+            if (i == 0) hintDebug = lbl;
+            else prev = lbl;
+        }
+        // Store second debug label for cleanup — reuse hintDebug for the first one
+        hintDebug2 = prev;
     }
 
     /**
@@ -382,6 +432,8 @@ public class GameplayPane extends GraphicsPane {
         if (hintAttack  != null) { canvas.remove(hintAttack);  hintAttack  = null; }
         if (hintAbility != null) { canvas.remove(hintAbility); hintAbility = null; }
         if (hintPause   != null) { canvas.remove(hintPause);   hintPause   = null; }
+        if (hintDebug   != null) { canvas.remove(hintDebug);   hintDebug   = null; }
+        if (hintDebug2  != null) { canvas.remove(hintDebug2);  hintDebug2  = null; }
     }
 
     /**
@@ -408,6 +460,108 @@ public class GameplayPane extends GraphicsPane {
         if (hintAttack  != null) canvas.add(hintAttack);
         if (hintAbility != null) canvas.add(hintAbility);
         if (hintPause   != null) canvas.add(hintPause);
+        if (hintDebug   != null) canvas.add(hintDebug);
+        if (hintDebug2  != null) canvas.add(hintDebug2);
+    }
+
+    // =========================================================
+    // DEBUG OVERLAY (F6)
+    // =========================================================
+
+    /**
+     * Draws hitbox outlines, health bars, AI state, and animation state for
+     * the player and all enemies in the active room. Redrawn every tick.
+     */
+    private void drawDebugOverlay(acm.graphics.GCanvas canvas, Player player) {
+        clearDebugOverlay(canvas);
+
+        Room activeRoom = worldMap.getActiveRoom();
+        java.util.List<Enemy> enemies = activeRoom.getEnemies();
+
+        // --- player hitbox (blue) ---
+        Hitbox ph = player.getHitbox();
+        acm.graphics.GRect pRect = new acm.graphics.GRect(ph.x, ph.y, ph.width, ph.height);
+        pRect.setColor(java.awt.Color.CYAN);
+        canvas.add(pRect);
+        debugObjects.add(pRect);
+
+        // --- player health label ---
+        acm.graphics.GLabel pHp = new acm.graphics.GLabel(
+            "HP " + player.getHealth() + "/" + player.getMaxHealth(),
+            ph.x, ph.y - 4);
+        pHp.setFont("SansSerif-BOLD-11");
+        pHp.setColor(java.awt.Color.CYAN);
+        canvas.add(pHp);
+        debugObjects.add(pHp);
+
+        // --- sword swing hitbox (magenta) ---
+        SwordSwing swing = player.getActiveSwing();
+        if (swing != null) {
+            Hitbox sh = swing.getHitbox();
+            acm.graphics.GRect sRect = new acm.graphics.GRect(sh.x, sh.y, sh.width, sh.height);
+            sRect.setColor(java.awt.Color.MAGENTA);
+            canvas.add(sRect);
+            debugObjects.add(sRect);
+        }
+
+        for (Enemy e : enemies) {
+            double ex = e.getX();
+            double ey = e.getY();
+
+            // --- enemy hitbox (red) ---
+            Hitbox eh = e.getHitbox();
+            acm.graphics.GRect eRect = new acm.graphics.GRect(eh.x, eh.y, eh.width, eh.height);
+            eRect.setColor(java.awt.Color.RED);
+            canvas.add(eRect);
+            debugObjects.add(eRect);
+
+            // --- aggro range circle (yellow) ---
+            double aggroR = 224; // MeleeEnemy aggroRange
+            acm.graphics.GOval aggroCircle = new acm.graphics.GOval(
+                ex - aggroR, ey - aggroR, aggroR * 2, aggroR * 2);
+            aggroCircle.setColor(new java.awt.Color(255, 255, 0, 80));
+            canvas.add(aggroCircle);
+            debugObjects.add(aggroCircle);
+
+            // --- health bar (green/red) above enemy ---
+            double barW = 40, barH = 4;
+            double barX = ex - barW / 2;
+            double barY = eh.y - 14;
+
+            acm.graphics.GRect bgBar = new acm.graphics.GRect(barX, barY, barW, barH);
+            bgBar.setFilled(true);
+            bgBar.setFillColor(java.awt.Color.DARK_GRAY);
+            canvas.add(bgBar);
+            debugObjects.add(bgBar);
+
+            double hpRatio = (double) e.getHealth() / e.getMaxHealth();
+            if (hpRatio > 0) {
+                acm.graphics.GRect hpBar = new acm.graphics.GRect(barX, barY, barW * hpRatio, barH);
+                hpBar.setFilled(true);
+                hpBar.setFillColor(hpRatio > 0.5 ? java.awt.Color.GREEN : java.awt.Color.RED);
+                canvas.add(hpBar);
+                debugObjects.add(hpBar);
+            }
+
+            // --- state label ---
+            String stateText = (e.isAggro() ? "CHASE" : "PATROL")
+                + " | " + e.getAnimState().name()
+                + " | HP " + e.getHealth();
+            acm.graphics.GLabel stateLbl = new acm.graphics.GLabel(stateText, barX, barY - 2);
+            stateLbl.setFont("SansSerif-BOLD-9");
+            stateLbl.setColor(java.awt.Color.WHITE);
+            canvas.add(stateLbl);
+            debugObjects.add(stateLbl);
+        }
+    }
+
+    /** Removes all debug overlay GObjects from the canvas. */
+    private void clearDebugOverlay(acm.graphics.GCanvas canvas) {
+        if (canvas == null) return;
+        for (acm.graphics.GObject obj : debugObjects) {
+            canvas.remove(obj);
+        }
+        debugObjects.clear();
     }
 
     // =========================================================

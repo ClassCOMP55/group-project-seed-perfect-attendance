@@ -343,6 +343,8 @@ public class WorldMap {
         dungeonRooms[1] = new Room("D2"); dungeonRooms[1].buildDummy(); // Puzzle + SaveCrystal
         dungeonRooms[2] = new Room("D3"); dungeonRooms[2].buildDummy(); // Boss fight
 
+        populateD1();
+
         // --- convenience reference to C3 for dungeon entrance checks ---
         roomC3 = overworldGrid[2][2];
 
@@ -356,6 +358,18 @@ public class WorldMap {
         for (Room dungeonRoom : dungeonRooms) {
             dungeonRoom.setExitCallback(direction -> triggerTransition(direction));
         }
+    }
+
+    /**
+     * Spawns test MeleeEnemy instances in Dungeon Room 1.
+     * Called from initRooms() after D1 is created.
+     */
+    private void populateD1() {
+        Room d1 = dungeonRooms[0];
+        TileMap tm = d1.getTileMap();
+        d1.addEntity(new MeleeEnemy(400, 300, tm));
+        d1.addEntity(new MeleeEnemy(800, 400, tm));
+        d1.addEntity(new MeleeEnemy(600, 200, tm));
     }
 
     /**
