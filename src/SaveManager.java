@@ -65,9 +65,12 @@ PLAN OF ACTION
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -80,6 +83,14 @@ public final class SaveManager {
 
 	public static final int SAVE_COUNT    = 3;
 	private static final int FORMAT_VERSION = 3;
+	private static final long MAX_SAVE_FILE_BYTES = 64 * 1024;
+	private static final int MAX_STRING_ARRAY_ENTRIES = 256;
+	private static final int MAX_STRING_ENTRY_LENGTH = 128;
+	private static final int MAX_SAVE_HEARTS = 99;
+	private static final int MAX_SAVE_COINS = 999_999;
+	private static final int MAX_SAVE_HEALING_BREAD = 99;
+	private static final double DEFAULT_SPAWN_X = 320.0;
+	private static final double DEFAULT_SPAWN_Y = 240.0;
 
 	private SaveManager() {}
 
@@ -112,10 +123,13 @@ public final class SaveManager {
 	public static boolean slotOccupied(int slot) {
 		Path p = savePath(slot);
 		try {
-			if (!Files.isRegularFile(p) || Files.size(p) < 2) {
+			if (!Files.isRegularFile(p, LinkOption.NOFOLLOW_LINKS) || Files.size(p) < 2) {
 				return false;
 			}
-			String raw = new String(Files.readAllBytes(p), StandardCharsets.UTF_8).trim();
+			if (Files.size(p) > MAX_SAVE_FILE_BYTES) {
+				return false;
+			}
+			String raw = readSaveText(p).trim();
 			return readIntField(raw, "version", 0) == FORMAT_VERSION;
 		} catch (IOException e) {
 			return false;
@@ -177,7 +191,7 @@ public final class SaveManager {
 		}
 		json.append("]\n}\n");
 
-		Files.write(savePath(slot), json.toString().getBytes(StandardCharsets.UTF_8));
+		writeAtomically(savePath(slot), json.toString());
 		System.out.println("[SaveManager] Wrote slot " + slot
 			+ " room=" + data.getRoomId() + " hp=" + data.getHp());
 	}
@@ -195,23 +209,27 @@ public final class SaveManager {
 	 */
 	public static SaveData loadSave(int slot) throws IOException {
 		Path p = savePath(slot);
-		if (!Files.isRegularFile(p)) {
+		if (!Files.isRegularFile(p, LinkOption.NOFOLLOW_LINKS)) {
 			throw new IOException("No save file for slot " + slot);
 		}
-		String raw = new String(Files.readAllBytes(p), StandardCharsets.UTF_8).trim();
+		String raw = readSaveText(p).trim();
 		if (raw.isEmpty()) {
 			throw new IOException("Save file is empty for slot " + slot);
 		}
 
 		int    version      = readIntField(raw, "version", 0);
+		if (version != FORMAT_VERSION) {
+			throw new IOException("Unsupported save version " + version + " for slot " + slot);
+		}
 		int    savedSlot    = readIntField(raw, "slot", slot);
-		int    hp           = readIntField(raw, "hp", 3);
-		int    maxHp        = readIntField(raw, "maxHp", 3);
-		int    coins        = readIntField(raw, "coins", 0);
-		int    healingBread = readIntField(raw, "healingBreadCount", 0);
+		int    maxHp        = clampInt(readIntField(raw, "maxHp", 3), 1, MAX_SAVE_HEARTS);
+		int    hp           = clampInt(readIntField(raw, "hp", 3), 0, maxHp);
+		int    coins        = clampInt(readIntField(raw, "coins", 0), 0, MAX_SAVE_COINS);
+		int    healingBread = clampInt(
+			readIntField(raw, "healingBreadCount", 0), 0, MAX_SAVE_HEALING_BREAD);
 		String roomId       = readStringField(raw, "roomId", "");
-		double spawnX       = readDoubleField(raw, "spawnX", 320.0);
-		double spawnY       = readDoubleField(raw, "spawnY", 240.0);
+		double spawnX       = sanitizeFiniteDouble(readDoubleField(raw, "spawnX", DEFAULT_SPAWN_X), DEFAULT_SPAWN_X);
+		double spawnY       = sanitizeFiniteDouble(readDoubleField(raw, "spawnY", DEFAULT_SPAWN_Y), DEFAULT_SPAWN_Y);
 		boolean halfDmg     = readBoolField(raw, "hasHalfDamage", false);
 		boolean reflect     = readBoolField(raw, "hasReflect", false);
 		boolean intangible  = readBoolField(raw, "hasIntangible", false);
@@ -224,6 +242,32 @@ public final class SaveManager {
 
 		return new SaveData(savedSlot, hp, maxHp, coins, healingBread, roomId, spawnX, spawnY,
 		                    halfDmg, reflect, intangible, mark, items, flags);
+	}
+
+	private static String readSaveText(Path path) throws IOException {
+		long size = Files.size(path);
+		if (size > MAX_SAVE_FILE_BYTES) {
+			throw new IOException("Save file too large: " + path.getFileName());
+		}
+		return new String(Files.readAllBytes(path), StandardCharsets.UTF_8);
+	}
+
+	private static void writeAtomically(Path target, String text) throws IOException {
+		Path dir = target.getParent();
+		if (dir == null) {
+			throw new IOException("Save path has no parent directory: " + target);
+		}
+		Path temp = Files.createTempFile(dir, target.getFileName().toString(), ".tmp");
+		try {
+			Files.write(temp, text.getBytes(StandardCharsets.UTF_8));
+			try {
+				Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+			} catch (AtomicMoveNotSupportedException ex) {
+				Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING);
+			}
+		} finally {
+			Files.deleteIfExists(temp);
+		}
 	}
 
 	// =========================================================
@@ -316,7 +360,14 @@ public final class SaveManager {
 					q++;
 				}
 			}
-			out.add(sb.toString());
+			if (out.size() >= MAX_STRING_ARRAY_ENTRIES) {
+				break;
+			}
+			String value = sb.toString();
+			if (value.length() > MAX_STRING_ENTRY_LENGTH) {
+				value = value.substring(0, MAX_STRING_ENTRY_LENGTH);
+			}
+			out.add(value);
 			j = q + 1;
 			// Stop if we hit the closing bracket
 			int nextBracket = json.indexOf(']', j);
@@ -343,5 +394,13 @@ public final class SaveManager {
 			}
 		}
 		return b.toString();
+	}
+
+	private static int clampInt(int value, int min, int max) {
+		return Math.max(min, Math.min(max, value));
+	}
+
+	private static double sanitizeFiniteDouble(double value, double fallback) {
+		return Double.isFinite(value) ? value : fallback;
 	}
 }

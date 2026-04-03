@@ -16,6 +16,9 @@ public class GameSavesPane extends NightScenePane {
      * Loaded saves override this with the persisted inventory count.
      */
     private static final int NEW_GAME_STARTING_HEALING_BREAD = 3;
+    private static final int MAX_LOADED_HEARTS = 99;
+    private static final int MAX_LOADED_COINS = 999_999;
+    private static final int MAX_LOADED_HEALING_BREAD = 99;
 
     private GLabel subtitleLabel;
     private GRoundRect[] slotFrames = new GRoundRect[3];
@@ -205,16 +208,27 @@ public class GameSavesPane extends NightScenePane {
 
     private Player buildLoadedPlayer(SaveData loaded) {
         Player player = new Player();
-        player.setMaxHealth(loaded.getMaxHp());
-        player.setHP(loaded.getHp());
-        player.setCoins(loaded.getCoins());
+        int loadedMaxHp = clampInt(loaded.getMaxHp(), 1, MAX_LOADED_HEARTS);
+        int loadedHp = clampInt(loaded.getHp(), 0, loadedMaxHp);
+        int loadedCoins = clampInt(loaded.getCoins(), 0, MAX_LOADED_COINS);
+        int loadedBreadCount = clampInt(loaded.getHealingBreadCount(), 0, MAX_LOADED_HEALING_BREAD);
+
+        player.setMaxHealth(loadedMaxHp);
+        player.setHP(loadedHp);
+        player.setCoins(loadedCoins);
         player.setHasHalfDamage(loaded.isHasHalfDamage());
         player.setHasReflect(loaded.isHasReflect());
         player.setHasIntangible(loaded.isHasIntangible());
         player.setHasMarkOfHero(loaded.isHasMarkOfHero());
-        for (int i = 0; i < loaded.getHealingBreadCount(); i++) {
-            player.collectItem(new HealingBread());
+        if (loadedBreadCount > 0) {
+            HealingBread breadStack = new HealingBread();
+            breadStack.incrementStackBy(loadedBreadCount - 1);
+            player.collectItem(breadStack);
         }
         return player;
+    }
+
+    private int clampInt(int value, int min, int max) {
+        return Math.max(min, Math.min(max, value));
     }
 }

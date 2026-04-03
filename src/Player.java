@@ -903,7 +903,7 @@ public class Player extends Entity {
         deathVisualOnCanvas = null;
         previousDeathVisual = null;
         deathSpriteAdded = false;
-        health = MAX_HEARTS;
+        health = maxHealth;
         iframesTicks = IFRAMES_DURATION; // brief post-respawn invulnerability
         initializeDirectionalSprites(); // rebuild direction frames wiped by clearFrames()
         x = respawnX;
