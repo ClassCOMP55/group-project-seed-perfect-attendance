@@ -233,9 +233,6 @@ public class PauseModal extends GraphicsPane
   /** Right column left edge (item list + description); portrait column ends before this. */
   private double inventoryItemStubLeftX;
 
-  /** First open: seed pause sliders from {@link GameSettings}; later opens keep last drag values. */
-  private boolean pauseVolumesInitialized;
-
   /** Settings tab widgets (visibility toggled with tab). */
   private GObject[] settingsTabWidgets;
   private GRoundRect settingsContentBg;
@@ -312,12 +309,7 @@ public class PauseModal extends GraphicsPane
       settingsTabActive = false;
       pauseInventoryFocusIndex = 0;
       pauseSettingsFocusIndex = 0;
-    }
-    if (!pauseVolumesInitialized)
-    {
-      pauseMusicVolumePercent = GameSettings.getVolumePercent();
-      pauseSfxVolumePercent = 100;
-      pauseVolumesInitialized = true;
+      loadPauseVolumesFromSettings();
     }
 
     double fw = mainScreen.getWidth();
@@ -1118,6 +1110,20 @@ public class PauseModal extends GraphicsPane
     return v;
   }
 
+  private void loadPauseVolumesFromSettings()
+  {
+    pauseMusicVolumePercent = clampVolume(GameSettings.getMusicVolumePercent());
+    pauseSfxVolumePercent = clampVolume(GameSettings.getSfxVolumePercent());
+  }
+
+  private void persistPauseAudioSettings()
+  {
+    GameSettings.setMusicVolumePercent(pauseMusicVolumePercent);
+    GameSettings.setSfxVolumePercent(pauseSfxVolumePercent);
+    SettingsIO.persist();
+    GameMusic.refreshVolume();
+  }
+
   private void updateMusicSliderThumbLayout()
   {
     if (musicSliderThumb == null || musicVolumePercentLabel == null)
@@ -1741,6 +1747,7 @@ public class PauseModal extends GraphicsPane
               pauseMusicVolumePercent
                   + (k == KeyEvent.VK_A ? -PAUSE_SLIDER_KEY_STEP : PAUSE_SLIDER_KEY_STEP));
       updateMusicSliderThumbLayout();
+      persistPauseAudioSettings();
       refreshPauseMenuFocusVisuals();
       return;
     }
@@ -1751,6 +1758,7 @@ public class PauseModal extends GraphicsPane
               pauseSfxVolumePercent
                   + (k == KeyEvent.VK_A ? -PAUSE_SLIDER_KEY_STEP : PAUSE_SLIDER_KEY_STEP));
       updateSfxSliderThumbLayout();
+      persistPauseAudioSettings();
       refreshPauseMenuFocusVisuals();
       return;
     }

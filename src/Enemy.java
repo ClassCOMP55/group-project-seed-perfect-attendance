@@ -476,6 +476,12 @@ public class Enemy extends Entity {
      */
     @Override
     public void takeDamage(int amount) {
+        // Dying enemies linger briefly for their death animation, but they should
+        // stop accepting hits immediately so repeated attacks cannot restart despawn.
+        if (animState == AnimState.DEATH || health <= 0) {
+            return;
+        }
+
         super.takeDamage(amount);
         if (health <= 0) {
             setAnimState(AnimState.DEATH);

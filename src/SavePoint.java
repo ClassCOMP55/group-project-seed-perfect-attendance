@@ -1,7 +1,7 @@
 /*
 Roberto: SavePoint — interactive world object (Inn Door or Save Crystal) that triggers a save
-Who RIGs it: Room — holds it as a WorldObject, calls update(dt) each tick, draw() each frame,
-             and registers the interact key via inputHandler.onPress(VK_J, () -> savePoint.tryInteract(...))
+Who RIGs it: Room — holds it as a room-level object, calls update(dt) each tick, draw() each frame;
+             GameplayPane — routes the interact key to the active room's SavePoint;
 
 TODO: extends WorldObject — refactor this class to extend WorldObject once WorldObject.java is built.
       SavePoint has x, y, Hitbox (interactZone), a visual sprite, draw(), update(), onInteract() — it IS a WorldObject.
@@ -16,10 +16,11 @@ PLAN OF ACTION
 - SavePoint is a static interactive object placed in a room (Inn or dungeon).
 - On interact, SavePoint:
     1. Opens a Yes / No save prompt via Dialogue.openSavePrompt().
-    2. If Yes: heals player to maxHp, snapshots state into SaveData, calls SaveManager.writeSave().
-    3. If No: closes dialogue, does nothing.
+    2. If Yes: delegates the actual save to the owning gameplay/session code.
+    3. If save succeeds: shows a short "Game Saved!" label.
+    4. If No: closes dialogue, does nothing.
 - SavePoint does NOT own the Dialogue instance; it receives one as a parameter.
-- SavePoint does NOT own the save slot number; it reads it from GameState.
+- SavePoint does NOT own the save slot number; the active gameplay/session decides that.
 
 - TYPES
 - SavePointType enum (defined inside this file): INN_DOOR, SAVE_CRYSTAL.
@@ -45,13 +46,17 @@ import acm.graphics.GLabel;
 import acm.graphics.GRect;
 
 import java.awt.Color;
-import java.io.IOException;
-
 /**
  * A static interactive world object that lets the player save the game.
  * Place one in a room, register its interact key, and call update() + draw() each tick.
  */
 public class SavePoint {
+
+	/** Callback used by the active gameplay session to perform the actual save. */
+	@FunctionalInterface
+	public interface SaveAction {
+		boolean save();
+	}
 
 	// =========================================================
 	// INNER ENUM
@@ -83,6 +88,9 @@ public class SavePoint {
 	private static final Color INN_COLOR      = new Color(180, 140, 80);
 	private static final Color CRYSTAL_COLOR  = new Color(100, 180, 255);
 	private static final Color SAVED_COLOR    = new Color(255, 215, 120);
+	private static final Color MARKER_BG      = new Color(12, 18, 28, 215);
+	private static final Color MARKER_BORDER  = new Color(150, 200, 255);
+	private static final Color MARKER_TEXT    = new Color(235, 245, 255);
 
 	// =========================================================
 	// FIELDS
@@ -107,6 +115,8 @@ public class SavePoint {
 
 	// Visual elements
 	private final GRect  visual;
+	private final GRect  markerPlate;
+	private final GLabel markerLabel;
 	private final GLabel savedLabel;
 
 	/** Counts down from SAVED_DISPLAY_TICKS to 0 after a confirmed save. */
@@ -151,6 +161,15 @@ public class SavePoint {
 		this.visual.setFillColor(fill);
 		this.visual.setColor(fill.darker());
 
+		this.markerPlate = new GRect(x - 43, y + half + 8, 86, 20);
+		this.markerPlate.setFilled(true);
+		this.markerPlate.setFillColor(MARKER_BG);
+		this.markerPlate.setColor(MARKER_BORDER);
+
+		this.markerLabel = new GLabel("[E] SAVE", x - 24, y + half + 23);
+		this.markerLabel.setFont("SansSerif-BOLD-11");
+		this.markerLabel.setColor(MARKER_TEXT);
+
 		// "Game Saved!" label — shown above the object after a confirmed save
 		this.savedLabel = new GLabel("Game Saved!", x - 36, y - half - 12);
 		this.savedLabel.setFont("Monospaced-BOLD-14");
@@ -169,7 +188,11 @@ public class SavePoint {
 	 * @param canvas the game canvas
 	 */
 	public void addTo(GCanvas canvas) {
+		resetVisualPosition();
 		canvas.add(visual);
+		canvas.add(markerPlate);
+		canvas.add(markerLabel);
+		centerMarkerLabel();
 		canvas.add(savedLabel);
 	}
 
@@ -181,6 +204,8 @@ public class SavePoint {
 	 */
 	public void removeFrom(GCanvas canvas) {
 		canvas.remove(visual);
+		canvas.remove(markerPlate);
+		canvas.remove(markerLabel);
 		canvas.remove(savedLabel);
 	}
 
@@ -204,57 +229,65 @@ public class SavePoint {
 	// =========================================================
 
 	/**
-	 * Called by the room when the player presses the interact key (J).
+	 * Called by gameplay when the player presses the interact key near this save point.
 	 * Opens a Yes / No save prompt if the player is close enough.
 	 *
-	 * Typical wiring in the room setup:
+	 * Typical wiring in gameplay:
 	 * <pre>
-	 *   inputHandler.onPress(KeyEvent.VK_J,
-	 *       () -> savePoint.tryInteract(player, dialogue));
+	 *   inputHandler.onPress(KeyEvent.VK_E,
+	 *       () -> savePoint.tryInteract(player, dialogue, saveAction));
 	 * </pre>
 	 *
-	 * @param player    the live Player
-	 * @param dialogue  the shared Dialogue overlay
+	 * @param player     the live Player
+	 * @param dialogue   the shared Dialogue overlay
+	 * @param saveAction callback that performs the active-slot save
 	 */
-	public void tryInteract(Player player, Dialogue dialogue) {
+	public void tryInteract(Player player, Dialogue dialogue, SaveAction saveAction) {
+		if (player == null || dialogue == null) return;
 		if (promptOpen) return;
 		if (!interactZone.overlaps(player.getHitbox())) return;
 
 		promptOpen = true;
+		GamePlayState.setCurrent(GamePlayState.DIALOGUE);
 		dialogue.openSavePrompt(() -> {
+			boolean saved = false;
+			boolean confirmed = dialogue.getSelectedOption() == 0;
 			promptOpen = false;
-			if (dialogue.getSelectedOption() == 0) {
-				// Player chose Yes
-				performSave(player);
+			if (confirmed && saveAction != null) {
+				saved = saveAction.save();
 			}
-			// Player chose No — nothing happens
+			if (saved) {
+				savedFeedbackTicks = SAVED_DISPLAY_TICKS;
+				savedLabel.setVisible(true);
+			}
+			GamePlayState.setCurrent(GamePlayState.PLAYING);
 		});
 	}
 
 	// =========================================================
-	// SAVE EXECUTION
+	// VISUAL HELPERS
 	// =========================================================
 
-	/**
-	 * Heals the player to full, snapshots game state, and writes the save file.
-	 * Called only after the player confirms Yes in the save prompt.
-	 */
-	private void performSave(Player player) {
-		// Heal to max HP first
-		player.setHP(player.getMaxHealth());
+	/** Resets the placeholder rectangle + saved label to this SavePoint's canonical room position. */
+	private void resetVisualPosition() {
+		double half = VISUAL_SIZE / 2.0;
+		visual.setLocation(x - half, y - half);
+		markerPlate.setLocation(x - markerPlate.getWidth() / 2.0, y + half + 8);
+		markerLabel.setLocation(x - 32, y + half + 23);
+		savedLabel.setLocation(x - 36, y - half - 12);
+	}
 
-		// TODO: replace with dynamic slot selection once multi-slot UI is implemented (P4)
-		int slot = 1;
+	/** Centers the static SAVE label over its plate once ACM knows the rendered label width. */
+	private void centerMarkerLabel() {
+		markerLabel.setLocation(x - markerLabel.getWidth() / 2.0, y + VISUAL_SIZE / 2.0 + 23);
+	}
 
-		SaveData data = SaveData.from(slot, player, roomId, spawnX, spawnY);
-
-		try {
-			SaveManager.writeSave(slot, data);
-			savedFeedbackTicks = SAVED_DISPLAY_TICKS;
-			savedLabel.setVisible(true);
-		} catch (IOException e) {
-			System.err.println("[SavePoint] Save failed: " + e.getMessage());
-		}
+	/** Pans both placeholder visuals during a room transition. */
+	public void panVisual(double panX, double panY) {
+		visual.move(panX, panY);
+		markerPlate.move(panX, panY);
+		markerLabel.move(panX, panY);
+		savedLabel.move(panX, panY);
 	}
 
 	// =========================================================
@@ -272,6 +305,12 @@ public class SavePoint {
 
 	/** @return the SavePoint type (INN_DOOR or SAVE_CRYSTAL) */
 	public SavePointType getType()   { return type; }
+
+	/** @return the player X position to save as this SavePoint's respawn target */
+	public double getSpawnX()        { return spawnX; }
+
+	/** @return the player Y position to save as this SavePoint's respawn target */
+	public double getSpawnY()        { return spawnY; }
 
 	/** @return the interaction zone hitbox */
 	public Hitbox getInteractZone()  { return interactZone; }

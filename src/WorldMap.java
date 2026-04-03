@@ -93,6 +93,10 @@ PLAN OF ACTION
 import acm.graphics.GCanvas;
 import acm.graphics.GRect;
 import java.awt.Color;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 
 /**
  * The entire game world: 9 overworld rooms (3×3 grid) + 3 dungeon rooms.
@@ -211,6 +215,12 @@ public class WorldMap {
      */
     private Player lastTickPlayer;
 
+    /** Persistent one-time object / pickup IDs already collected in this save file. */
+    private final Set<String> collectedItemIds = new LinkedHashSet<>();
+
+    /** Persistent story / world progression flags unrelated to the player snapshot. */
+    private final Set<String> storyFlags = new LinkedHashSet<>();
+
     // =========================================================
     // DUNGEON ENTRANCE MARKER (tech-demo placeholder)
     // =========================================================
@@ -265,6 +275,13 @@ public class WorldMap {
      * End of dungeon exit constants.
      * =====================
      */
+
+    /** Starter save crystal so save/load can be tested from the opening room immediately. */
+    private static final double START_SAVE_POINT_X = TileMap.MAP_OFFSET_X + 5 * 48;
+    private static final double START_SAVE_POINT_Y = 7 * 48;
+
+    /** Reserved story-flag prefix used to encode exact exit states in the save file. */
+    private static final String EXIT_FLAG_PREFIX = "wm_exit:";
 
     /**
      * Red rectangle placed near the west wall of D1 as a visible stand-in for the dungeon exit door.
@@ -348,6 +365,8 @@ public class WorldMap {
         // --- convenience reference to C3 for dungeon entrance checks ---
         roomC3 = overworldGrid[2][2];
 
+        installStarterSavePoint();
+
         // --- wire exit callbacks: each room calls triggerTransition() when the player exits ---
         for (int col = 0; col < COLS; col++) {
             for (int row = 0; row < ROWS; row++) {
@@ -358,6 +377,19 @@ public class WorldMap {
         for (Room dungeonRoom : dungeonRooms) {
             dungeonRoom.setExitCallback(direction -> triggerTransition(direction));
         }
+    }
+
+    /** Places an always-available save crystal in A1 for early save/load testing. */
+    private void installStarterSavePoint() {
+        Room startRoom = overworldGrid[0][0];
+        startRoom.setSavePoint(new SavePoint(
+            START_SAVE_POINT_X,
+            START_SAVE_POINT_Y,
+            startRoom.getRoomId(),
+            SavePoint.SavePointType.SAVE_CRYSTAL,
+            START_SAVE_POINT_X,
+            START_SAVE_POINT_Y
+        ));
     }
 
     /**
@@ -758,6 +790,133 @@ public class WorldMap {
     }
 
     // =========================================================
+    // SAVE / LOAD SNAPSHOT HELPERS
+    // =========================================================
+
+    /** Returns a copy of the persistent one-time object IDs already collected in this save. */
+    public List<String> getCollectedItemIdsSnapshot() {
+        return new ArrayList<>(collectedItemIds);
+    }
+
+    /**
+     * Returns persistent story flags plus the exact current exit topology for every room.
+     * Exit states are encoded into the same string list so a freshly rebuilt WorldMap
+     * can be restored to the saved traversal state on load.
+     */
+    public List<String> getStoryFlagsSnapshot() {
+        LinkedHashSet<String> snapshot = new LinkedHashSet<>(storyFlags);
+        addExitFlags(snapshot, overworldGrid);
+        addExitFlags(snapshot, dungeonRooms);
+        return new ArrayList<>(snapshot);
+    }
+
+    /** Reapplies persistent collected IDs and story flags to a freshly rebuilt WorldMap. */
+    public void applyPersistentState(List<String> savedCollectedItemIds, List<String> savedStoryFlags) {
+        collectedItemIds.clear();
+        storyFlags.clear();
+
+        if (savedCollectedItemIds != null) {
+            for (String itemId : savedCollectedItemIds) {
+                addNormalized(collectedItemIds, itemId);
+            }
+        }
+
+        if (savedStoryFlags != null) {
+            for (String flag : savedStoryFlags) {
+                if (!applyExitFlag(flag)) {
+                    addNormalized(storyFlags, flag);
+                }
+            }
+        }
+    }
+
+    /** Registers a one-time world object / pickup ID as collected for future saves. */
+    public void markCollectedItem(String itemId) {
+        addNormalized(collectedItemIds, itemId);
+    }
+
+    /** Returns true if the given one-time world object / pickup ID was already collected. */
+    public boolean hasCollectedItem(String itemId) {
+        return itemId != null && collectedItemIds.contains(itemId.trim());
+    }
+
+    /** Adds a non-exit story flag for future saves. */
+    public void addStoryFlag(String flag) {
+        addNormalized(storyFlags, flag);
+    }
+
+    /** Returns true if the given non-exit story flag is currently set. */
+    public boolean hasStoryFlag(String flag) {
+        return flag != null && storyFlags.contains(flag.trim());
+    }
+
+    private void addExitFlags(Set<String> snapshot, Room[][] rooms) {
+        for (int col = 0; col < COLS; col++) {
+            for (int row = 0; row < ROWS; row++) {
+                addExitFlags(snapshot, rooms[col][row]);
+            }
+        }
+    }
+
+    private void addExitFlags(Set<String> snapshot, Room[] rooms) {
+        for (Room room : rooms) {
+            addExitFlags(snapshot, room);
+        }
+    }
+
+    private void addExitFlags(Set<String> snapshot, Room room) {
+        if (room == null) return;
+        for (Direction direction : Direction.values()) {
+            snapshot.add(encodeExitFlag(room.getRoomId(), direction, room.getExitAt(direction)));
+        }
+    }
+
+    private String encodeExitFlag(String roomId, Direction direction, boolean open) {
+        return EXIT_FLAG_PREFIX + roomId + ":" + direction.name() + ":" + (open ? "open" : "closed");
+    }
+
+    private boolean applyExitFlag(String flag) {
+        if (flag == null || !flag.startsWith(EXIT_FLAG_PREFIX)) {
+            return false;
+        }
+
+        String[] parts = flag.split(":");
+        if (parts.length != 4) {
+            return false;
+        }
+
+        Room room = getRoomById(parts[1]);
+        if (room == null) {
+            return false;
+        }
+
+        Direction direction;
+        try {
+            direction = Direction.valueOf(parts[2]);
+        } catch (IllegalArgumentException ex) {
+            return false;
+        }
+
+        if ("open".equals(parts[3])) {
+            room.setExit(direction, true);
+            return true;
+        }
+        if ("closed".equals(parts[3])) {
+            room.setExit(direction, false);
+            return true;
+        }
+        return false;
+    }
+
+    private void addNormalized(Set<String> target, String value) {
+        if (target == null || value == null) return;
+        String trimmed = value.trim();
+        if (!trimmed.isEmpty()) {
+            target.add(trimmed);
+        }
+    }
+
+    // =========================================================
     // HELPER — neighbor room lookup
     // =========================================================
 
@@ -866,6 +1025,11 @@ public class WorldMap {
             if (dr.getRoomId().equals(roomId)) return dr;
         }
         return null;
+    }
+
+    /** @return the active room's save point, or null if this room has no save object */
+    public SavePoint getActiveSavePoint() {
+        return activeRoom != null ? activeRoom.getSavePoint() : null;
     }
 
     /** @return the room the player is currently in */

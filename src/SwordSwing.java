@@ -150,7 +150,9 @@ public class SwordSwing {
         // Hit detection: damage each enemy in range, but only once per swing
         if (enemies != null) {
             for (Enemy e : enemies) {
-                if (e.isAlive()
+                // Dying enemies stay "alive" until their death animation finishes so the
+                // room can clean them up, but they should not keep taking sword hits.
+                if (e.getHealth() > 0
                         && hitbox.overlaps(e.getHitbox())
                         && !alreadyHit.contains(e)) {
                     e.takeDamage(1, this.facing);

@@ -15,7 +15,12 @@ import java.util.regex.Pattern;
 public final class SettingsIO {
 
     private static final Path SETTINGS_PATH = Paths.get("game", "settings.json");
-    private static final Pattern VOLUME_PATTERN = Pattern.compile("\"volumePercent\"\\s*:\\s*(\\d+)");
+    private static final Pattern LEGACY_VOLUME_PATTERN =
+        Pattern.compile("\"volumePercent\"\\s*:\\s*(\\d+)");
+    private static final Pattern MUSIC_VOLUME_PATTERN =
+        Pattern.compile("\"musicVolumePercent\"\\s*:\\s*(\\d+)");
+    private static final Pattern SFX_VOLUME_PATTERN =
+        Pattern.compile("\"sfxVolumePercent\"\\s*:\\s*(\\d+)");
     private static final long MAX_SETTINGS_FILE_BYTES = 4 * 1024;
 
     private SettingsIO() {
@@ -34,17 +39,19 @@ public final class SettingsIO {
             Files.createDirectories(dir);
         }
         if (!Files.isRegularFile(SETTINGS_PATH)) {
-            GameSettings.applyStartupVolume(100);
+            GameSettings.applyStartupAudioVolumes(100, 100);
             persist();
             return;
         }
         String raw = readSettingsText();
-        int v = parseVolumePercent(raw, 100);
-        GameSettings.applyStartupVolume(v);
+        int legacyVolume = parseVolumePercent(raw, LEGACY_VOLUME_PATTERN, 100);
+        int musicVolume = parseVolumePercent(raw, MUSIC_VOLUME_PATTERN, legacyVolume);
+        int sfxVolume = parseVolumePercent(raw, SFX_VOLUME_PATTERN, legacyVolume);
+        GameSettings.applyStartupAudioVolumes(musicVolume, sfxVolume);
     }
 
-    private static int parseVolumePercent(String json, int defaultVal) {
-        Matcher m = VOLUME_PATTERN.matcher(json);
+    private static int parseVolumePercent(String json, Pattern pattern, int defaultVal) {
+        Matcher m = pattern.matcher(json);
         if (m.find()) {
             try {
                 return Integer.parseInt(m.group(1));
@@ -55,15 +62,20 @@ public final class SettingsIO {
         return defaultVal;
     }
 
-    /** Writes current {@link GameSettings} volume (0–100) as JSON. */
+    /** Writes current {@link GameSettings} music/SFX volume (0-100) as JSON. */
     public static void persist() {
         try {
             Path dir = SETTINGS_PATH.getParent();
             if (dir != null && !Files.isDirectory(dir)) {
                 Files.createDirectories(dir);
             }
-            int v = GameSettings.getVolumePercent();
-            String json = "{\n  \"volumePercent\": " + v + "\n}\n";
+            int musicVolume = GameSettings.getMusicVolumePercent();
+            int sfxVolume = GameSettings.getSfxVolumePercent();
+            String json =
+                "{\n"
+                    + "  \"musicVolumePercent\": " + musicVolume + ",\n"
+                    + "  \"sfxVolumePercent\": " + sfxVolume + "\n"
+                    + "}\n";
             writeAtomically(json);
         } catch (IOException e) {
             System.err.println("Settings save failed: " + e.getMessage());

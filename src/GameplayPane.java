@@ -82,6 +82,8 @@ public class GameplayPane extends GraphicsPane {
      * Room center Y = 15 * 48 / 2 = 360.
      */
     private static final double PLAYER_START_Y = 15 * 48 / 2.0; // = 360
+    /** First dungeon room: plays the dungeon theme while active. */
+    private static final String DUNGEON_FLOOR_ONE_ROOM_ID = "D1";
 
     /*
      * =====================
@@ -116,6 +118,8 @@ public class GameplayPane extends GraphicsPane {
     /** Spawn position to apply on the next fresh or loaded session start. */
     private double pendingSpawnX = PLAYER_START_X;
     private double pendingSpawnY = PLAYER_START_Y;
+    /** Last room ID that audio sync logic observed while gameplay was active. */
+    private String lastMusicRoomId;
 
     // =========================================================
     // CONTROLS HINT OVERLAY (tech-demo placeholder)
@@ -229,6 +233,7 @@ public class GameplayPane extends GraphicsPane {
         // --- add room graphics to canvas ---
         worldMap.getActiveRoom().addTo(canvas);
         worldMap.showSpecialMarkersForActiveRoom();
+        syncActiveRoomMusic();
 
         // --- draw the player on top of the room ---
         player.draw(canvas);
@@ -266,6 +271,9 @@ public class GameplayPane extends GraphicsPane {
         hidePlayerHUD();
         clearCoinGainPopup();
         lastObservedCoins = -1;
+        lastMusicRoomId = null;
+        GameMusic.stopJourneyBeginsMusic();
+        GameMusic.stopMysteriousDungeonMusic();
 
         // --- remove debug overlay ---
         clearDebugOverlay(canvas);
@@ -283,6 +291,7 @@ public class GameplayPane extends GraphicsPane {
         debugOverlayOn = false;
         clearCoinGainPopup();
         lastObservedCoins = -1;
+        lastMusicRoomId = null;
     }
 
     /** Rebuilds gameplay state for a brand-new session that starts in A1. */
@@ -295,12 +304,22 @@ public class GameplayPane extends GraphicsPane {
         debugOverlayOn = false;
         clearCoinGainPopup();
         lastObservedCoins = -1;
+        lastMusicRoomId = null;
         GamePlayState.setCurrent(GamePlayState.PLAYING);
     }
 
-    /** Rebuilds gameplay state and queues a saved room/spawn for the next showContent(). */
-    public void prepareLoadedSession(String roomId, double spawnX, double spawnY) {
+    /** Rebuilds gameplay state, reapplies world progression, and queues the saved room/spawn. */
+    public void prepareLoadedSession(SaveData loadedData) {
         rebuildWorldMap();
+        if (loadedData != null) {
+            worldMap.applyPersistentState(
+                loadedData.getCollectedItemIds(),
+                loadedData.getStoryFlags()
+            );
+        }
+        String roomId = loadedData == null ? "" : loadedData.getRoomId();
+        double spawnX = loadedData == null ? PLAYER_START_X : loadedData.getSpawnX();
+        double spawnY = loadedData == null ? PLAYER_START_Y : loadedData.getSpawnY();
         boolean roomFound = worldMap.setActiveRoomById(roomId);
         firstShow = true;
         pendingSpawnX = roomFound ? spawnX : PLAYER_START_X;
@@ -309,7 +328,12 @@ public class GameplayPane extends GraphicsPane {
         debugOverlayOn = false;
         clearCoinGainPopup();
         lastObservedCoins = -1;
+        lastMusicRoomId = null;
         GamePlayState.setCurrent(GamePlayState.PLAYING);
+    }
+
+    private boolean saveCurrentSession(String roomId, double spawnX, double spawnY) {
+        return mainScreen.saveCurrentGameplay(roomId, spawnX, spawnY);
     }
 
     // =========================================================
@@ -378,6 +402,7 @@ public class GameplayPane extends GraphicsPane {
 
         // --- world update (always runs; WorldMap handles state internally) ---
         worldMap.update(dt, player);
+        syncActiveRoomMusic();
 
         // Enemy contact damage lands inside Room.update(), so re-check after the room tick too.
         startDeathSequenceIfNeeded(player, canvas);
@@ -398,6 +423,26 @@ public class GameplayPane extends GraphicsPane {
         player.triggerDeathAnimation();
         deathDelayTicks = DEATH_DELAY;
         player.draw(canvas);
+    }
+
+    private void syncActiveRoomMusic() {
+        if (worldMap == null) {
+            return;
+        }
+        Room activeRoom = worldMap.getActiveRoom();
+        String roomId = activeRoom == null ? null : activeRoom.getRoomId();
+        if (roomId == null ? lastMusicRoomId == null : roomId.equals(lastMusicRoomId)) {
+            return;
+        }
+        lastMusicRoomId = roomId;
+        if (DUNGEON_FLOOR_ONE_ROOM_ID.equals(roomId)) {
+            GameMusic.startMysteriousDungeonMusic();
+        } else if (roomId != null && !roomId.startsWith("D")) {
+            GameMusic.startJourneyBeginsMusic();
+        } else {
+            GameMusic.stopJourneyBeginsMusic();
+            GameMusic.stopMysteriousDungeonMusic();
+        }
     }
 
     /**
@@ -442,6 +487,24 @@ public class GameplayPane extends GraphicsPane {
             }
         });
 
+        input.onPress(KeyEvent.VK_E, () -> {
+            if (!mainScreen.isPauseModalOpen() && GamePlayState.PLAYING.is()) {
+                Player p = mainScreen.getPlayer();
+                SavePoint savePoint = worldMap.getActiveSavePoint();
+                if (p != null && savePoint != null) {
+                    savePoint.tryInteract(
+                        p,
+                        mainScreen.getDialogue(),
+                        () -> saveCurrentSession(
+                            savePoint.getRoomId(),
+                            savePoint.getSpawnX(),
+                            savePoint.getSpawnY()
+                        )
+                    );
+                }
+            }
+        });
+
         // Debug: toggle combat overlay
         input.onPress(KeyEvent.VK_F6, () -> {
             debugOverlayOn = !debugOverlayOn;
@@ -456,6 +519,17 @@ public class GameplayPane extends GraphicsPane {
             }
         });
 
+        // Debug: quick-save the current room + exact player position.
+        input.onPress(KeyEvent.VK_F7, () -> {
+            if (!mainScreen.isPauseModalOpen() && GamePlayState.PLAYING.is()) {
+                Player p = mainScreen.getPlayer();
+                Room activeRoom = worldMap.getActiveRoom();
+                if (p != null && activeRoom != null) {
+                    saveCurrentSession(activeRoom.getRoomId(), p.getX(), p.getY());
+                }
+            }
+        });
+
         inputsWired = true;
     }
 
@@ -467,8 +541,10 @@ public class GameplayPane extends GraphicsPane {
         if (input == null) { inputsWired = false; return; }
         input.removeOnPress(KeyEvent.VK_J);
         input.removeOnPress(KeyEvent.VK_K);
+        input.removeOnPress(KeyEvent.VK_E);
         input.removeOnPress(KeyEvent.VK_F5);
         input.removeOnPress(KeyEvent.VK_F6);
+        input.removeOnPress(KeyEvent.VK_F7);
         debugOverlayOn = false;
         clearDebugOverlay(mainScreen.getGCanvas());
         inputsWired = false;

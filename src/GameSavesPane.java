@@ -184,10 +184,9 @@ public class GameSavesPane extends NightScenePane {
             }
             if (loaded != null) {
                 Player player = buildLoadedPlayer(loaded);
-                mainScreen.startLoadedGameplaySession(
-                    player, loaded.getRoomId(), loaded.getSpawnX(), loaded.getSpawnY());
+                mainScreen.startLoadedGameplaySession(player, loaded, slot);
             } else {
-                mainScreen.startNewGameplaySession(buildNewPlayer());
+                mainScreen.startNewGameplaySession(buildNewPlayer(), slot);
             }
         } catch (Exception ex) {
             System.err.println("Save slot " + slot + ": " + ex.getMessage());

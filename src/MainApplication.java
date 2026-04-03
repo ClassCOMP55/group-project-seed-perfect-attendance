@@ -27,6 +27,8 @@ public class MainApplication extends GraphicsProgram{
 	private GameLoop gameLoop;
 	private InputHandler inputHandler;
 	private Player player;
+	/** Save slot currently bound to this gameplay session. */
+	private int activeSaveSlot = 1;
 
 	// Full-screen panes
 	private TitleCardPane titleCardPane;
@@ -169,8 +171,8 @@ public class MainApplication extends GraphicsProgram{
 	 * Launches the room-based gameplay (WorldMap, all 12 rooms, transitions).
 	 * Creates a fresh Player and starts a brand-new session.
 	 *
-	 * Loading now uses {@link #startLoadedGameplaySession(Player, String, double, double)}
-	 * so saved room/spawn data is applied before the gameplay pane is shown.
+	 * Loading now uses {@link #startLoadedGameplaySession(Player, SaveData, int)}
+	 * so saved room/spawn/world data is applied before the gameplay pane is shown.
 	 */
 	public void switchToGameplayScreen() {
 		Player p = new Player();
@@ -182,22 +184,65 @@ public class MainApplication extends GraphicsProgram{
 
 	/** Starts a fresh gameplay session with a prepared Player. */
 	public void startNewGameplaySession(Player sessionPlayer) {
+		startNewGameplaySession(sessionPlayer, activeSaveSlot);
+	}
+
+	/** Starts a fresh gameplay session bound to the selected save slot. */
+	public void startNewGameplaySession(Player sessionPlayer, int slot) {
 		if (sessionPlayer == null) {
 			return;
 		}
+		setActiveSaveSlot(slot);
 		setPlayer(sessionPlayer);
 		worldMapGameplayPane.prepareNewSession();
 		switchToScreen(worldMapGameplayPane);
 	}
 
-	/** Starts gameplay from a loaded save using the provided room and spawn position. */
-	public void startLoadedGameplaySession(Player sessionPlayer, String roomId, double spawnX, double spawnY) {
-		if (sessionPlayer == null) {
+	/** Starts gameplay from a loaded save bound to the selected slot. */
+	public void startLoadedGameplaySession(Player sessionPlayer, SaveData loadedData, int slot) {
+		if (sessionPlayer == null || loadedData == null) {
 			return;
 		}
+		setActiveSaveSlot(slot);
 		setPlayer(sessionPlayer);
-		worldMapGameplayPane.prepareLoadedSession(roomId, spawnX, spawnY);
+		worldMapGameplayPane.prepareLoadedSession(loadedData);
 		switchToScreen(worldMapGameplayPane);
+	}
+
+	/**
+	 * Saves the active room-based gameplay session into the current slot.
+	 * Save points and debug quick-save route through this method so slot selection,
+	 * healing-on-save, and world snapshot capture stay consistent.
+	 */
+	public boolean saveCurrentGameplay(String roomId, double spawnX, double spawnY) {
+		if (player == null || worldMapGameplayPane == null) {
+			return false;
+		}
+
+		WorldMap worldMap = worldMapGameplayPane.getWorldMap();
+		if (worldMap == null) {
+			return false;
+		}
+
+		int slot = sanitizeSaveSlot(activeSaveSlot);
+		player.setHP(player.getMaxHealth());
+		SaveData data = SaveData.from(
+			slot,
+			player,
+			roomId,
+			spawnX,
+			spawnY,
+			worldMap.getCollectedItemIdsSnapshot(),
+			worldMap.getStoryFlagsSnapshot()
+		);
+
+		try {
+			SaveManager.writeSave(slot, data);
+			return true;
+		} catch (IOException e) {
+			System.err.println("[MainApplication] Save failed for slot " + slot + ": " + e.getMessage());
+			return false;
+		}
 	}
 
 	/**
@@ -234,6 +279,14 @@ public class MainApplication extends GraphicsProgram{
 
 	public InputHandler getInputHandler() {
 		return inputHandler;
+	}
+
+	public int getActiveSaveSlot() {
+		return activeSaveSlot;
+	}
+
+	public void setActiveSaveSlot(int slot) {
+		activeSaveSlot = sanitizeSaveSlot(slot);
 	}
 
 	public boolean isPauseModalOpen() {
@@ -275,15 +328,14 @@ public class MainApplication extends GraphicsProgram{
 	}
 
 	/**
-	 * Main menu theme on landing, start menu, and settings; stop music otherwise.
+	 * Main menu theme on landing, start menu, and settings; gameplay panes own their
+	 * own room-based music, so non-menu screens only need the menu track stopped.
 	 */
 	private void updateMenuMusicForScreen(GraphicsPane newScreen) {
 		if (newScreen == landingPane || newScreen == startMenuPane || newScreen == settingsPane) {
-			GameMusic.stopJourneyBeginsMusic();
 			GameMusic.startMainMenuMusic();
 		} else {
 			GameMusic.stopMainMenuMusic();
-			GameMusic.stopJourneyBeginsMusic();
 		}
 	}
 
@@ -371,6 +423,12 @@ public class MainApplication extends GraphicsProgram{
 			pauseModal.keyPressed(e);
 			return;
 		}
+		if (dialogue != null && dialogue.isOpen()) {
+			if (e.getKeyCode() != KeyEvent.VK_ESCAPE) {
+				dialogue.keyPressed(e);
+			}
+			return;
+		}
 		// F1 anywhere: open market-character-debug scene
 		if (e.getKeyCode() == KeyEvent.VK_F1) {
 			switchToMarketDebug();
@@ -380,13 +438,6 @@ public class MainApplication extends GraphicsProgram{
 		if (pauseModal != null && e.getKeyCode() == KeyEvent.VK_ESCAPE && !escPauseMenuDeniedForCurrentScreen())
 		{
 			showPauseModal();
-			return;
-		}
-		// Dialogue captures all non-ESC keys while open (ESC already handled above for pause).
-		if (dialogue != null && dialogue.isOpen()
-				&& e.getKeyCode() != KeyEvent.VK_ESCAPE)
-		{
-			dialogue.keyPressed(e);
 			return;
 		}
 		if (currentScreen != null) 
@@ -414,6 +465,10 @@ public class MainApplication extends GraphicsProgram{
 		if (currentScreen != null) {
 			currentScreen.keyTyped(e);
 		}
+	}
+
+	private int sanitizeSaveSlot(int slot) {
+		return slot >= 1 && slot <= SaveManager.SAVE_COUNT ? slot : 1;
 	}
 
 }

@@ -1,7 +1,7 @@
 /*
 Roberto: SaveData — snapshot of all game state written to / read from a save file
-Who RIGs it: SaveManager — creates SaveData instances on load; SavePoint — fills them on save;
-             GameSavesPane — receives them on load and applies to Player + GameState
+Who RIGs it: SaveManager — creates SaveData instances on load; gameplay/save helpers — fill them on save;
+             GameSavesPane — receives them on load and applies to Player + world gameplay session
 No extends (plain data class — fields and getters only)
 
 ===============
@@ -32,8 +32,9 @@ PLAN OF ACTION
 
 - CONSTRUCTORS
 - One all-fields constructor (used by SaveManager after parsing a file).
-- One static factory: SaveData.from(int slot, Player p, GameState s, String roomId, double spawnX, double spawnY)
-  Reads the live game state into a new SaveData snapshot. Called by SavePoint on save.
+- One static factory: SaveData.from(int slot, Player p, String roomId, double spawnX, double spawnY,
+                                    List<String> collectedItemIds, List<String> storyFlags)
+  Reads the live player + world state into a new SaveData snapshot.
 
 - NO GAME LOGIC
 - No references to GCanvas, TileMap, InputHandler, or any rendering class.
@@ -125,20 +126,21 @@ public class SaveData {
 	 *
 	 * @param slot    the active save slot (1–3)
 	 * @param player  the live Player instance
-	 * @param roomId  ID of the room containing the SavePoint
-	 * @param spawnX  center X of the SavePoint (respawn position)
-	 * @param spawnY  center Y of the SavePoint (respawn position)
+	 * @param roomId            ID of the room containing the SavePoint
+	 * @param spawnX            center X of the SavePoint (respawn position)
+	 * @param spawnY            center Y of the SavePoint (respawn position)
+	 * @param collectedItemIds  persistent one-time world object IDs already collected
+	 * @param storyFlags        persistent story / world progression flags
 	 */
 	public static SaveData from(int slot, Player player,
-	                             String roomId, double spawnX, double spawnY) {
+	                             String roomId, double spawnX, double spawnY,
+	                             List<String> collectedItemIds, List<String> storyFlags) {
 		int coins = player.getCoins();
 		int healingBreadCount = player.getItemCount(HealingBread.ITEM_ID);
-
-		// TODO: replace empty list with actual collected item IDs once item tracking is implemented (P2)
-		List<String> collectedItems = new ArrayList<>();
-
-		// TODO: replace empty list with story flags once flag tracking is implemented (P4)
-		List<String> flags = new ArrayList<>();
+		List<String> collectedItems = collectedItemIds != null
+			? new ArrayList<>(collectedItemIds) : new ArrayList<>();
+		List<String> flags = storyFlags != null
+			? new ArrayList<>(storyFlags) : new ArrayList<>();
 
 		return new SaveData(
 			slot,

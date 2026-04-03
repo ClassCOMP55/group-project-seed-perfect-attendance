@@ -156,6 +156,9 @@ public class Room {
      */
     private final List<ThicketGate> gates = new ArrayList<>();
 
+    /** Optional room-level save point. Null for rooms without a save object. */
+    private SavePoint savePoint;
+
     /**
      * Called by Room when the player walks off an open exit edge.
      * WorldMap sets this callback; Room fires it with the exit Direction.
@@ -295,6 +298,11 @@ public class Room {
             obj.draw(canvas);
         }
 
+        // --- save point (if this room has one) ---
+        if (savePoint != null) {
+            savePoint.addTo(canvas);
+        }
+
         // --- entities (enemies, projectiles) ---
         // RIG POINT: Entity.draw() is already implemented; add enemies to the entities list
         //            in each room's buildXxx() method.
@@ -338,6 +346,11 @@ public class Room {
         // --- world objects ---
         for (WorldObject obj : objects) {
             obj.removeFrom(canvas);
+        }
+
+        // --- save point ---
+        if (savePoint != null) {
+            savePoint.removeFrom(canvas);
         }
 
         // --- entities ---
@@ -416,6 +429,10 @@ public class Room {
         // RIG POINT: PressureButton and similar objects need update(dt) called here.
         for (WorldObject obj : objects) {
             obj.update(dt);
+        }
+
+        if (savePoint != null) {
+            savePoint.update(dt);
         }
 
         // --- player contact with world objects (e.g. ThicketGate auto-opens on touch) ---
@@ -634,6 +651,10 @@ public class Room {
             obj.panVisual(panX, panY);
         }
 
+        if (savePoint != null) {
+            savePoint.panVisual(panX, panY);
+        }
+
         // --- entities (enemies, projectiles) ---
         for (Entity entity : entities) {
             entity.panVisual(panX, panY);
@@ -667,6 +688,9 @@ public class Room {
     /** Adds a ThicketGate to this room's gate list. */
     public void addGate(ThicketGate gate) { gates.add(gate); }
 
+    /** Assigns the room's single SavePoint placeholder. */
+    public void setSavePoint(SavePoint savePoint) { this.savePoint = savePoint; }
+
     /** Adds a dropped Item (coin, etc.) to this room's ground-item list. */
     public void addDroppedItem(Item item) {
         if (item == null) return;
@@ -686,6 +710,7 @@ public class Room {
     public List<WorldObject> getObjects()    { return objects; }
     public List<Item>       getDroppedItems(){ return droppedItems; }
     public RoomLock         getRoomLock()    { return roomLock; }
+    public SavePoint        getSavePoint()   { return savePoint; }
     public boolean          isInitialized()  { return initialized; }
 
     /** Returns only the Enemy instances from the entity list. */

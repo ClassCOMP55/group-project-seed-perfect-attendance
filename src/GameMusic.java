@@ -14,12 +14,13 @@ import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.UnsupportedAudioFileException;
 
 /**
- * Background music: main menu and character-creation quiz (journey theme).
+ * Background music helpers for menu and gameplay themes.
  */
 public final class GameMusic {
 
     private static Clip mainMenuClip;
     private static Clip journeyBeginsClip;
+    private static Clip mysteriousDungeonClip;
 
     private GameMusic() {
     }
@@ -28,6 +29,8 @@ public final class GameMusic {
      * Loops main menu music if not already playing. Safe to call when returning to the start menu.
      */
     public static synchronized void startMainMenuMusic() {
+        stopJourneyBeginsMusic();
+        stopMysteriousDungeonMusic();
         if (mainMenuClip != null && mainMenuClip.isActive()) {
             applyVolume(mainMenuClip);
             return;
@@ -69,9 +72,11 @@ public final class GameMusic {
     }
 
     /**
-     * Loops journey-begins theme during the character quiz; stops when leaving that screen.
+     * Loops the overworld/regular gameplay theme.
      */
     public static synchronized void startJourneyBeginsMusic() {
+        stopMainMenuMusic();
+        stopMysteriousDungeonMusic();
         if (journeyBeginsClip != null && journeyBeginsClip.isActive()) {
             applyVolume(journeyBeginsClip);
             return;
@@ -109,13 +114,61 @@ public final class GameMusic {
         journeyBeginsClip = null;
     }
 
-    /** Re-apply volume from {@link GameSettings} (call after slider changes). */
+    /**
+     * Loops the dungeon theme while the player is inside the first dungeon room.
+     */
+    public static synchronized void startMysteriousDungeonMusic() {
+        stopMainMenuMusic();
+        stopJourneyBeginsMusic();
+        if (mysteriousDungeonClip != null && mysteriousDungeonClip.isActive()) {
+            applyVolume(mysteriousDungeonClip);
+            return;
+        }
+        stopMysteriousDungeonMusic();
+        InputStream raw =
+            openMusicStream("/audio/music/mysterious-dungeon.wav", "mysterious-dungeon.wav");
+        if (raw == null) {
+            System.err.println(
+                "GameMusic: could not find audio/music/mysterious-dungeon.wav (classpath or assets/)");
+            return;
+        }
+        try (InputStream in = new BufferedInputStream(raw)) {
+            AudioInputStream ais = AudioSystem.getAudioInputStream(in);
+            Clip clip = AudioSystem.getClip();
+            clip.open(ais);
+            applyVolume(clip);
+            clip.loop(Clip.LOOP_CONTINUOUSLY);
+            mysteriousDungeonClip = clip;
+        } catch (IOException | UnsupportedAudioFileException | LineUnavailableException e) {
+            System.err.println("GameMusic: failed to play mysterious-dungeon.wav");
+            e.printStackTrace();
+        }
+    }
+
+    public static synchronized void stopMysteriousDungeonMusic() {
+        if (mysteriousDungeonClip == null) {
+            return;
+        }
+        try {
+            mysteriousDungeonClip.stop();
+            mysteriousDungeonClip.flush();
+            mysteriousDungeonClip.close();
+        } catch (Exception e) {
+            // ignore
+        }
+        mysteriousDungeonClip = null;
+    }
+
+    /** Re-apply music volume from {@link GameSettings} (call after slider changes). */
     public static synchronized void refreshVolume() {
         if (mainMenuClip != null) {
             applyVolume(mainMenuClip);
         }
         if (journeyBeginsClip != null) {
             applyVolume(journeyBeginsClip);
+        }
+        if (mysteriousDungeonClip != null) {
+            applyVolume(mysteriousDungeonClip);
         }
     }
 
@@ -136,7 +189,7 @@ public final class GameMusic {
     }
 
     private static void applyVolume(Clip clip) {
-        int p = GameSettings.getVolumePercent();
+        int p = GameSettings.getMusicVolumePercent();
         try {
             BooleanControl mute = (BooleanControl) clip.getControl(BooleanControl.Type.MUTE);
             if (p <= 0) {
