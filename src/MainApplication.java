@@ -441,6 +441,11 @@ public class MainApplication extends GraphicsProgram{
 		}
 		if (dialogue != null && dialogue.isOpen()) {
 			if (e.getKeyCode() != KeyEvent.VK_ESCAPE) {
+				// Dialogue shares keys with gameplay (for example J), so block the
+				// gameplay one-shot action until the player releases this key.
+				if (inputHandler != null) {
+					inputHandler.suppressUntilRelease(e.getKeyCode());
+				}
 				dialogue.keyPressed(e);
 			}
 			return;

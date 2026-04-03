@@ -62,6 +62,17 @@ public class InputHandler implements KeyListener {
         onPressActions.remove(keyCode);
     }
 
+    /**
+     * Marks a key as already consumed so its one-shot action will not fire
+     * until the physical key is released and pressed again.
+     * Useful when UI layers share keys with gameplay actions.
+     *
+     * @param keyCode a KeyEvent.VK_* constant
+     */
+    public void suppressUntilRelease(int keyCode) {
+        heldKeys.add(keyCode);
+    }
+
     /** Clears all held keys. Call on focus loss or screen transition. */
     public void clearAll() {
         heldKeys.clear();
