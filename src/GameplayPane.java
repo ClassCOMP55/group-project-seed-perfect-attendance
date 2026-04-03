@@ -209,10 +209,8 @@ public class GameplayPane extends GraphicsPane {
         // --- draw the player on top of the room ---
         player.draw(canvas);
 
-        // --- controls hint (tech-demo only) ---
-        // TECH DEMO: added last so it renders above tiles and entities.
-        // RIG POINT: remove this call once HUDoverlay.showAll() is wired in.
-        addControlsHint(canvas);
+        // --- player HUD ---
+        showPlayerHUD(player);
 
         // --- wire attack / ability keys ---
         wireInputOnce();
@@ -238,9 +236,7 @@ public class GameplayPane extends GraphicsPane {
             player.removeSpriteFromCanvas(canvas);
         }
 
-        // --- remove controls hint (tech-demo only) ---
-        // RIG POINT: remove this call once HUDoverlay.showAll() is wired in.
-        removeControlsHint(canvas);
+        hidePlayerHUD();
 
         // --- remove debug overlay ---
         clearDebugOverlay(canvas);
@@ -290,13 +286,13 @@ public class GameplayPane extends GraphicsPane {
             player.draw(canvas);
             worldMap.update(dt, player); // keep enemies roaming while dead
             if (debugOverlayOn) drawDebugOverlay(canvas, player);
-            restackHintsOnTop(canvas);
             if (deathDelayTicks <= 0) {
                 deathDelayTicks = 0;
                 player.removeSpriteFromCanvas(canvas); // clean up death visual
                 player.resetDeathState();
                 player.draw(canvas); // draw fresh idle sprite at spawn
             }
+            updatePlayerHUD(player);
             return; // no player input while dying
         }
 
@@ -330,11 +326,7 @@ public class GameplayPane extends GraphicsPane {
             drawDebugOverlay(canvas, player);
         }
 
-        // --- keep hint labels on top of room tiles (tech-demo only) ---
-        // New room tiles added during a transition would bury the labels; re-stacking
-        // them here every tick ensures they remain visible regardless of draw order.
-        // RIG POINT: remove this call once HUDoverlay.showAll() is wired in.
-        restackHintsOnTop(canvas);
+        updatePlayerHUD(player);
     }
 
     /**

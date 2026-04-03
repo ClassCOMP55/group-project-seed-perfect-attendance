@@ -9,6 +9,7 @@ import acm.graphics.GImage;
 import acm.graphics.GLabel;
 import acm.graphics.GObject;
 import acm.graphics.GOval;
+import acm.graphics.GPolygon;
 import acm.graphics.GRect;
 import acm.graphics.GRoundRect;
 
@@ -261,144 +262,198 @@ public class GraphicsPane {
 	}
 
 	// =========================================================
-	// PLAYER HUD — top-left health bar, name, and icon
+	// PLAYER HUD — portrait + stat bars
 	// =========================================================
 
-	/** HUD background panel. */
-	private GRect hudPanel;
-	/** Circle avatar placeholder. */
-	private GOval hudIcon;
-	/** Player portrait sprite shown inside the HUD frame. */
+	private GPolygon hudFrameOuter;
+	private GPolygon hudFrameInner;
+	private GOval hudPortraitRing;
+	private GOval hudPortraitWell;
 	private GImage hudPortrait;
-	/** First-initial label centred in the avatar circle. */
-	private GLabel hudIconLabel;
-	/** Player name label. */
-	private GLabel hudNameLabel;
-	/** Three heart labels (index 0–2). Filled = red, empty = dark gray. */
-	private GLabel[] hudHearts;
+	private GLabel hudPortraitFallbackLabel;
+	private GRect[] hudBarTracks;
+	private GRect[] hudBarFills;
 
-	// Logical layout constants for the HUD
-	private static final double HUD_X      = 8;
-	private static final double HUD_Y      = 8;
-	private static final double HUD_W      = 165;
-	private static final double HUD_H      = 62;
-	private static final double HUD_ICON_X = 14;
-	private static final double HUD_ICON_Y = 12;
-	private static final double HUD_ICON_D = 44;   // diameter (circle)
-	private static final double HUD_TEXT_X = 66;
-	private static final double HUD_HEART_X     = 66;   // x of first heart
-	private static final double HUD_HEART_Y     = 50;   // y of hearts (below name label)
-	private static final double HUD_HEART_STEP  = 16;   // spacing between hearts
-	private static final int    HUD_HEART_SIZE  = 18;   // font size
+	private static final double HUD_X = 18;
+	private static final double HUD_Y = 18;
+	private static final double HUD_PORTRAIT_D = 58;
+	private static final double HUD_PORTRAIT_INSET = 5;
+	private static final double HUD_PANEL_OFFSET_X = 40;
+	private static final double HUD_PANEL_OFFSET_Y = 5;
+	private static final double HUD_PANEL_W = 246;
+	private static final double HUD_PANEL_H = 56;
+	private static final double HUD_PANEL_TIP = 18;
+	private static final double HUD_PANEL_LEFT_CUT = 16;
+	private static final double HUD_FRAME_INSET = 4;
+	private static final double HUD_BAR_X = 70;
+	private static final double HUD_BAR_Y = 14;
+	private static final double HUD_BAR_W = 182;
+	private static final double HUD_BAR_TOP_H = 10;
+	private static final double HUD_BAR_H = 7;
+	private static final double HUD_BAR_GAP = 6;
+	private static final double HUD_BAR_INSET = 1;
 
-	private static final Color HUD_BG_COLOR     = new Color(10, 8, 20, 200);
-	private static final Color HUD_BORDER_COLOR = new Color(255, 215, 120);
-	private static final Color HUD_ICON_COLOR   = new Color(90, 100, 130);
-	private static final Color HUD_NAME_COLOR   = new Color(220, 220, 235);
-	private static final Color HUD_HEART_FULL   = new Color(220, 50, 50);
-	private static final Color HUD_HEART_EMPTY  = new Color(60, 60, 80);
+	private static final Color HUD_FRAME_GOLD = new Color(177, 124, 55);
+	private static final Color HUD_FRAME_WOOD = new Color(116, 69, 28);
+	private static final Color HUD_FRAME_SHADOW = new Color(78, 43, 14);
+	private static final Color HUD_PORTRAIT_BG = new Color(184, 200, 225);
+	private static final Color HUD_PORTRAIT_FALLBACK = new Color(255, 245, 214);
+	private static final Color HUD_BAR_TRACK = new Color(84, 48, 20);
+	private static final Color HUD_BAR_BORDER = new Color(60, 33, 12);
+	private static final Color HUD_BAR_RED = new Color(214, 63, 47);
+	private static final Color HUD_BAR_BLUE = new Color(53, 132, 215);
+	private static final Color HUD_BAR_GREEN = new Color(93, 181, 82);
+	private static final Color HUD_BAR_DISABLED = new Color(87, 102, 70);
+
 	private static final String HUD_PORTRAIT_PATH =
 		"assets/visuals/characters/normalized/player-1-idle-front.gif";
-	private static final double HUD_PORTRAIT_ANCHOR_X = 0.507812;
-	private static final double HUD_PORTRAIT_ANCHOR_Y = 0.543981;
+	private static final double HUD_PORTRAIT_ANCHOR_X = 0.50;
+	private static final double HUD_PORTRAIT_ANCHOR_Y = 0.56;
 
 	/**
-	 * Draws the player HUD in the top-left corner.
-	 * Shows a circle avatar placeholder, the player's name, and a health bar.
-	 * Call at the end of {@link #showContent()} in gameplay panes.
+	 * Draws the top-left HUD styled after the provided mockup:
+	 * player portrait on the left, three state bars on the right.
 	 *
-	 * @param player the Player whose data to display
+	 * Bars map to:
+	 * 1. Health
+	 * 2. Attack readiness
+	 * 3. Relic ability state / recharge
 	 */
 	protected void showPlayerHUD(Player player) {
 		hidePlayerHUD();
 
-		// Background panel
-		hudPanel = new GRect(scaleX(HUD_X), scaleY(HUD_Y),
-			scaleX(HUD_X + HUD_W) - scaleX(HUD_X),
-			scaleY(HUD_Y + HUD_H) - scaleY(HUD_Y));
-		hudPanel.setFilled(true);
-		hudPanel.setFillColor(HUD_BG_COLOR);
-		hudPanel.setColor(HUD_BORDER_COLOR);
-		contents.add(hudPanel);
-		mainScreen.add(hudPanel);
+		double sx = mainScreen.getLayoutWidth() / MainApplication.WINDOW_WIDTH;
+		double sy = mainScreen.getLayoutHeight() / MainApplication.WINDOW_HEIGHT;
+		double scale = uniformScale();
 
-		// Portrait frame
-		hudIcon = new GOval(
-			scaleX(HUD_ICON_X), scaleY(HUD_ICON_Y),
-			scaleX(HUD_ICON_X + HUD_ICON_D) - scaleX(HUD_ICON_X),
-			scaleY(HUD_ICON_Y + HUD_ICON_D) - scaleY(HUD_ICON_Y));
-		hudIcon.setFilled(true);
-		hudIcon.setFillColor(HUD_ICON_COLOR);
-		hudIcon.setColor(HUD_BORDER_COLOR);
-		contents.add(hudIcon);
-		mainScreen.add(hudIcon);
+		double baseX = scaleX(HUD_X);
+		double baseY = scaleY(HUD_Y);
+		double portraitD = HUD_PORTRAIT_D * scale;
+		double portraitX = baseX;
+		double portraitY = baseY;
 
-		hudPortrait = createHudPortrait();
+		double panelX = baseX + HUD_PANEL_OFFSET_X * sx;
+		double panelY = baseY + HUD_PANEL_OFFSET_Y * sy;
+		double panelW = HUD_PANEL_W * sx;
+		double panelH = HUD_PANEL_H * sy;
+
+		hudFrameOuter = createHudFrame(
+			panelX, panelY, panelW, panelH,
+			HUD_PANEL_TIP * sx, HUD_PANEL_LEFT_CUT * sx,
+			HUD_FRAME_GOLD, HUD_FRAME_SHADOW);
+		place(hudFrameOuter);
+
+		hudFrameInner = createHudFrame(
+			panelX + HUD_FRAME_INSET * sx,
+			panelY + HUD_FRAME_INSET * sy,
+			panelW - HUD_FRAME_INSET * 2 * sx,
+			panelH - HUD_FRAME_INSET * 2 * sy,
+			Math.max(8 * sx, (HUD_PANEL_TIP - HUD_FRAME_INSET) * sx),
+			Math.max(8 * sx, (HUD_PANEL_LEFT_CUT - HUD_FRAME_INSET) * sx),
+			HUD_FRAME_WOOD, HUD_FRAME_SHADOW);
+		place(hudFrameInner);
+
+		hudPortraitRing = new GOval(portraitX, portraitY, portraitD, portraitD);
+		hudPortraitRing.setFilled(true);
+		hudPortraitRing.setFillColor(HUD_FRAME_GOLD);
+		hudPortraitRing.setColor(HUD_FRAME_SHADOW);
+		place(hudPortraitRing);
+
+		double portraitInset = HUD_PORTRAIT_INSET * scale;
+		hudPortraitWell = new GOval(
+			portraitX + portraitInset,
+			portraitY + portraitInset,
+			portraitD - portraitInset * 2,
+			portraitD - portraitInset * 2);
+		hudPortraitWell.setFilled(true);
+		hudPortraitWell.setFillColor(HUD_PORTRAIT_BG);
+		hudPortraitWell.setColor(HUD_FRAME_SHADOW);
+		place(hudPortraitWell);
+
+		hudPortrait = createHudPortrait(portraitX, portraitY, portraitD);
 		if (hudPortrait != null) {
-			contents.add(hudPortrait);
-			mainScreen.add(hudPortrait);
+			place(hudPortrait);
 		} else {
-			String initials = player.getName().isEmpty() ? "?" :
-				String.valueOf(player.getName().charAt(0)).toUpperCase();
-			hudIconLabel = pixelLabel(initials, 16, HUD_NAME_COLOR);
-			double iconCx = scaleX(HUD_ICON_X) + (scaleX(HUD_ICON_X + HUD_ICON_D) - scaleX(HUD_ICON_X)
-				- hudIconLabel.getWidth()) / 2.0;
-			double iconCy = scaleY(HUD_ICON_Y) + (scaleY(HUD_ICON_Y + HUD_ICON_D) - scaleY(HUD_ICON_Y)
-				+ hudIconLabel.getAscent()) / 2.0 - hudIconLabel.getDescent() / 2.0;
-			hudIconLabel.setLocation(iconCx, iconCy);
-			contents.add(hudIconLabel);
-			mainScreen.add(hudIconLabel);
+			String fallback = "?";
+			if (player != null && player.getName() != null && !player.getName().trim().isEmpty()) {
+				fallback = String.valueOf(player.getName().trim().charAt(0)).toUpperCase();
+			}
+			hudPortraitFallbackLabel = pixelLabel(fallback, 16, HUD_PORTRAIT_FALLBACK);
+			double labelX = portraitX + (portraitD - hudPortraitFallbackLabel.getWidth()) / 2.0;
+			double labelY = portraitY + (portraitD + hudPortraitFallbackLabel.getAscent()) / 2.0
+				- hudPortraitFallbackLabel.getDescent() / 2.0;
+			hudPortraitFallbackLabel.setLocation(labelX, labelY);
+			place(hudPortraitFallbackLabel);
 		}
 
-		// Player name label
-		String displayName = player.getName();
-		if (displayName.length() > 14) {
-			displayName = displayName.substring(0, 13) + ".";
-		}
-		hudNameLabel = pixelLabel(displayName, 11, HUD_NAME_COLOR);
-		hudNameLabel.setLocation(scaleX(HUD_TEXT_X), scaleY(HUD_ICON_Y + 16));
-		contents.add(hudNameLabel);
-		mainScreen.add(hudNameLabel);
+		double barX = baseX + HUD_BAR_X * sx;
+		double barY = baseY + HUD_BAR_Y * sy;
+		double barW = HUD_BAR_W * sx;
+		double topBarH = HUD_BAR_TOP_H * sy;
+		double barH = HUD_BAR_H * sy;
+		double barGap = HUD_BAR_GAP * sy;
+		double barInsetX = HUD_BAR_INSET * sx;
+		double barInsetY = HUD_BAR_INSET * sy;
 
-		// Hearts (3 total; filled = red, empty = dark)
-		int hp = player.getHP();
-		hudHearts = new GLabel[3];
+		hudBarTracks = new GRect[3];
+		hudBarFills = new GRect[3];
 		for (int i = 0; i < 3; i++) {
-			Color heartColor = i < hp ? HUD_HEART_FULL : HUD_HEART_EMPTY;
-			hudHearts[i] = pixelLabel("\u2665", HUD_HEART_SIZE, heartColor);
-			hudHearts[i].setLocation(scaleX(HUD_HEART_X + i * HUD_HEART_STEP), scaleY(HUD_HEART_Y));
-			contents.add(hudHearts[i]);
-			mainScreen.add(hudHearts[i]);
+			double currentY = barY;
+			if (i == 1) currentY += topBarH + barGap;
+			if (i == 2) currentY += topBarH + barGap + barH + barGap;
+			double currentH = (i == 0) ? topBarH : barH;
+
+			GRect track = new GRect(barX, currentY, barW, currentH);
+			track.setFilled(true);
+			track.setFillColor(HUD_BAR_TRACK);
+			track.setColor(HUD_BAR_BORDER);
+			hudBarTracks[i] = track;
+			place(track);
+
+			GRect fill = new GRect(
+				barX + barInsetX,
+				currentY + barInsetY,
+				Math.max(1.0, barW - barInsetX * 2),
+				Math.max(1.0, currentH - barInsetY * 2));
+			fill.setFilled(true);
+			hudBarFills[i] = fill;
+			place(fill);
 		}
 
-		// Send HUD to front so it isn't obscured
-		hudPanel.sendToFront();
-		hudIcon.sendToFront();
-		if (hudPortrait != null) {
-			hudPortrait.sendToFront();
-		}
-		if (hudIconLabel != null) {
-			hudIconLabel.sendToFront();
-		}
-		hudNameLabel.sendToFront();
-		for (GLabel heart : hudHearts) heart.sendToFront();
+		updatePlayerHUD(player);
+		bringPlayerHudToFront();
 	}
 
-	private GImage createHudPortrait() {
+	private GPolygon createHudFrame(
+		double x, double y, double width, double height, double tipWidth, double leftCutWidth,
+		Color fill, Color border) {
+		GPolygon frame = new GPolygon();
+		frame.addVertex(0, 0);
+		frame.addVertex(width - tipWidth, 0);
+		frame.addVertex(width, height / 2.0);
+		frame.addVertex(width - tipWidth, height);
+		frame.addVertex(0, height);
+		frame.addVertex(leftCutWidth, height / 2.0);
+		frame.setLocation(x, y);
+		frame.setFilled(true);
+		frame.setFillColor(fill);
+		frame.setColor(border);
+		return frame;
+	}
+
+	private GImage createHudPortrait(double portraitX, double portraitY, double portraitDiameter) {
 		GImage portrait = new GImage(HUD_PORTRAIT_PATH, 0, 0);
 		double baseWidth = portrait.getWidth() > 0 ? portrait.getWidth() : 32.0;
-		double baseHeight = portrait.getHeight() > 0 ? portrait.getHeight() : 36.0;
-		double iconWidth = scaleX(HUD_ICON_X + HUD_ICON_D) - scaleX(HUD_ICON_X);
-		double iconHeight = scaleY(HUD_ICON_Y + HUD_ICON_D) - scaleY(HUD_ICON_Y);
-		double maxWidth = Math.max(18.0, iconWidth - Math.max(6.0, iconWidth * 0.22));
-		double maxHeight = Math.max(18.0, iconHeight - Math.max(4.0, iconHeight * 0.10));
+		double baseHeight = portrait.getHeight() > 0 ? portrait.getHeight() : 32.0;
+		double maxWidth = portraitDiameter * 0.66;
+		double maxHeight = portraitDiameter * 0.72;
 		double scale = Math.min(maxWidth / baseWidth, maxHeight / baseHeight);
 		double targetWidth = baseWidth * scale;
 		double targetHeight = baseHeight * scale;
 		portrait.setSize(targetWidth, targetHeight);
 
-		double centerX = scaleX(HUD_ICON_X) + iconWidth / 2.0;
-		double centerY = scaleY(HUD_ICON_Y) + iconHeight / 2.0 + iconHeight * 0.04;
+		double centerX = portraitX + portraitDiameter / 2.0;
+		double centerY = portraitY + portraitDiameter / 2.0 + portraitDiameter * 0.03;
 		portrait.setLocation(
 			centerX - targetWidth * HUD_PORTRAIT_ANCHOR_X,
 			centerY - targetHeight * HUD_PORTRAIT_ANCHOR_Y);
@@ -406,51 +461,143 @@ public class GraphicsPane {
 	}
 
 	/**
-	 * Updates the health bar and HP label without fully re-rendering the HUD.
-	 * Call this after any health change in the scene.
-	 *
-	 * @param player the Player with current HP
+	 * Refreshes the three bars without recreating HUD objects.
 	 */
 	protected void updatePlayerHUD(Player player) {
-		if (hudHearts == null) return;
-		int hp = player.getHP();
-		for (int i = 0; i < 3; i++) {
-			hudHearts[i].setColor(i < hp ? HUD_HEART_FULL : HUD_HEART_EMPTY);
+		if (player == null || hudBarTracks == null || hudBarFills == null) {
+			return;
+		}
+
+		double healthFraction = safeFraction(player.getHealth(), player.getMaxHealth());
+		double attackFraction = 1.0;
+		if (player.getAttackCooldownMax() > 0) {
+			attackFraction = 1.0
+				- (double) player.getAttackCooldownTicks() / (double) player.getAttackCooldownMax();
+		}
+
+		double relicFraction = 0.0;
+		Color relicColor = HUD_BAR_DISABLED;
+		if (player.hasIntangible()) {
+			relicColor = HUD_BAR_GREEN;
+			if (player.isIntangibleActive() && player.getIntangibleActiveMax() > 0) {
+				relicFraction = (double) player.getIntangibleActiveTicks()
+					/ (double) player.getIntangibleActiveMax();
+			} else if (player.getIntangibleCooldownMax() > 0) {
+				relicFraction = 1.0
+					- (double) player.getIntangibleCooldownTicks()
+					/ (double) player.getIntangibleCooldownMax();
+			} else {
+				relicFraction = 1.0;
+			}
+		}
+
+		setHudBarFill(hudBarFills[0], hudBarTracks[0], healthFraction, HUD_BAR_RED);
+		setHudBarFill(hudBarFills[1], hudBarTracks[1], attackFraction, HUD_BAR_BLUE);
+		setHudBarFill(hudBarFills[2], hudBarTracks[2], relicFraction, relicColor);
+		bringPlayerHudToFront();
+	}
+
+	private double safeFraction(int current, int max) {
+		if (max <= 0) {
+			return 0.0;
+		}
+		double fraction = (double) current / (double) max;
+		return Math.max(0.0, Math.min(1.0, fraction));
+	}
+
+	private void setHudBarFill(GRect fill, GRect track, double fraction, Color color) {
+		if (fill == null || track == null) {
+			return;
+		}
+
+		double clamped = Math.max(0.0, Math.min(1.0, fraction));
+		double insetX = fill.getX() - track.getX();
+		double insetY = fill.getY() - track.getY();
+		double maxWidth = Math.max(0.0, track.getWidth() - insetX * 2);
+		double height = Math.max(1.0, track.getHeight() - insetY * 2);
+		double width = maxWidth * clamped;
+
+		fill.setFillColor(color);
+		fill.setColor(color.darker());
+		fill.setVisible(clamped > 0.0);
+		if (clamped > 0.0) {
+			fill.setSize(Math.max(1.0, width), height);
+		}
+	}
+
+	private void bringPlayerHudToFront() {
+		if (hudFrameOuter != null) hudFrameOuter.sendToFront();
+		if (hudFrameInner != null) hudFrameInner.sendToFront();
+		if (hudPortraitRing != null) hudPortraitRing.sendToFront();
+		if (hudPortraitWell != null) hudPortraitWell.sendToFront();
+		if (hudPortrait != null) hudPortrait.sendToFront();
+		if (hudPortraitFallbackLabel != null) hudPortraitFallbackLabel.sendToFront();
+		if (hudBarTracks != null) {
+			for (GRect track : hudBarTracks) {
+				if (track != null) track.sendToFront();
+			}
+		}
+		if (hudBarFills != null) {
+			for (GRect fill : hudBarFills) {
+				if (fill != null) fill.sendToFront();
+			}
 		}
 	}
 
 	/**
-	 * Removes all HUD elements from the canvas and tracking list.
+	 * Removes every HUD object from the canvas and tracking list.
 	 */
 	protected void hidePlayerHUD() {
-		GObject[] hudObjects = {hudPanel, hudIcon, hudPortrait, hudIconLabel, hudNameLabel};
+		GObject[] hudObjects = {
+			hudFrameOuter,
+			hudFrameInner,
+			hudPortraitRing,
+			hudPortraitWell,
+			hudPortrait,
+			hudPortraitFallbackLabel
+		};
 		for (GObject obj : hudObjects) {
 			if (obj != null) {
 				mainScreen.remove(obj);
 				contents.remove(obj);
 			}
 		}
-		if (hudHearts != null) {
-			for (GLabel heart : hudHearts) {
-				if (heart != null) {
-					mainScreen.remove(heart);
-					contents.remove(heart);
+		if (hudBarTracks != null) {
+			for (GRect track : hudBarTracks) {
+				if (track != null) {
+					mainScreen.remove(track);
+					contents.remove(track);
 				}
 			}
 		}
-		hudPanel = null;
-		hudIcon = null;
+		if (hudBarFills != null) {
+			for (GRect fill : hudBarFills) {
+				if (fill != null) {
+					mainScreen.remove(fill);
+					contents.remove(fill);
+				}
+			}
+		}
+
+		hudFrameOuter = null;
+		hudFrameInner = null;
+		hudPortraitRing = null;
+		hudPortraitWell = null;
 		hudPortrait = null;
-		hudIconLabel = null;
-		hudNameLabel = null;
-		hudHearts = null;
+		hudPortraitFallbackLabel = null;
+		hudBarTracks = null;
+		hudBarFills = null;
 	}
 
 	protected double playerHudBottomY() {
-		if (hudPanel != null) {
-			return hudPanel.getY() + hudPanel.getHeight();
+		double bottom = scaleY(HUD_Y + HUD_PORTRAIT_D);
+		if (hudFrameOuter != null) {
+			bottom = Math.max(bottom, hudFrameOuter.getY() + hudFrameOuter.getHeight());
 		}
-		return scaleY(HUD_Y + HUD_H);
+		if (hudPortraitRing != null) {
+			bottom = Math.max(bottom, hudPortraitRing.getY() + hudPortraitRing.getHeight());
+		}
+		return bottom;
 	}
 
 	/**
