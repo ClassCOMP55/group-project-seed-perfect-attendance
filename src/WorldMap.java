@@ -290,6 +290,13 @@ public class WorldMap {
     private static final int STARTER_GRASS_PATCH_ROWS = 2;
     private static final float STARTER_GRASS_PATCH_COIN_DROP_CHANCE = 0.5f;
 
+    /** Starter pit in A1 so live hole-fall death/respawn can be tested without leaving spawn island. */
+    private static final int STARTER_HOLE_START_COL = 4;
+    private static final int STARTER_HOLE_START_ROW = 3;
+    private static final int STARTER_HOLE_WIDTH_TILES = 2;
+    private static final int STARTER_HOLE_HEIGHT_TILES = 2;
+    private static final double STARTER_HOLE_LABEL_Y_OFFSET = 18.0;
+
     /** Starter sign + NPC positions in A1 so room dialogue can be tested immediately from spawn. */
     private static final double START_SIGN_X = TileMap.MAP_OFFSET_X + 15 * 48;
     private static final double START_SIGN_Y = 7 * 48;
@@ -399,6 +406,7 @@ public class WorldMap {
 
         installStarterSavePoint();
         installStarterGrassPatch();
+        installStarterHolePit();
         installSpawnIslandDialogueTestObjects();
 
         // --- wire exit callbacks: each room calls triggerTransition() when the player exits ---
@@ -472,6 +480,32 @@ public class WorldMap {
                 ));
             }
         }
+    }
+
+    /** Carves a small live hole pit into A1 so hole death/respawn can be tested from the opening room. */
+    private void installStarterHolePit() {
+        Room startRoom = overworldGrid[0][0];
+        if (startRoom == null || startRoom.getTileMap() == null) {
+            return;
+        }
+
+        TileMap tileMap = startRoom.getTileMap();
+        int tileSize = tileMap.getTileSize();
+        for (int row = 0; row < STARTER_HOLE_HEIGHT_TILES; row++) {
+            for (int col = 0; col < STARTER_HOLE_WIDTH_TILES; col++) {
+                tileMap.setTileType(
+                    STARTER_HOLE_START_COL + col,
+                    STARTER_HOLE_START_ROW + row,
+                    Tile.TileType.HOLE,
+                    "assets/tile_hole.png"
+                );
+            }
+        }
+
+        double holeCenterX = TileMap.MAP_OFFSET_X
+            + (STARTER_HOLE_START_COL + STARTER_HOLE_WIDTH_TILES / 2.0) * tileSize;
+        double holeTopY = STARTER_HOLE_START_ROW * tileSize;
+        startRoom.addObject(new WorldLabel(holeCenterX, holeTopY - STARTER_HOLE_LABEL_Y_OFFSET, "Hole"));
     }
 
     /** Seeds a simple sign + NPC into A1 so room dialogue can be exercised from spawn. */

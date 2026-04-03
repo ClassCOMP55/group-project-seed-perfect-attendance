@@ -14,7 +14,7 @@ import java.util.Map;
  * health, and sprite rendering. Adds:
  *   - InputHandler-driven movement (WASD/arrows) with wall sliding
  *   - Sword attack (spawns SwordSwing)
- *   - Hole-fall respawn
+ *   - Hole-fall death + respawn
  *   - Relic flags: hasHalfDamage, hasReflect, hasIntangible (Task 26)
  *   - MarkOfHero flag (Task 24)
  *
@@ -259,12 +259,12 @@ public class Player extends Entity {
         this.respawnY = ry;
     }
 
-    /** Warps the player back to the respawn point (hole fall, death, etc.). */
+    /** Converts a hole fall into a real death so GameplayPane can play the normal respawn flow. */
     private void fallInHole() {
-        x = respawnX;
-        y = respawnY;
-        hitbox.updatePosition(x - 24, y - 24);
-        syncVisualPosition();
+        health = 0;
+        iframesTicks = 0;
+        isIntangibleActive = false;
+        intangibleActiveTicks = 0;
     }
 
     // ==========================================================
@@ -315,8 +315,9 @@ public class Player extends Entity {
         }
         applyDirectionalVisual(moving);
 
-        if (isOverHole()) {
+        if (isFullyOverHole()) {
             fallInHole();
+            return;
         }
 
         if (activeSwing != null) {
@@ -679,6 +680,7 @@ public class Player extends Entity {
     @Override
     public void draw(GCanvas canvas) {
         if (isDying) {
+            removeIntangibleAuraFromCanvas(canvas);
             // Bypass Entity.draw() entirely — ACM's setSize() corrupts animated GIFs.
             if (deathVisualOnCanvas == null) return;
 
@@ -872,6 +874,8 @@ public class Player extends Entity {
     public void triggerDeathAnimation() {
         if (isDying) return;
         isDying = true;
+        isIntangibleActive = false;
+        intangibleActiveTicks = 0;
         attackVisual = null;
         attackAnimTicksLeft = 0;
         deathAnimTicksLeft = DEATH_ANIM_TICKS;

@@ -41,9 +41,9 @@ public class Tile {
     }
 
 
-    /** FLOOR and BRIDGE are both walkable. WALL and HOLE block movement. */
+    /** FLOOR, BRIDGE, and HOLE are enterable. WALL is the only blocking tile. */
     public boolean isPassable() {
-        return type == TileType.FLOOR || type == TileType.BRIDGE;
+        return type != TileType.WALL;
     }
 
 

@@ -377,6 +377,27 @@ public abstract class Entity {
         return tileMap != null && tileMap.isHole(x, y);
     }
 
+    /**
+     * Returns true only when the entity's full hitbox is committed to hole tiles.
+     * Uses a 1px inset on each edge so exact tile-boundary alignment still counts.
+     */
+    protected boolean isFullyOverHole() {
+        if (tileMap == null || hitbox == null) {
+            return false;
+        }
+
+        double left = hitbox.x + 1.0;
+        double right = hitbox.x + hitbox.width - 1.0;
+        double top = hitbox.y + 1.0;
+        double bottom = hitbox.y + hitbox.height - 1.0;
+
+        return tileMap.isHole(left, top)
+            && tileMap.isHole(right, top)
+            && tileMap.isHole(left, bottom)
+            && tileMap.isHole(right, bottom)
+            && tileMap.isHole(x, y);
+    }
+
     // ==========================================================
     // HEALTH
     // ==========================================================
