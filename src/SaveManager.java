@@ -174,6 +174,7 @@ public final class SaveManager {
 		json.append("  \"hasReflect\": ").append(data.isHasReflect()).append(",\n");
 		json.append("  \"hasIntangible\": ").append(data.isHasIntangible()).append(",\n");
 		json.append("  \"hasMarkOfHero\": ").append(data.isHasMarkOfHero()).append(",\n");
+		json.append("  \"lastSavedAtMillis\": ").append(data.getLastSavedAtMillis()).append(",\n");
 
 		json.append("  \"collectedItems\": [");
 		List<String> items = data.getCollectedItemIds();
@@ -234,6 +235,7 @@ public final class SaveManager {
 		boolean reflect     = readBoolField(raw, "hasReflect", false);
 		boolean intangible  = readBoolField(raw, "hasIntangible", false);
 		boolean mark        = readBoolField(raw, "hasMarkOfHero", false);
+		long lastSavedAtMillis = Math.max(0L, readLongField(raw, "lastSavedAtMillis", 0L));
 		List<String> items  = readStringArrayField(raw, "collectedItems");
 		List<String> flags  = readStringArrayField(raw, "storyFlags");
 
@@ -241,7 +243,7 @@ public final class SaveManager {
 			+ " version=" + version + " room=" + roomId + " hp=" + hp);
 
 		return new SaveData(savedSlot, hp, maxHp, coins, healingBread, roomId, spawnX, spawnY,
-		                    halfDmg, reflect, intangible, mark, items, flags);
+		                    halfDmg, reflect, intangible, mark, items, flags, lastSavedAtMillis);
 	}
 
 	private static String readSaveText(Path path) throws IOException {
@@ -287,6 +289,24 @@ public final class SaveManager {
 		while (end < json.length() && Character.isDigit(json.charAt(end))) end++;
 		try {
 			return Integer.parseInt(json.substring(j, end).trim());
+		} catch (NumberFormatException e) {
+			return def;
+		}
+	}
+
+	private static long readLongField(String json, String key, long def) {
+		String k = "\"" + key + "\"";
+		int i = json.indexOf(k);
+		if (i < 0) return def;
+		int colon = json.indexOf(':', i);
+		if (colon < 0) return def;
+		int j = colon + 1;
+		while (j < json.length() && Character.isWhitespace(json.charAt(j))) j++;
+		int end = j;
+		if (end < json.length() && json.charAt(end) == '-') end++;
+		while (end < json.length() && Character.isDigit(json.charAt(end))) end++;
+		try {
+			return Long.parseLong(json.substring(j, end).trim());
 		} catch (NumberFormatException e) {
 			return def;
 		}

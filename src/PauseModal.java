@@ -1,5 +1,8 @@
 import java.awt.Color;
 import java.awt.event.KeyEvent;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -174,6 +177,8 @@ public class PauseModal extends GraphicsPane
   private static final double PAUSE_HUD_COINS_ICON = 10;
   private static final double PAUSE_HUD_COINS_ICON_LABEL_GAP = 4;
   private static final int PAUSE_HUD_COINS_DISPLAY_MAX = 999;
+  private static final DateTimeFormatter LAST_SAVED_FORMATTER =
+      DateTimeFormatter.ofPattern("MM/dd/yyyy HH:mm").withZone(ZoneId.systemDefault());
   /** Until Player / wallet is wired into {@link #showPause()}. */
   private static final int PAUSE_STUB_COINS = 125;
 
@@ -404,7 +409,7 @@ public class PauseModal extends GraphicsPane
         Math.max(0, Math.min(PAUSE_HUD_COINS_DISPLAY_MAX, getPauseCoins()));
     pauseCoinsLabel.setLabel(String.valueOf(displayCoins));
 
-    inventoryLastSavedLabel = new GLabel("Last Saved: --:--", 0, 0);
+    inventoryLastSavedLabel = new GLabel(getInventoryLastSavedText(), 0, 0);
     inventoryLastSavedLabel.setFont("SansSerif-BOLD-12");
     inventoryLastSavedLabel.setColor(Color.BLACK);
 
@@ -1592,6 +1597,16 @@ public class PauseModal extends GraphicsPane
       return 0;
     }
     return Math.max(0, Math.min(PAUSE_HUD_HEART_SEGMENT_COUNT, player.getHP()));
+  }
+
+  private String getInventoryLastSavedText()
+  {
+    long lastSavedAt = mainScreen == null ? 0L : mainScreen.getLastSavedAtMillis();
+    if (lastSavedAt <= 0L)
+    {
+      return "Last Saved: Never";
+    }
+    return "Last Saved: " + LAST_SAVED_FORMATTER.format(Instant.ofEpochMilli(lastSavedAt));
   }
 
   private String[] buildInventoryListLines(List<Item> inventoryItems)

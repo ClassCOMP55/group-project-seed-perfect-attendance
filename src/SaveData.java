@@ -89,6 +89,9 @@ public class SaveData {
 	/** Story / NPC progression flags. */
 	private final List<String> storyFlags;
 
+	/** Epoch milliseconds when this save snapshot was written. */
+	private final long lastSavedAtMillis;
+
 	// =========================================================
 	// ALL-FIELDS CONSTRUCTOR  (used by SaveManager on parse)
 	// =========================================================
@@ -97,7 +100,8 @@ public class SaveData {
 	                String roomId, double spawnX, double spawnY,
 	                boolean hasHalfDamage, boolean hasReflect,
 	                boolean hasIntangible, boolean hasMarkOfHero,
-	                List<String> collectedItemIds, List<String> storyFlags) {
+	                List<String> collectedItemIds, List<String> storyFlags,
+	                long lastSavedAtMillis) {
 		this.slot          = slot;
 		this.hp            = hp;
 		this.maxHp         = maxHp;
@@ -114,6 +118,7 @@ public class SaveData {
 			? new ArrayList<>(collectedItemIds) : new ArrayList<>();
 		this.storyFlags       = storyFlags != null
 			? new ArrayList<>(storyFlags) : new ArrayList<>();
+		this.lastSavedAtMillis = Math.max(0L, lastSavedAtMillis);
 	}
 
 	// =========================================================
@@ -156,7 +161,8 @@ public class SaveData {
 			player.hasIntangible(),
 			player.hasMarkOfHero(),
 			collectedItems,
-			flags
+			flags,
+			System.currentTimeMillis()
 		);
 	}
 
@@ -176,6 +182,7 @@ public class SaveData {
 	public boolean isHasReflect()      { return hasReflect; }
 	public boolean isHasIntangible()   { return hasIntangible; }
 	public boolean isHasMarkOfHero()   { return hasMarkOfHero; }
+	public long    getLastSavedAtMillis() { return lastSavedAtMillis; }
 
 	/** Returns an unmodifiable view of collected item IDs. */
 	public List<String> getCollectedItemIds() {

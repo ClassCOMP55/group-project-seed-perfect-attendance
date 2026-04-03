@@ -29,6 +29,8 @@ public class MainApplication extends GraphicsProgram{
 	private Player player;
 	/** Save slot currently bound to this gameplay session. */
 	private int activeSaveSlot = 1;
+	/** Epoch milliseconds of the most recent successful save in this session. */
+	private long lastSavedAtMillis = 0L;
 
 	// Full-screen panes
 	private TitleCardPane titleCardPane;
@@ -194,6 +196,7 @@ public class MainApplication extends GraphicsProgram{
 		}
 		setActiveSaveSlot(slot);
 		setPlayer(sessionPlayer);
+		lastSavedAtMillis = 0L;
 		worldMapGameplayPane.prepareNewSession();
 		switchToScreen(worldMapGameplayPane);
 	}
@@ -205,6 +208,7 @@ public class MainApplication extends GraphicsProgram{
 		}
 		setActiveSaveSlot(slot);
 		setPlayer(sessionPlayer);
+		lastSavedAtMillis = Math.max(0L, loadedData.getLastSavedAtMillis());
 		worldMapGameplayPane.prepareLoadedSession(loadedData);
 		switchToScreen(worldMapGameplayPane);
 	}
@@ -238,6 +242,7 @@ public class MainApplication extends GraphicsProgram{
 
 		try {
 			SaveManager.writeSave(slot, data);
+			lastSavedAtMillis = Math.max(0L, data.getLastSavedAtMillis());
 			return true;
 		} catch (IOException e) {
 			System.err.println("[MainApplication] Save failed for slot " + slot + ": " + e.getMessage());
@@ -316,6 +321,11 @@ public class MainApplication extends GraphicsProgram{
 	/** Returns the active Player instance. */
 	public Player getPlayer() {
 		return player;
+	}
+
+	/** Most recent successful save time in epoch milliseconds, or 0 if never saved this session. */
+	public long getLastSavedAtMillis() {
+		return lastSavedAtMillis;
 	}
 
 	/** Sets the active Player (called when a new game starts or a save is loaded). */
