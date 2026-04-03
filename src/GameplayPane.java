@@ -369,11 +369,8 @@ public class GameplayPane extends GraphicsPane {
                 dt
             );
 
-            // --- player death check (before draw so the death sprite renders immediately) ---
-            if (!player.isAlive()) {
-                player.triggerDeathAnimation();
-                deathDelayTicks = DEATH_DELAY;
-            }
+            // Catch lethal projectile or hazard damage that happened during player.update().
+            startDeathSequenceIfNeeded(player, canvas);
 
             // Sync animation frame and sprite position after movement
             player.draw(canvas);
@@ -382,6 +379,9 @@ public class GameplayPane extends GraphicsPane {
         // --- world update (always runs; WorldMap handles state internally) ---
         worldMap.update(dt, player);
 
+        // Enemy contact damage lands inside Room.update(), so re-check after the room tick too.
+        startDeathSequenceIfNeeded(player, canvas);
+
         // --- debug overlay (F6) ---
         if (debugOverlayOn && GamePlayState.PLAYING.is()) {
             drawDebugOverlay(canvas, player);
@@ -389,6 +389,15 @@ public class GameplayPane extends GraphicsPane {
 
         updatePlayerHUD(player);
         updateCoinGainFeedback(player);
+    }
+
+    private void startDeathSequenceIfNeeded(Player player, GCanvas canvas) {
+        if (player == null || player.isAlive() || player.isDying() || deathDelayTicks > 0) {
+            return;
+        }
+        player.triggerDeathAnimation();
+        deathDelayTicks = DEATH_DELAY;
+        player.draw(canvas);
     }
 
     /**

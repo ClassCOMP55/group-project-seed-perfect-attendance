@@ -205,6 +205,20 @@ public class TileMap {
     }
 
     /**
+     * Returns true if the pixel position lands inside this room's tile grid.
+     *
+     * Use this when callers need to distinguish "inside the room but blocked"
+     * from "outside the room entirely". Enemy movement uses this so only the
+     * player can treat out-of-bounds space as an exit zone.
+     */
+    public boolean containsPixel(double px, double py) {
+        return px >= MAP_OFFSET_X
+            && px < MAP_OFFSET_X + getWidthPixels()
+            && py >= 0
+            && py < getHeightPixels();
+    }
+
+    /**
      * Returns true if the given pixel position is walkable.
      *
      * Out-of-bounds positions (no tile at that coordinate) return {@code true} so

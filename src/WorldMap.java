@@ -510,6 +510,10 @@ public class WorldMap {
             // --- normal gameplay: update active room content ---
             activeRoom.update(dt, player);
 
+            if (!player.isAlive()) {
+                return;
+            }
+
             // --- dungeon entrance check (C3 only) ---
             // TECH DEMO: checks if player overlaps the red GRect marker in C3.
             // RIG POINT: replace this check with WorldObject.onContact() once the real door is in C3.

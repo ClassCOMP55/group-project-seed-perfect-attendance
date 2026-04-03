@@ -229,6 +229,46 @@ public abstract class Entity {
     // ==========================================================
 
     /**
+     * Returns whether this entity is allowed to move its collision probes
+     * outside the tile grid. Players need this so they can step into exit
+     * zones; enemies and projectiles should stay inside the room.
+     */
+    protected boolean allowsOutOfBoundsMovement() {
+        return false;
+    }
+
+    /**
+     * Shared collision probe used by move() and enemy patrol generation.
+     * Treats out-of-bounds as blocked unless this entity explicitly opts in.
+     */
+    protected boolean isPassableForMovement(double px, double py) {
+        if (tileMap == null) {
+            return true;
+        }
+        if (!allowsOutOfBoundsMovement() && !tileMap.containsPixel(px, py)) {
+            return false;
+        }
+        return tileMap.isPassable(px, py);
+    }
+
+    /**
+     * Keeps bounded entities fully inside the room even after raw nudges.
+     */
+    private void clampToTileBoundsIfNeeded() {
+        if (tileMap == null || allowsOutOfBoundsMovement()) {
+            return;
+        }
+
+        double minX = TileMap.MAP_OFFSET_X + HITBOX_HALF;
+        double maxX = TileMap.MAP_OFFSET_X + tileMap.getWidthPixels() - HITBOX_HALF;
+        double minY = HITBOX_HALF;
+        double maxY = tileMap.getHeightPixels() - HITBOX_HALF;
+
+        x = Math.max(minX, Math.min(maxX, x));
+        y = Math.max(minY, Math.min(maxY, y));
+    }
+
+    /**
      * Moves the entity by (dx, dy) pixels with tile collision.
      *
      * dx and dy are already-scaled pixel deltas for this frame
@@ -273,13 +313,13 @@ public abstract class Entity {
         if (dx > 0) {
             // Moving right: probe the right edge (newX + 24) at top and bottom,
             // inset 1px from the hitbox corners to avoid tile-grid false positives.
-            xClear = tileMap.isPassable(newX + HITBOX_HALF, y - HITBOX_HALF + 1)
-                  && tileMap.isPassable(newX + HITBOX_HALF, y + HITBOX_HALF - 1);
+            xClear = isPassableForMovement(newX + HITBOX_HALF, y - HITBOX_HALF + 1)
+                  && isPassableForMovement(newX + HITBOX_HALF, y + HITBOX_HALF - 1);
 
         } else if (dx < 0) {
             // Moving left: probe the left edge (newX - 24)
-            xClear = tileMap.isPassable(newX - HITBOX_HALF, y - HITBOX_HALF + 1)
-                  && tileMap.isPassable(newX - HITBOX_HALF, y + HITBOX_HALF - 1);
+            xClear = isPassableForMovement(newX - HITBOX_HALF, y - HITBOX_HALF + 1)
+                  && isPassableForMovement(newX - HITBOX_HALF, y + HITBOX_HALF - 1);
 
         } else {
             xClear = true; // no horizontal movement — nothing to check
@@ -295,13 +335,13 @@ public abstract class Entity {
 
         if (dy > 0) {
             // Moving down: probe the bottom edge (newY + 24)
-            yClear = tileMap.isPassable(x - HITBOX_HALF + 1, newY + HITBOX_HALF)
-                  && tileMap.isPassable(x + HITBOX_HALF - 1, newY + HITBOX_HALF);
+            yClear = isPassableForMovement(x - HITBOX_HALF + 1, newY + HITBOX_HALF)
+                  && isPassableForMovement(x + HITBOX_HALF - 1, newY + HITBOX_HALF);
 
         } else if (dy < 0) {
             // Moving up: probe the top edge (newY - 24)
-            yClear = tileMap.isPassable(x - HITBOX_HALF + 1, newY - HITBOX_HALF)
-                  && tileMap.isPassable(x + HITBOX_HALF - 1, newY - HITBOX_HALF);
+            yClear = isPassableForMovement(x - HITBOX_HALF + 1, newY - HITBOX_HALF)
+                  && isPassableForMovement(x + HITBOX_HALF - 1, newY - HITBOX_HALF);
 
         } else {
             yClear = true; // no vertical movement — nothing to check
@@ -310,6 +350,8 @@ public abstract class Entity {
         if (yClear) {
             y = newY;
         }
+
+        clampToTileBoundsIfNeeded();
 
         // Sync hitbox top-left corner to new center
         hitbox.updatePosition(x - HITBOX_HALF, y - HITBOX_HALF);
@@ -399,6 +441,7 @@ public abstract class Entity {
     public void nudge(double dx, double dy) {
         x += dx;
         y += dy;
+        clampToTileBoundsIfNeeded();
         hitbox.updatePosition(x - HITBOX_HALF, y - HITBOX_HALF);
         syncVisualPosition();
     }

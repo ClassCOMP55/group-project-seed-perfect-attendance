@@ -234,6 +234,11 @@ public class Player extends Entity {
         this.tileMap = tileMap;
     }
 
+    @Override
+    protected boolean allowsOutOfBoundsMovement() {
+        return true;
+    }
+
     // ==========================================================
     // RESPAWN
     // ==========================================================

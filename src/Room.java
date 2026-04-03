@@ -471,6 +471,10 @@ public class Room {
             }
         }
 
+        if (!player.isAlive()) {
+            return;
+        }
+
         // --- exit detection ---
         // Uses if / else if to guarantee only ONE exit fires per tick, even if the player
         // is at a corner moving diagonally. The second direction is naturally caught on the

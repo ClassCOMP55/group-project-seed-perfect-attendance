@@ -226,8 +226,9 @@ public class Enemy extends Entity {
             double wx = spawnX + Math.cos(angle) * dist;
             double wy = spawnY + Math.sin(angle) * dist;
 
-            // Only use waypoints that land on passable tiles
-            if (tileMap != null && !tileMap.isPassable(wx, wy)) continue;
+            // Keep patrol waypoints inside the room; only the player gets to use
+            // out-of-bounds space as an exit zone.
+            if (!isPassableForMovement(wx, wy)) continue;
 
             patrolPath.add(new double[]{ wx, wy });
         }
