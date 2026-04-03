@@ -404,6 +404,10 @@ public class WorldMap {
 
         populateOverworldEnemyRooms();
         populateD1();
+        dungeonRooms[0].setRoomLock(
+            new RoomLock(() -> openExit("D1", Direction.RIGHT)),
+            Direction.RIGHT
+        );
 
         installStarterSavePoint();
         installStarterGrassPatch();
@@ -611,10 +615,8 @@ public class WorldMap {
         // No exit flag is set here; enterDungeon() handles the switch directly.
 
         // --- D1 ↔ D2 ---
-        // TECH DEMO: forced open so all dungeon rooms are walkable without enemies.
-        // RIG POINT: Restore to false and let RoomLock.onUnlock() call
-        //            openExit("D1", Direction.RIGHT) once combat is implemented.
-        dungeonRooms[0].setExit(Direction.RIGHT, true); // TECH DEMO: open — normally locked by RoomLock
+        // Dungeon progression stays locked until D1's RoomLock sees the encounter cleared.
+        dungeonRooms[0].setExit(Direction.RIGHT, false);
         dungeonRooms[1].setExit(Direction.LEFT,  true);
 
         // --- D2 ↔ D3 ---

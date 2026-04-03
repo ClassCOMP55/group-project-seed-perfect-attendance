@@ -1227,11 +1227,9 @@ public class PauseModal extends GraphicsPane
     centerLabelInRect(yesLab, confirmYesHit);
     addConfirmObject(yesLab);
 
-    // TECH DEMO: default to "Yes" so pressing Enter/Space to open the dialog and then
-    // Enter/Space again immediately confirms. A/D still let the player switch focus.
-    // RIG POINT: consider defaulting to 0 (Cancel) in the shipped game for safety,
-    //            so an accidental Enter can't trigger a destructive action.
-    pauseConfirmFocus = 1;
+    // Default to "Cancel" so an accidental Enter/Space cannot immediately trigger
+    // a destructive action like quitting or dropping back to the main menu.
+    pauseConfirmFocus = 0;
     refreshConfirmFocusVisuals();
     restackOnTop();
   }

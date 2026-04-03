@@ -156,6 +156,8 @@ public class Room {
      * Only Dungeon Room 1 has one — prevents the north exit until all enemies are dead.
      */
     private RoomLock roomLock;
+    /** Exit direction temporarily blocked while {@link #roomLock} remains locked. */
+    private Direction roomLockDirection;
 
     /**
      * Puzzle-area gates in this room (used in A2, A3, B3).
@@ -584,28 +586,28 @@ public class Room {
 
         if (px < EXIT_LEFT_EDGE) {
             // --- left (west) edge ---
-            if (exits.getOrDefault(Direction.LEFT, false)) {
+            if (getExitAt(Direction.LEFT)) {
                 if (exitCallback != null) exitCallback.accept(Direction.LEFT);
             } else {
                 player.setPosition(EXIT_LEFT_EDGE + 1, py); // clamp back inside
             }
         } else if (px > EXIT_RIGHT_EDGE) {
             // --- right (east) edge ---
-            if (exits.getOrDefault(Direction.RIGHT, false)) {
+            if (getExitAt(Direction.RIGHT)) {
                 if (exitCallback != null) exitCallback.accept(Direction.RIGHT);
             } else {
                 player.setPosition(EXIT_RIGHT_EDGE - 1, py);
             }
         } else if (py < EXIT_TOP_EDGE) {
             // --- top (north) edge ---
-            if (exits.getOrDefault(Direction.UP, false)) {
+            if (getExitAt(Direction.UP)) {
                 if (exitCallback != null) exitCallback.accept(Direction.UP);
             } else {
                 player.setPosition(px, EXIT_TOP_EDGE + 1);
             }
         } else if (py > EXIT_BOTTOM_EDGE) {
             // --- bottom (south) edge ---
-            if (exits.getOrDefault(Direction.DOWN, false)) {
+            if (getExitAt(Direction.DOWN)) {
                 if (exitCallback != null) exitCallback.accept(Direction.DOWN);
             } else {
                 player.setPosition(px, EXIT_BOTTOM_EDGE - 1);
@@ -757,7 +759,15 @@ public class Room {
 
     /** Attaches a RoomLock to this room. Call from WorldMap during dungeon setup. */
     public void setRoomLock(RoomLock lock) {
+        setRoomLock(lock, null);
+    }
+
+    /**
+     * Attaches a RoomLock and marks which exit direction it should temporarily block while locked.
+     */
+    public void setRoomLock(RoomLock lock, Direction blockedDirection) {
         this.roomLock = lock;
+        this.roomLockDirection = blockedDirection;
     }
 
     /**
@@ -790,6 +800,9 @@ public class Room {
 
     /** Returns true if the exit in the given direction is open. */
     public boolean getExitAt(Direction d) {
+        if (roomLock != null && roomLock.isLocked() && d == roomLockDirection) {
+            return false;
+        }
         return exits.getOrDefault(d, false);
     }
 

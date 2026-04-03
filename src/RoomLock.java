@@ -83,8 +83,18 @@ public class RoomLock {
     public void update(List<Entity> entities) {
         if (!locked) return; // already unlocked — nothing to check
 
-        // TODO: count how many entities in the list are still alive (entity.isAlive())
-        // TODO: if count == 0: locked = false; if onUnlockCallback != null → onUnlockCallback.run()
+        if (entities != null) {
+            for (Entity entity : entities) {
+                if (entity != null && entity.isAlive()) {
+                    return;
+                }
+            }
+        }
+
+        locked = false;
+        if (onUnlockCallback != null) {
+            onUnlockCallback.run();
+        }
     }
 
     // =========================================================

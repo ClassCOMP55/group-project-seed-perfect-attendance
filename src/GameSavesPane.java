@@ -11,11 +11,9 @@ import acm.graphics.GRoundRect;
  */
 public class GameSavesPane extends NightScenePane {
 
-    /**
-     * Temporary starter supply so Healing Bread can be tested before merchants/chests are wired.
-     * Loaded saves override this with the persisted inventory count.
-     */
-    private static final int NEW_GAME_STARTING_HEALING_BREAD = 3;
+    /** Fresh saves start with the release-default Healing Bread count. */
+    private static final int NEW_GAME_STARTING_HEALING_BREAD =
+        MainApplication.NEW_GAME_STARTING_HEALING_BREAD;
     private static final int MAX_LOADED_HEARTS = 99;
     private static final int MAX_LOADED_COINS = 999_999;
     private static final int MAX_LOADED_HEALING_BREAD = 99;

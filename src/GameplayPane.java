@@ -136,14 +136,17 @@ public class GameplayPane extends GraphicsPane {
     private acm.graphics.GRoundRect controlsCardCloseFrame;
     private acm.graphics.GLabel controlsCardCloseLabel;
 
-    private static final String[][] CONTROLS_CARD_ROWS = {
+    private static final String[][] BASE_CONTROLS_CARD_ROWS = {
         { "MOVE", "WASD" },
         { "ATTACK", "J" },
         { "ABILITY", "K" },
         { "SAVE / USE", "E" },
-        { "PAUSE", "ESC" },
-        { "DUNGEON", "F5" },
+        { "PAUSE", "ESC" }
+    };
+
+    private static final String[][] DEBUG_CONTROLS_CARD_ROWS = {
         { "DEBUG", "F6" },
+        { "DUNGEON", "F5" },
         { "SPAWN", "F7" }
     };
 
@@ -617,38 +620,40 @@ public class GameplayPane extends GraphicsPane {
             }
         });
 
-        // Debug: toggle combat overlay
-        input.onPress(KeyEvent.VK_F6, () -> {
-            debugOverlayOn = !debugOverlayOn;
-            if (!debugOverlayOn) clearDebugOverlay(mainScreen.getGCanvas());
-        });
+        if (MainApplication.DEBUG_SHORTCUTS_ENABLED) {
+            // Debug: toggle combat overlay
+            input.onPress(KeyEvent.VK_F6, () -> {
+                debugOverlayOn = !debugOverlayOn;
+                if (!debugOverlayOn) clearDebugOverlay(mainScreen.getGCanvas());
+            });
 
-        // Debug: teleport to dungeon D1
-        input.onPress(KeyEvent.VK_F5, () -> {
-            if (!mainScreen.isPauseModalOpen() && GamePlayState.PLAYING.is()) {
-                Player p = mainScreen.getPlayer();
-                if (p != null) worldMap.enterDungeon(p);
-            }
-        });
-
-        // Debug: return to the opening spawn in A1.
-        input.onPress(KeyEvent.VK_F7, () -> {
-            if (!mainScreen.isPauseModalOpen() && GamePlayState.PLAYING.is()) {
-                Player p = mainScreen.getPlayer();
-                if (p != null) teleportPlayerToOpeningSpawn(p);
-            }
-        });
-
-        // Debug: quick-save the current room + exact player position.
-        input.onPress(KeyEvent.VK_F8, () -> {
-            if (!mainScreen.isPauseModalOpen() && GamePlayState.PLAYING.is()) {
-                Player p = mainScreen.getPlayer();
-                Room activeRoom = worldMap.getActiveRoom();
-                if (p != null && activeRoom != null) {
-                    saveCurrentSession(activeRoom.getRoomId(), p.getX(), p.getY());
+            // Debug: teleport to dungeon D1
+            input.onPress(KeyEvent.VK_F5, () -> {
+                if (!mainScreen.isPauseModalOpen() && GamePlayState.PLAYING.is()) {
+                    Player p = mainScreen.getPlayer();
+                    if (p != null) worldMap.enterDungeon(p);
                 }
-            }
-        });
+            });
+
+            // Debug: return to the opening spawn in A1.
+            input.onPress(KeyEvent.VK_F7, () -> {
+                if (!mainScreen.isPauseModalOpen() && GamePlayState.PLAYING.is()) {
+                    Player p = mainScreen.getPlayer();
+                    if (p != null) teleportPlayerToOpeningSpawn(p);
+                }
+            });
+
+            // Debug: quick-save the current room + exact player position.
+            input.onPress(KeyEvent.VK_F8, () -> {
+                if (!mainScreen.isPauseModalOpen() && GamePlayState.PLAYING.is()) {
+                    Player p = mainScreen.getPlayer();
+                    Room activeRoom = worldMap.getActiveRoom();
+                    if (p != null && activeRoom != null) {
+                        saveCurrentSession(activeRoom.getRoomId(), p.getX(), p.getY());
+                    }
+                }
+            });
+        }
 
         inputsWired = true;
     }
@@ -678,6 +683,7 @@ public class GameplayPane extends GraphicsPane {
     private void showControlsCard() {
         clearControlsCardVisuals();
         controlsCardVisible = true;
+        String[][] rows = getControlsCardRows();
 
         double scale = uniformScale();
         double marginRight = 34.0 * scale;
@@ -694,8 +700,8 @@ public class GameplayPane extends GraphicsPane {
         double tabW = 6.0 * scale;
         double tabH = 16.0 * scale;
         double cardH = topPad + headerH + 8.0 * scale
-            + CONTROLS_CARD_ROWS.length * rowH
-            + (CONTROLS_CARD_ROWS.length - 1) * rowGap
+            + rows.length * rowH
+            + (rows.length - 1) * rowGap
             + bottomPad;
         double cardX = originX() + mainScreen.getLayoutWidth() - cardW - marginRight;
         double cardY = originY() + mainScreen.getLayoutHeight() - cardH - bottomMargin;
@@ -785,7 +791,7 @@ public class GameplayPane extends GraphicsPane {
         double rowY = cardY + topPad + headerH + 8.0 * scale;
         double rowTextPad = 10.0 * scale;
 
-        for (String[] row : CONTROLS_CARD_ROWS) {
+        for (String[] row : rows) {
             acm.graphics.GRoundRect rowShadow =
                 new acm.graphics.GRoundRect(
                     rowX + 1.5 * scale,
@@ -868,6 +874,23 @@ public class GameplayPane extends GraphicsPane {
                 obj.sendToFront();
             }
         }
+    }
+
+    private String[][] getControlsCardRows() {
+        if (!MainApplication.DEBUG_SHORTCUTS_ENABLED) {
+            return BASE_CONTROLS_CARD_ROWS;
+        }
+
+        String[][] rows = new String[BASE_CONTROLS_CARD_ROWS.length + DEBUG_CONTROLS_CARD_ROWS.length][];
+        System.arraycopy(BASE_CONTROLS_CARD_ROWS, 0, rows, 0, BASE_CONTROLS_CARD_ROWS.length);
+        System.arraycopy(
+            DEBUG_CONTROLS_CARD_ROWS,
+            0,
+            rows,
+            BASE_CONTROLS_CARD_ROWS.length,
+            DEBUG_CONTROLS_CARD_ROWS.length
+        );
+        return rows;
     }
 
     private void centerControlsCardLabel(
