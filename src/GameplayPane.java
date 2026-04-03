@@ -82,6 +82,8 @@ public class GameplayPane extends GraphicsPane {
      * Room center Y = 15 * 48 / 2 = 360.
      */
     private static final double PLAYER_START_Y = 15 * 48 / 2.0; // = 360
+    /** Opening room ID used by the debug spawn teleport. */
+    private static final String PLAYER_START_ROOM_ID = "A1";
     /** First dungeon room: plays the dungeon theme while active. */
     private static final String DUNGEON_FLOOR_ONE_ROOM_ID = "D1";
 
@@ -141,7 +143,8 @@ public class GameplayPane extends GraphicsPane {
         { "SAVE / USE", "E" },
         { "PAUSE", "ESC" },
         { "DUNGEON", "F5" },
-        { "DEBUG", "F6" }
+        { "DEBUG", "F6" },
+        { "SPAWN", "F7" }
     };
 
     private static final java.awt.Color CONTROLS_CARD_SHADOW =
@@ -357,6 +360,53 @@ public class GameplayPane extends GraphicsPane {
 
     private boolean saveCurrentSession(String roomId, double spawnX, double spawnY) {
         return mainScreen.saveCurrentGameplay(roomId, spawnX, spawnY);
+    }
+
+    /**
+     * Instantly returns the player to the opening A1 spawn and makes that spot their new respawn.
+     * Mirrors the dungeon debug warp by swapping rooms without a sliding transition.
+     */
+    private void teleportPlayerToOpeningSpawn(Player player) {
+        if (player == null || worldMap == null) return;
+
+        GCanvas canvas = mainScreen.getGCanvas();
+        Room previousRoom = worldMap.getActiveRoom();
+        if (previousRoom != null) {
+            previousRoom.removeFrom(canvas);
+        }
+        worldMap.hideSpecialMarkers();
+
+        if (!worldMap.setActiveRoomById(PLAYER_START_ROOM_ID)) {
+            if (previousRoom != null) {
+                previousRoom.addTo(canvas);
+                worldMap.showSpecialMarkersForActiveRoom();
+                player.draw(canvas);
+            }
+            return;
+        }
+
+        Room spawnRoom = worldMap.getActiveRoom();
+        player.removeSwingFrom(canvas);
+        spawnRoom.addTo(canvas);
+        spawnRoom.reset();
+        worldMap.showSpecialMarkersForActiveRoom();
+
+        player.setTileMap(spawnRoom.getTileMap());
+        player.setPosition(PLAYER_START_X, PLAYER_START_Y);
+        player.setSpawnPosition(PLAYER_START_X, PLAYER_START_Y);
+        player.draw(canvas);
+
+        syncActiveRoomMusic();
+        updatePlayerHUD(player);
+        bringControlsCardToFront();
+
+        if (debugOverlayOn) {
+            drawDebugOverlay(canvas, player);
+        } else {
+            clearDebugOverlay(canvas);
+        }
+
+        GamePlayState.setCurrent(GamePlayState.PLAYING);
     }
 
     // =========================================================
@@ -575,8 +625,16 @@ public class GameplayPane extends GraphicsPane {
             }
         });
 
-        // Debug: quick-save the current room + exact player position.
+        // Debug: return to the opening spawn in A1.
         input.onPress(KeyEvent.VK_F7, () -> {
+            if (!mainScreen.isPauseModalOpen() && GamePlayState.PLAYING.is()) {
+                Player p = mainScreen.getPlayer();
+                if (p != null) teleportPlayerToOpeningSpawn(p);
+            }
+        });
+
+        // Debug: quick-save the current room + exact player position.
+        input.onPress(KeyEvent.VK_F8, () -> {
             if (!mainScreen.isPauseModalOpen() && GamePlayState.PLAYING.is()) {
                 Player p = mainScreen.getPlayer();
                 Room activeRoom = worldMap.getActiveRoom();
@@ -601,6 +659,7 @@ public class GameplayPane extends GraphicsPane {
         input.removeOnPress(KeyEvent.VK_F5);
         input.removeOnPress(KeyEvent.VK_F6);
         input.removeOnPress(KeyEvent.VK_F7);
+        input.removeOnPress(KeyEvent.VK_F8);
         debugOverlayOn = false;
         clearDebugOverlay(mainScreen.getGCanvas());
         inputsWired = false;
