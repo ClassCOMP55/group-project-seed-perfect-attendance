@@ -95,6 +95,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 // =========================================================
 // EXIT DETECTION — pixel thresholds (used in update)
@@ -130,6 +131,9 @@ public class Room {
 
     /** Enemies and other moving entities in this room. Player is NOT in this list. */
     private final List<Entity> entities = new ArrayList<>();
+
+    /** Factories that recreate this room's resettable entity population on re-entry. */
+    private final List<Supplier<Entity>> respawnEntitySuppliers = new ArrayList<>();
 
     /** Static interactive objects in this room (Grass, Signs, Chests, etc.). */
     private final List<WorldObject> objects = new ArrayList<>();
@@ -562,10 +566,34 @@ public class Room {
      */
     public void reset() {
         // --- enemies ---
-        // RIG POINT: clear entities list and re-add all original enemies for this room.
-        //            Each room's buildXxx() method will keep an "original enemy list" to copy from.
-        //            Example: entities.clear(); entities.addAll(originalEnemies);
-        // Skipped for tech demo — no enemies exist in dummy rooms.
+        // D1 currently registers respawn factories through addRespawningEntity().
+        // Other combat rooms can opt into the same behavior once their real enemy layouts exist.
+        if (!respawnEntitySuppliers.isEmpty()) {
+            if (canvas != null) {
+                for (Entity entity : entities) {
+                    entity.removeSpriteFromCanvas(canvas);
+                }
+                for (Item item : droppedItems) {
+                    item.removeFrom(canvas);
+                }
+            }
+
+            entities.clear();
+            droppedItems.clear();
+
+            if (roomLock != null) {
+                roomLock.reset();
+            }
+
+            for (Supplier<Entity> entitySupplier : respawnEntitySuppliers) {
+                Entity entity = entitySupplier.get();
+                if (entity == null) continue;
+                entities.add(entity);
+                if (initialized && canvas != null) {
+                    entity.draw(canvas);
+                }
+            }
+        }
 
         // --- push blocks (puzzle rooms only) ---
         // RIG POINT: iterate objects, find PushBlock instances, call pushBlock.resetPosition().
@@ -678,6 +706,21 @@ public class Room {
     // =========================================================
     // CONTENT ADDERS — called during room construction
     // =========================================================
+
+    /** Adds a resettable entity factory and spawns its initial instance immediately. */
+    public void addRespawningEntity(Supplier<Entity> entitySupplier) {
+        if (entitySupplier == null) return;
+
+        Entity entity = entitySupplier.get();
+        if (entity == null) return;
+
+        respawnEntitySuppliers.add(entitySupplier);
+        entities.add(entity);
+
+        if (initialized && canvas != null) {
+            entity.draw(canvas);
+        }
+    }
 
     /** Adds an entity (enemy) to this room's entity list. */
     public void addEntity(Entity e)       { entities.add(e); }
