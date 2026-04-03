@@ -34,8 +34,8 @@ public class Player extends Entity {
     /** Ticks of invincibility after taking damage (i-frames). */
     private static final int IFRAMES_DURATION = 40;
 
-    /** Cooldown ticks between sword swings (~3s at 60fps). */
-    private static final int ATTACK_COOLDOWN = 180;
+    /** Cooldown ticks between sword swings (~500ms at 60fps). */
+    private static final int ATTACK_COOLDOWN = 30;
 
     /**
      * Intangible ability: active window length in game ticks.
@@ -138,6 +138,10 @@ public class Player extends Entity {
     private static final String PLAYER_WALK_BACK  = NORMALIZED_SPRITE_DIR + "player-walking-back.gif";
     private static final String PLAYER_WALK_LEFT  = NORMALIZED_SPRITE_DIR + "player-walk-left.gif";
     private static final String PLAYER_WALK_RIGHT = NORMALIZED_SPRITE_DIR + "player-walking-right.gif";
+    private static final String PLAYER_ATTACK_FRONT = NORMALIZED_SPRITE_DIR + "player-attack-front.gif";
+    private static final String PLAYER_ATTACK_BACK  = NORMALIZED_SPRITE_DIR + "player-attack-back.gif";
+    private static final String PLAYER_ATTACK_LEFT  = NORMALIZED_SPRITE_DIR + "player-attack-left.gif";
+    private static final String PLAYER_ATTACK_RIGHT = NORMALIZED_SPRITE_DIR + "player-attack-right.gif";
     private static final String PLAYER_DEATH_FRONT = NORMALIZED_SPRITE_DIR + "player-death-animation-front.gif";
     private static final String PLAYER_DEATH_BACK  = NORMALIZED_SPRITE_DIR + "player-death-animation-back.gif";
     private static final String PLAYER_DEATH_LEFT  = NORMALIZED_SPRITE_DIR + "player-death-animation-left.gif";
@@ -147,13 +151,22 @@ public class Player extends Entity {
     private static final String PLAYER_DEATH_LEFT_FINAL  = NORMALIZED_SPRITE_DIR + "player-death-animation-left-final.png";
     private static final String PLAYER_DEATH_RIGHT_FINAL = NORMALIZED_SPRITE_DIR + "player-death-animation-right-final.png";
 
+    /** One full player attack GIF play-through is about 0.56s in the debug pane. */
+    private static final int ATTACK_ANIM_TICKS = 34;
+
     /** Ticks for one play-through of the death GIF (~500ms ≈ 30 ticks at 60fps). */
     private static final int DEATH_ANIM_TICKS = 34;
 
     private final Map<Direction, GImage> idleByDirection = new EnumMap<>(Direction.class);
     private final Map<Direction, GImage> walkByDirection = new EnumMap<>(Direction.class);
+    private final Map<Direction, String> attackPathByDirection = new EnumMap<>(Direction.class);
     private final Map<Direction, String> deathPathByDirection = new EnumMap<>(Direction.class);
     private final Map<Direction, String> deathFinalPathByDirection = new EnumMap<>(Direction.class);
+
+    /** Active body attack animation visual and timer. */
+    private GImage attackVisual = null;
+    private int attackAnimTicksLeft = 0;
+    private Direction attackAnimDirection = Direction.DOWN;
 
     /** True once triggerDeathAnimation() has been called — prevents re-triggering. */
     private boolean isDying = false;
@@ -246,6 +259,12 @@ public class Player extends Entity {
         if (isDying) return;
         if (iframesTicks > 0) iframesTicks--;
         if (attackCooldownTicks > 0) attackCooldownTicks--;
+        if (attackAnimTicksLeft > 0) {
+            attackAnimTicksLeft--;
+            if (attackAnimTicksLeft <= 0) {
+                attackVisual = null;
+            }
+        }
 
         // Relic intangible: countdown active window, then clear flag (takeDamage checks isIntangibleActive).
         if (intangibleActiveTicks > 0) {
@@ -313,6 +332,16 @@ public class Player extends Entity {
         if (activeSwing != null) return;
 
         activeSwing = new SwordSwing(x, y, facing);
+        attackAnimDirection = (facing != null) ? facing : Direction.DOWN;
+        String path = attackPathByDirection.get(attackAnimDirection);
+        if (path == null) path = attackPathByDirection.get(Direction.DOWN);
+        if (path != null) {
+            // Fresh GImage each swing so the attack GIF starts from frame 1.
+            attackVisual = new GImage(path, 0, 0);
+            animator.setFallbackFrame(attackVisual);
+            syncVisualPosition();
+        }
+        attackAnimTicksLeft = ATTACK_ANIM_TICKS;
         attackCooldownTicks = ATTACK_COOLDOWN;
     }
 
@@ -588,8 +617,11 @@ public class Player extends Entity {
     @Override
     public void removeSpriteFromCanvas(GCanvas canvas) {
         removeIntangibleAuraFromCanvas(canvas);
+        if (attackVisual != null) canvas.remove(attackVisual);
         if (deathVisualOnCanvas != null) canvas.remove(deathVisualOnCanvas);
         if (previousDeathVisual != null) canvas.remove(previousDeathVisual);
+        attackVisual = null;
+        attackAnimTicksLeft = 0;
         super.removeSpriteFromCanvas(canvas);
     }
 
@@ -658,6 +690,11 @@ public class Player extends Entity {
         walkByDirection.put(Direction.LEFT, new GImage(PLAYER_WALK_LEFT, 0, 0));
         walkByDirection.put(Direction.RIGHT, new GImage(PLAYER_WALK_RIGHT, 0, 0));
 
+        attackPathByDirection.put(Direction.DOWN, PLAYER_ATTACK_FRONT);
+        attackPathByDirection.put(Direction.UP, PLAYER_ATTACK_BACK);
+        attackPathByDirection.put(Direction.LEFT, PLAYER_ATTACK_LEFT);
+        attackPathByDirection.put(Direction.RIGHT, PLAYER_ATTACK_RIGHT);
+
         deathPathByDirection.put(Direction.DOWN, PLAYER_DEATH_FRONT);
         deathPathByDirection.put(Direction.UP, PLAYER_DEATH_BACK);
         deathPathByDirection.put(Direction.LEFT, PLAYER_DEATH_LEFT);
@@ -668,11 +705,18 @@ public class Player extends Entity {
         deathFinalPathByDirection.put(Direction.LEFT, PLAYER_DEATH_LEFT_FINAL);
         deathFinalPathByDirection.put(Direction.RIGHT, PLAYER_DEATH_RIGHT_FINAL);
 
+        attackVisual = null;
+        attackAnimTicksLeft = 0;
         applyDirectionalVisual(false);
     }
 
     private void applyDirectionalVisual(boolean moving) {
         if (isDying) return; // lock visuals during death
+        if (attackAnimTicksLeft > 0 && attackVisual != null) {
+            animator.setFallbackFrame(attackVisual);
+            syncVisualPosition();
+            return;
+        }
         Map<Direction, GImage> source;
         source = moving ? walkByDirection : idleByDirection;
         GImage visual = source.get(facing);
@@ -692,6 +736,8 @@ public class Player extends Entity {
     public void triggerDeathAnimation() {
         if (isDying) return;
         isDying = true;
+        attackVisual = null;
+        attackAnimTicksLeft = 0;
         deathAnimTicksLeft = DEATH_ANIM_TICKS;
         deathSpriteAdded = false;
         previousDeathVisual = null;

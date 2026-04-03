@@ -106,6 +106,21 @@ public class MeleeEnemy extends Enemy {
         for (int d = 0; d < dirs.length; d++) {
             anim.addFrames(dirs[d], Collections.singletonList(animSprites[0][d]));
         }
+
+        // Death GIF paths (fresh GImage created each death to avoid stale state)
+        deathGifPaths = new String[] {
+            SPRITE_DIR + "skeley-mob-1-death-front.gif",
+            SPRITE_DIR + "skeley-mob-1-death-back.gif",
+            SPRITE_DIR + "skeley-mob-1-death-left.gif",
+            SPRITE_DIR + "skeley-mob-1-death-right.gif"
+        };
+        // Static last-frame PNGs — swapped in after the GIF plays once
+        deathFinalPaths = new String[] {
+            SPRITE_DIR + "skeley-mob-1-death-front-final.png",
+            SPRITE_DIR + "skeley-mob-1-death-back-final.png",
+            SPRITE_DIR + "skeley-mob-1-death-left-final.png",
+            SPRITE_DIR + "skeley-mob-1-death-right-final.png"
+        };
     }
 
     // ==========================================================

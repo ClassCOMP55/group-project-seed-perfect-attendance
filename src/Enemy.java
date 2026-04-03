@@ -51,9 +51,40 @@ public class Enemy extends Entity {
     protected GImage[][] animSprites;
 
     /** Duration in seconds for each one-shot animation. Set by subclass. */
-    protected double attackAnimDuration = 1.12;
+    protected double attackAnimDuration = 0.5;
     protected double damageAnimDuration = 0.56;
     protected double deathAnimDuration  = 1.40;
+
+    /**
+     * Death GIF sprite paths (one per direction: DOWN=0, UP=1, LEFT=2, RIGHT=3).
+     * Stored as paths so a fresh GImage is created each death, avoiding stale
+     * GIF state from previous plays. Populated by subclass.
+     */
+    protected String[] deathGifPaths;
+
+    /**
+     * Static final-frame PNG paths for the death animation (one per direction).
+     * Swapped in after the GIF plays once to prevent looping. Populated by subclass.
+     */
+    protected String[] deathFinalPaths;
+
+    /** The death GIF or final-frame PNG currently on canvas — managed manually. */
+    private GImage deathVisualOnCanvas;
+
+    /** True once the death GIF has been added to the canvas. */
+    private boolean deathSpriteAdded = false;
+
+    /** True once we've swapped from GIF to static PNG (freeze on floor). */
+    private boolean deathFrozen = false;
+
+    /** Tick counter for the death GIF duration (counts down in ticks, not seconds). */
+    private int deathAnimTicksLeft = 0;
+
+    /** How many ticks the death GIF should play before freezing (~1.3s at 60fps). */
+    private static final int DEATH_GIF_TICKS = 78;
+
+    /** Extra time to keep the frozen floor pose visible before despawning. */
+    private static final double DEATH_FROZEN_LINGER = 0.45;
 
     // ==========================================================
     // CONSTANTS
@@ -247,7 +278,7 @@ public class Enemy extends Entity {
         if (animTimer > 0) {
             animTimer -= dt;
             if (animState == AnimState.DEATH) {
-                applyAnimVisual(); // keep syncing the death GIF to facing
+                tickDeathAnimation();
                 return; // frozen during death — no movement, no AI
             }
             if (animTimer <= 0) {
@@ -438,7 +469,8 @@ public class Enemy extends Entity {
         super.takeDamage(amount);
         if (health <= 0) {
             setAnimState(AnimState.DEATH);
-            animTimer = deathAnimDuration;
+            animTimer = deathAnimDuration + DEATH_FROZEN_LINGER;
+            triggerDeathAnimation();
         } else if (animState != AnimState.DEATH) {
             setAnimState(AnimState.DAMAGE);
             animTimer = damageAnimDuration;
@@ -456,8 +488,100 @@ public class Enemy extends Entity {
     }
 
     // ==========================================================
-    // DEATH
+    // DEATH — manual sprite management (bypasses animator to avoid GIF looping)
     // ==========================================================
+
+    /**
+     * Sets up the manual death animation. Creates a fresh GImage from the
+     * death GIF path and clears the animator so Entity.draw() won't interfere.
+     */
+    private void triggerDeathAnimation() {
+        deathFrozen = false;
+        deathSpriteAdded = false;
+        deathAnimTicksLeft = DEATH_GIF_TICKS;
+        deathVisualOnCanvas = buildDeathVisual(deathGifPaths);
+        getAnimator().clearFrames();
+    }
+
+    /**
+     * Called every tick while dying. Counts down the GIF play time,
+     * then swaps to the static final-frame PNG.
+     */
+    private void tickDeathAnimation() {
+        if (deathFrozen) return;
+        deathAnimTicksLeft--;
+        if (deathAnimTicksLeft <= 0) {
+            GImage previousVisual = deathVisualOnCanvas;
+            deathVisualOnCanvas = buildDeathVisual(deathFinalPaths);
+            if (previousVisual != null && previousVisual.getParent() != null) {
+                ((GCanvas) previousVisual.getParent()).remove(previousVisual);
+            }
+            deathFrozen = true;
+        }
+    }
+
+    /**
+     * Builds a fresh death visual for the current facing direction and centers it.
+     */
+    private GImage buildDeathVisual(String[] paths) {
+        if (paths == null || paths.length == 0) return null;
+        int dirIdx = dirToIndex(facing);
+        String path = paths[dirIdx];
+        if (path == null) path = paths[0];
+        if (path == null) return null;
+
+        GImage visual = new GImage(path);
+        visual.setLocation(x - visual.getWidth() / 2.0, y - visual.getHeight() / 2.0);
+        return visual;
+    }
+
+    /**
+     * Keeps the death visual centered without calling setSize() on the GIF.
+     */
+    private void syncDeathVisualPosition() {
+        if (deathVisualOnCanvas == null) return;
+        deathVisualOnCanvas.setLocation(
+            x - deathVisualOnCanvas.getWidth() / 2.0,
+            y - deathVisualOnCanvas.getHeight() / 2.0
+        );
+    }
+
+    /**
+     * During death: completely bypasses Entity.draw() to manage the GIF/PNG
+     * manually on the canvas. This prevents the animator and syncVisualPosition
+     * from calling setSize() on the GIF (which restarts/corrupts it in ACM).
+     */
+    @Override
+    public void draw(GCanvas canvas) {
+        if (animState == AnimState.DEATH) {
+            if (deathVisualOnCanvas == null) return;
+
+            if (!deathSpriteAdded) {
+                GImage frame = getAnimator().getCurrentFrame();
+                if (frame != null) canvas.remove(frame);
+                if (sprite != null) canvas.remove(sprite);
+                deathSpriteAdded = true;
+            }
+            syncDeathVisualPosition();
+            if (deathVisualOnCanvas.getParent() == null) {
+                canvas.add(deathVisualOnCanvas);
+            }
+            return;
+        }
+        super.draw(canvas);
+    }
+
+    @Override
+    public void removeSpriteFromCanvas(GCanvas canvas) {
+        super.removeSpriteFromCanvas(canvas);
+        if (deathVisualOnCanvas != null) {
+            canvas.remove(deathVisualOnCanvas);
+            deathVisualOnCanvas = null;
+        }
+        deathSpriteAdded = false;
+        deathFrozen = false;
+        deathAnimTicksLeft = 0;
+    }
 
     /**
      * Called by the Room when isAlive() first returns false.
