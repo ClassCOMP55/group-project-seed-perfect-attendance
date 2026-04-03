@@ -3,6 +3,7 @@ import java.awt.Color;
 import java.awt.event.KeyEvent;
 import java.util.EnumMap;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -123,6 +124,16 @@ public class Player extends Entity {
     private boolean hasMarkOfHero;
 
     // ==========================================================
+    // FIELDS — economy and inventory
+    // ==========================================================
+
+    /** Currency picked up from world drops. */
+    private int coins;
+
+    /** Inventory used by the pause menu and future world interactables. */
+    private final List<Item> inventory = new ArrayList<>();
+
+    // ==========================================================
     // CONSTRUCTOR
     // ==========================================================
 
@@ -138,6 +149,9 @@ public class Player extends Entity {
     private static final String PLAYER_WALK_BACK  = NORMALIZED_SPRITE_DIR + "player-walking-back.gif";
     private static final String PLAYER_WALK_LEFT  = NORMALIZED_SPRITE_DIR + "player-walk-left.gif";
     private static final String PLAYER_WALK_RIGHT = NORMALIZED_SPRITE_DIR + "player-walking-right.gif";
+    // BUG: These attack GIFs still are not truly normalized to the same body scale/padding
+    // as the idle/walk set. The current asset tweak only reduced canvas space, so the player
+    // can still read slightly smaller during swings. Fix the source GIF exports next time.
     private static final String PLAYER_ATTACK_FRONT = NORMALIZED_SPRITE_DIR + "player-attack-front.gif";
     private static final String PLAYER_ATTACK_BACK  = NORMALIZED_SPRITE_DIR + "player-attack-back.gif";
     private static final String PLAYER_ATTACK_LEFT  = NORMALIZED_SPRITE_DIR + "player-attack-left.gif";
@@ -474,7 +488,114 @@ public class Player extends Entity {
      * @param hp hearts to set
      */
     public void setHP(int hp) {
-        health = Math.max(0, Math.min(MAX_HEARTS, hp));
+        health = Math.max(0, Math.min(maxHealth, hp));
+    }
+
+    /**
+     * Sets the player's maximum health, preserving the current health when possible.
+     * Save/load restores max health before restoring the current HP.
+     */
+    public void setMaxHealth(int maxHealth) {
+        this.maxHealth = Math.max(1, maxHealth);
+        health = Math.min(health, this.maxHealth);
+    }
+
+    /** Adds or removes coins while never letting the wallet drop below zero. */
+    public void addCoins(int amount) {
+        coins = Math.max(0, coins + amount);
+    }
+
+    /** Returns the current wallet total. */
+    public int getCoins() {
+        return coins;
+    }
+
+    /** Overwrites the wallet total (used by save/load and debug setups). */
+    public void setCoins(int coins) {
+        this.coins = Math.max(0, coins);
+    }
+
+    /**
+     * Adds an item to the player's inventory, stacking by {@code itemId} when possible.
+     */
+    public void collectItem(Item item) {
+        if (item == null) return;
+        item.inWorld = false;
+
+        if (item.isStackable()) {
+            Item existing = findInventoryItem(item.getItemId());
+            if (existing != null) {
+                existing.incrementStackBy(item.getStackCount());
+                return;
+            }
+        }
+
+        inventory.add(item);
+    }
+
+    /** Removes one unit from the given inventory item reference. */
+    public boolean consumeInventoryItem(Item item) {
+        if (item == null) return false;
+        if (!inventory.contains(item)) return false;
+
+        if (item.isStackable() && item.getStackCount() > 1) {
+            item.decrementStack();
+            return true;
+        }
+        return inventory.remove(item);
+    }
+
+    /** Uses the item at the given inventory index if it is usable. */
+    public boolean useInventoryItem(int index) {
+        Item item = getInventoryItem(index);
+        if (item == null || !item.isUsable()) return false;
+
+        int hpBefore = getHP();
+        int coinsBefore = coins;
+        int sizeBefore = inventory.size();
+        int stackBefore = item.getStackCount();
+
+        item.onUse(this);
+
+        boolean stackChanged = inventory.contains(item) && item.getStackCount() != stackBefore;
+        return getHP() != hpBefore
+            || coins != coinsBefore
+            || inventory.size() != sizeBefore
+            || stackChanged;
+    }
+
+    /** Removes all inventory contents. Used by save-load to rebuild stacks cleanly. */
+    public void clearInventory() {
+        inventory.clear();
+    }
+
+    /** Returns the total count of an itemId across the inventory. */
+    public int getItemCount(String itemId) {
+        if (itemId == null) return 0;
+        Item item = findInventoryItem(itemId);
+        return item == null ? 0 : item.getStackCount();
+    }
+
+    /** Finds the first inventory entry with the given itemId. */
+    public Item findInventoryItem(String itemId) {
+        if (itemId == null) return null;
+        for (Item item : inventory) {
+            if (itemId.equals(item.getItemId())) {
+                return item;
+            }
+        }
+        return null;
+    }
+
+    /** Read-only view of the player's inventory for UI code. */
+    public List<Item> getInventory() {
+        return Collections.unmodifiableList(inventory);
+    }
+
+    /** Returns the item at the given index, or null if out of bounds. */
+    public Item getInventoryItem(int index) {
+        if (index < 0 || index >= inventory.size()) return null;
+        return inventory.get(index);
     }
 
     /**
