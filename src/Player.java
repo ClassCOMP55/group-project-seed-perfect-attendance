@@ -29,8 +29,14 @@ public class Player extends Entity {
     /** Player movement speed in pixels per second. */
     private static final double PLAYER_SPEED = 270.0;
 
-    /** Default max health in hearts. */
-    private static final int MAX_HEARTS = 3;
+    /** Default number of hearts shown on the player HUD. */
+    public static final int DEFAULT_HEART_COUNT = 3;
+
+    /** Internal health units per heart. One unit = half a heart. */
+    public static final int HALF_HEARTS_PER_HEART = 2;
+
+    /** Default max health in half-heart units. */
+    private static final int DEFAULT_MAX_HEALTH = DEFAULT_HEART_COUNT * HALF_HEARTS_PER_HEART;
 
     /** Ticks of invincibility after taking damage (i-frames). */
     private static final int IFRAMES_DURATION = 40;
@@ -202,7 +208,7 @@ public class Player extends Entity {
      * Do NOT call move() on a Player created this way.
      */
     public Player() {
-        super(0, 0, PLAYER_SPRITE, null, MAX_HEARTS, PLAYER_SPEED);
+        super(0, 0, PLAYER_SPRITE, null, DEFAULT_MAX_HEALTH, PLAYER_SPEED);
         this.respawnX = x;
         this.respawnY = y;
         initializeDirectionalSprites();
@@ -216,7 +222,7 @@ public class Player extends Entity {
      * @param tileMap the tile map for collision
      */
     public Player(double startX, double startY, TileMap tileMap) {
-        super(startX, startY, PLAYER_SPRITE, tileMap, MAX_HEARTS, PLAYER_SPEED);
+        super(startX, startY, PLAYER_SPRITE, tileMap, DEFAULT_MAX_HEALTH, PLAYER_SPEED);
         this.respawnX = startX;
         this.respawnY = startY;
         initializeDirectionalSprites();
@@ -480,25 +486,23 @@ public class Player extends Entity {
     // ==========================================================
 
     /**
-     * Returns the player's current health (hearts).
-     * Maps to Entity.health for compatibility with existing code.
-     * @return current HP
+     * Returns the player's current health in half-heart units.
+     * Example: {@code 6 = 3 hearts}, {@code 5 = 2.5 hearts}.
      */
     public int getHP() {
         return health;
     }
 
     /**
-     * Sets current hearts (clamped 0–max, e.g. when loading a save).
-     * @param hp hearts to set
+     * Sets current health in half-heart units (clamped 0–max).
      */
     public void setHP(int hp) {
         health = Math.max(0, Math.min(maxHealth, hp));
     }
 
     /**
-     * Sets the player's maximum health, preserving the current health when possible.
-     * Save/load restores max health before restoring the current HP.
+     * Sets the player's maximum health in half-heart units while preserving
+     * the current health when possible.
      */
     public void setMaxHealth(int maxHealth) {
         this.maxHealth = Math.max(1, maxHealth);

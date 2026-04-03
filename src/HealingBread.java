@@ -1,10 +1,10 @@
 /**
- * Simple consumable that restores one heart when used from the pause inventory.
+ * Simple consumable that restores one full heart when used from the pause inventory.
  */
 public class HealingBread extends Item {
 
     public static final String ITEM_ID = "healing_bread";
-    private static final int HEAL_AMOUNT = 1;
+    private static final int HEAL_AMOUNT = Player.HALF_HEARTS_PER_HEART;
 
     public HealingBread() {
         super(ITEM_ID, "Healing Bread", true);

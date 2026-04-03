@@ -164,16 +164,16 @@ public class PauseModal extends GraphicsPane
   private static final String[] PAUSE_SETTINGS_RESOLUTION_STUBS =
       new String[] {"1280x720", "1600x900", "1920x1080"};
   private static final int PAUSE_HUD_HEART_SEGMENT_COUNT = 6;
-  private static final double PAUSE_HUD_HEART_SEG_W = 10;
-  private static final double PAUSE_HUD_HEART_SEG_H = 12;
-  /** Width of the six HUD heart segments including pair gaps (matches {@link #addPauseHeartsLikeHud}). */
+  private static final double PAUSE_HEART_CELL_SIZE = 2.0;
+  /** Width of the reusable 3-heart cluster. */
   private static final double PAUSE_HEARTS_CLUSTER_WIDTH =
-      6 * PAUSE_HUD_HEART_SEG_W + 2 * (PAUSE_HUD_HEART_SEG_W * 2);
+      HeartDisplay.widthFor(Player.DEFAULT_HEART_COUNT, PAUSE_HEART_CELL_SIZE);
+  /** Height of the reusable 3-heart cluster. */
+  private static final double PAUSE_HEARTS_CLUSTER_HEIGHT =
+      HeartDisplay.heightFor(PAUSE_HEART_CELL_SIZE);
   private static final double PAUSE_HUD_COINS_ICON = 10;
   private static final double PAUSE_HUD_COINS_ICON_LABEL_GAP = 4;
   private static final int PAUSE_HUD_COINS_DISPLAY_MAX = 999;
-  /** Until Player / wallet is wired into {@link #showPause()}. */
-  private static final int PAUSE_STUB_HEART_SEGMENTS_FILLED = 6;
   /** Until Player / wallet is wired into {@link #showPause()}. */
   private static final int PAUSE_STUB_COINS = 125;
 
@@ -201,7 +201,7 @@ public class PauseModal extends GraphicsPane
   private GLabel tabKeysHintLabel;
 
   //Inventory tab: HUD-style hearts + coins + last saved (stubs until Player / SaveManager feed data)
-  private GRect[] pauseHeartSegments;
+  private HeartDisplay pauseHeartDisplay;
   private GOval pauseCoinsIcon;
   private GLabel pauseCoinsLabel;
   private GLabel inventoryLastSavedLabel;
@@ -412,7 +412,7 @@ public class PauseModal extends GraphicsPane
     TightOutlineDimensions hintOutlineSize =
         measureTightInventoryOutline(tabKeysHintLabel.getWidth(), tabKeysHintLabel.getAscent());
     TightOutlineDimensions heartsOutlineSize =
-        measureTightInventoryOutline(PAUSE_HEARTS_CLUSTER_WIDTH, PAUSE_HUD_HEART_SEG_H);
+        measureTightInventoryOutline(PAUSE_HEARTS_CLUSTER_WIDTH, PAUSE_HEARTS_CLUSTER_HEIGHT);
 
     double coinUnitW =
         PAUSE_HUD_COINS_ICON + PAUSE_HUD_COINS_ICON_LABEL_GAP + pauseCoinsLabel.getWidth();
@@ -451,7 +451,7 @@ public class PauseModal extends GraphicsPane
     double heartsOriginX =
         heartsDecoration.innerX + (heartsDecoration.innerW - PAUSE_HEARTS_CLUSTER_WIDTH) / 2;
     double heartsOriginY =
-        heartsDecoration.innerY + (heartsDecoration.innerH - PAUSE_HUD_HEART_SEG_H) / 2;
+        heartsDecoration.innerY + (heartsDecoration.innerH - PAUSE_HEARTS_CLUSTER_HEIGHT) / 2;
     addPauseHeartsLikeHud(heartsOriginX, heartsOriginY, getPauseHeartSegmentsFilled());
 
     RoundedDecoration coinSaveDecoration =
@@ -632,15 +632,9 @@ public class PauseModal extends GraphicsPane
     {
       refreshInventoryDescriptionFromFocus();
     }
-    if (pauseHeartSegments != null)
+    if (pauseHeartDisplay != null)
     {
-      for (GRect h : pauseHeartSegments)
-      {
-        if (h != null)
-        {
-          h.setVisible(inventoryTab);
-        }
-      }
+      pauseHeartDisplay.setVisible(inventoryTab);
     }
     if (pauseCoinsIcon != null)
     {
@@ -1282,29 +1276,12 @@ public class PauseModal extends GraphicsPane
     }
   }
 
-  // Same heart “pill” layout as HUDoverlay#showHearts; counts still stubbed until Player feeds HP.
+  // Reusable 3-heart display shared with the gameplay HUD.
   private void addPauseHeartsLikeHud(double originX, double originY, int filledSegments)
   {
-    int filled = Math.max(0, Math.min(PAUSE_HUD_HEART_SEGMENT_COUNT, filledSegments));
-    pauseHeartSegments = new GRect[PAUSE_HUD_HEART_SEGMENT_COUNT];
-    double gapBetweenHearts = PAUSE_HUD_HEART_SEG_W * 2;
-    double x = originX;
-    for (int i = 0; i < PAUSE_HUD_HEART_SEGMENT_COUNT; i++)
-    {
-      double segX = x;
-      double segY = originY;
-      GRect heartsegment = new GRect(segX, segY, PAUSE_HUD_HEART_SEG_W, PAUSE_HUD_HEART_SEG_H);
-      heartsegment.setColor(Color.BLACK);
-      heartsegment.setFilled(true);
-      heartsegment.setFillColor(i < filled ? Color.RED : Color.LIGHT_GRAY);
-      pauseHeartSegments[i] = heartsegment;
-      addBoth(heartsegment);
-      x += PAUSE_HUD_HEART_SEG_W;
-      if (i % 2 == 1 && i < PAUSE_HUD_HEART_SEGMENT_COUNT - 1)
-      {
-        x += gapBetweenHearts;
-      }
-    }
+    pauseHeartDisplay = new HeartDisplay(Player.DEFAULT_HEART_COUNT, PAUSE_HEART_CELL_SIZE);
+    pauseHeartDisplay.show(this, originX, originY);
+    pauseHeartDisplay.setFilledHalfHearts(filledSegments);
   }
 
   /** Rebuild at the new window size while keeping the pause menu open. */
@@ -1613,7 +1590,7 @@ public class PauseModal extends GraphicsPane
     {
       return 0;
     }
-    return Math.max(0, Math.min(PAUSE_HUD_HEART_SEGMENT_COUNT, player.getHP() * 2));
+    return Math.max(0, Math.min(PAUSE_HUD_HEART_SEGMENT_COUNT, player.getHP()));
   }
 
   private String[] buildInventoryListLines(List<Item> inventoryItems)
@@ -1813,7 +1790,7 @@ public class PauseModal extends GraphicsPane
     settingsTabLabel = null;
     pauseMenuInstructionsLabel = null;
     tabKeysHintLabel = null;
-    pauseHeartSegments = null;
+    pauseHeartDisplay = null;
     pauseCoinsIcon = null;
     pauseCoinsLabel = null;
     inventoryLastSavedLabel = null;

@@ -212,6 +212,13 @@ public class GameSavesPane extends NightScenePane {
         int loadedCoins = clampInt(loaded.getCoins(), 0, MAX_LOADED_COINS);
         int loadedBreadCount = clampInt(loaded.getHealingBreadCount(), 0, MAX_LOADED_HEALING_BREAD);
 
+        // Legacy saves stored whole hearts; current gameplay stores half-heart units.
+        if (loadedMaxHp <= Player.DEFAULT_HEART_COUNT) {
+            loadedMaxHp *= Player.HALF_HEARTS_PER_HEART;
+            loadedHp *= Player.HALF_HEARTS_PER_HEART;
+        }
+        loadedHp = clampInt(loadedHp, 0, loadedMaxHp);
+
         player.setMaxHealth(loadedMaxHp);
         player.setHP(loadedHp);
         player.setCoins(loadedCoins);

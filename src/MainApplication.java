@@ -367,6 +367,9 @@ public class MainApplication extends GraphicsProgram{
 		if (pauseModal != null && !pauseModal.contents.isEmpty()) {
 			return;
 		}
+		if (currentScreen != null && currentScreen.tryHandleOverlayClick(e)) {
+			return;
+		}
 		if (dialogue != null && dialogue.isOpen()) {
 			dialogue.mouseClicked(e);
 			return;
@@ -421,6 +424,9 @@ public class MainApplication extends GraphicsProgram{
 		if (pauseModal != null && !pauseModal.contents.isEmpty()) 
 		{
 			pauseModal.keyPressed(e);
+			return;
+		}
+		if (currentScreen != null && currentScreen.tryHandleOverlayKeyPressed(e)) {
 			return;
 		}
 		if (dialogue != null && dialogue.isOpen()) {

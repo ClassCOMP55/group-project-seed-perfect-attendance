@@ -50,6 +50,16 @@ public class GraphicsPane {
 	public void mouseClicked(MouseEvent e) {
 	}
 
+	/**
+	 * Optional top-most UI click handler for pane-owned overlays that should still be clickable
+	 * even while another overlay (for example dialogue) is open.
+	 *
+	 * @return true when the pane consumed the click
+	 */
+	public boolean tryHandleOverlayClick(MouseEvent e) {
+		return false;
+	}
+
 	public void mouseDragged(MouseEvent e) {
 	}
 
@@ -60,6 +70,16 @@ public class GraphicsPane {
 	}
 
 	public void keyPressed(KeyEvent e) {
+	}
+
+	/**
+	 * Optional top-most key handler for pane-owned overlays that should remain available even while
+	 * another overlay (for example dialogue) is open.
+	 *
+	 * @return true when the pane consumed the key press
+	 */
+	public boolean tryHandleOverlayKeyPressed(KeyEvent e) {
+		return false;
 	}
 
 	public void keyReleased(KeyEvent e) {
@@ -271,6 +291,7 @@ public class GraphicsPane {
 	private GOval hudPortraitWell;
 	private GImage hudPortrait;
 	private GLabel hudPortraitFallbackLabel;
+	private HeartDisplay hudHeartDisplay;
 	private GRect[] hudBarTracks;
 	private GRect[] hudBarFills;
 
@@ -292,6 +313,8 @@ public class GraphicsPane {
 	private static final double HUD_BAR_H = 7;
 	private static final double HUD_BAR_GAP = 6;
 	private static final double HUD_BAR_INSET = 1;
+	private static final double HUD_HEART_CELL_SIZE = 2.0;
+	private static final double HUD_HEART_LEFT_PAD = 6;
 
 	private static final Color HUD_FRAME_GOLD = new Color(177, 124, 55);
 	private static final Color HUD_FRAME_WOOD = new Color(116, 69, 28);
@@ -395,15 +418,22 @@ public class GraphicsPane {
 		double barInsetX = HUD_BAR_INSET * sx;
 		double barInsetY = HUD_BAR_INSET * sy;
 
-		hudBarTracks = new GRect[3];
-		hudBarFills = new GRect[3];
-		for (int i = 0; i < 3; i++) {
-			double currentY = barY;
-			if (i == 1) currentY += topBarH + barGap;
-			if (i == 2) currentY += topBarH + barGap + barH + barGap;
-			double currentH = (i == 0) ? topBarH : barH;
+		double heartCellSize = Math.max(2.0, Math.ceil(HUD_HEART_CELL_SIZE * scale));
+		double heartHeight = HeartDisplay.heightFor(heartCellSize);
+		double heartX = barX + HUD_HEART_LEFT_PAD * sx;
+		double heartY = barY + Math.max(0.0, (topBarH - heartHeight) / 2.0);
 
-			GRect track = new GRect(barX, currentY, barW, currentH);
+		hudHeartDisplay = new HeartDisplay(Player.DEFAULT_HEART_COUNT, heartCellSize);
+		hudHeartDisplay.setColors(HUD_BAR_RED, HUD_BAR_TRACK, HUD_BAR_BORDER);
+		hudHeartDisplay.show(this, heartX, heartY);
+
+		double attackBarY = barY + topBarH + barGap;
+		hudBarTracks = new GRect[2];
+		hudBarFills = new GRect[2];
+		for (int i = 0; i < hudBarTracks.length; i++) {
+			double currentY = attackBarY + i * (barH + barGap);
+
+			GRect track = new GRect(barX, currentY, barW, barH);
 			track.setFilled(true);
 			track.setFillColor(HUD_BAR_TRACK);
 			track.setColor(HUD_BAR_BORDER);
@@ -414,7 +444,7 @@ public class GraphicsPane {
 				barX + barInsetX,
 				currentY + barInsetY,
 				Math.max(1.0, barW - barInsetX * 2),
-				Math.max(1.0, currentH - barInsetY * 2));
+				Math.max(1.0, barH - barInsetY * 2));
 			fill.setFilled(true);
 			hudBarFills[i] = fill;
 			place(fill);
@@ -464,11 +494,17 @@ public class GraphicsPane {
 	 * Refreshes the three bars without recreating HUD objects.
 	 */
 	protected void updatePlayerHUD(Player player) {
-		if (player == null || hudBarTracks == null || hudBarFills == null) {
+		if (player == null) {
+			return;
+		}
+		if (hudHeartDisplay != null) {
+			hudHeartDisplay.setFilledHalfHearts(player.getHP());
+		}
+		if (hudBarTracks == null || hudBarFills == null) {
+			bringPlayerHudToFront();
 			return;
 		}
 
-		double healthFraction = safeFraction(player.getHealth(), player.getMaxHealth());
 		double attackFraction = 1.0;
 		if (player.getAttackCooldownMax() > 0) {
 			attackFraction = 1.0
@@ -491,18 +527,9 @@ public class GraphicsPane {
 			}
 		}
 
-		setHudBarFill(hudBarFills[0], hudBarTracks[0], healthFraction, HUD_BAR_RED);
-		setHudBarFill(hudBarFills[1], hudBarTracks[1], attackFraction, HUD_BAR_BLUE);
-		setHudBarFill(hudBarFills[2], hudBarTracks[2], relicFraction, relicColor);
+		setHudBarFill(hudBarFills[0], hudBarTracks[0], attackFraction, HUD_BAR_BLUE);
+		setHudBarFill(hudBarFills[1], hudBarTracks[1], relicFraction, relicColor);
 		bringPlayerHudToFront();
-	}
-
-	private double safeFraction(int current, int max) {
-		if (max <= 0) {
-			return 0.0;
-		}
-		double fraction = (double) current / (double) max;
-		return Math.max(0.0, Math.min(1.0, fraction));
 	}
 
 	private void setHudBarFill(GRect fill, GRect track, double fraction, Color color) {
@@ -532,6 +559,7 @@ public class GraphicsPane {
 		if (hudPortraitWell != null) hudPortraitWell.sendToFront();
 		if (hudPortrait != null) hudPortrait.sendToFront();
 		if (hudPortraitFallbackLabel != null) hudPortraitFallbackLabel.sendToFront();
+		if (hudHeartDisplay != null) hudHeartDisplay.bringToFront();
 		if (hudBarTracks != null) {
 			for (GRect track : hudBarTracks) {
 				if (track != null) track.sendToFront();
@@ -548,6 +576,11 @@ public class GraphicsPane {
 	 * Removes every HUD object from the canvas and tracking list.
 	 */
 	protected void hidePlayerHUD() {
+		if (hudHeartDisplay != null) {
+			hudHeartDisplay.remove();
+			hudHeartDisplay = null;
+		}
+
 		GObject[] hudObjects = {
 			hudFrameOuter,
 			hudFrameInner,
@@ -585,6 +618,7 @@ public class GraphicsPane {
 		hudPortraitWell = null;
 		hudPortrait = null;
 		hudPortraitFallbackLabel = null;
+		hudHeartDisplay = null;
 		hudBarTracks = null;
 		hudBarFills = null;
 	}

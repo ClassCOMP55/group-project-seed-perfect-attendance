@@ -122,30 +122,46 @@ public class GameplayPane extends GraphicsPane {
     private String lastMusicRoomId;
 
     // =========================================================
-    // CONTROLS HINT OVERLAY (tech-demo placeholder)
+    // CONTROLS CARD OVERLAY
     // =========================================================
 
-    /*
-     * =====================
-     * TECH DEMO: Simple on-screen control labels so playtesters know what buttons to press.
-     * RIG POINT: Remove these labels once HUDoverlay.showAll() is wired into GameplayPane and
-     *            a proper controls indicator is part of the real HUD design.
-     *            To remove: delete the four GLabel fields below, the addControlsHint() call in
-     *            showContent(), and the removeControlsHint() call in hideContent().
-     * =====================
-     */
+    /** Right-side gameplay help card. Visible by default on each fresh / loaded session. */
+    private boolean controlsCardVisible = true;
+    /** Every visual object that belongs to the controls card, back to front. */
+    private final java.util.List<acm.graphics.GObject> controlsCardObjects =
+        new java.util.ArrayList<>();
+    /** Small close button in the card header. */
+    private acm.graphics.GRoundRect controlsCardCloseFrame;
+    private acm.graphics.GLabel controlsCardCloseLabel;
 
-    /** "Move: WASD" hint label — bottom-right corner. */
-    private acm.graphics.GLabel hintMove;
-    /** "Attack: J" hint label. */
-    private acm.graphics.GLabel hintAttack;
-    /** "Ability: K" hint label. */
-    private acm.graphics.GLabel hintAbility;
-    /** "Pause: ESC" hint label. */
-    private acm.graphics.GLabel hintPause;
-    /** Debug shortcut hints — separated visually from the gameplay controls. */
-    private acm.graphics.GLabel hintDebug;
-    private acm.graphics.GLabel hintDebug2;
+    private static final String[][] CONTROLS_CARD_ROWS = {
+        { "MOVE", "WASD" },
+        { "ATTACK", "J" },
+        { "ABILITY", "K" },
+        { "SAVE / USE", "E" },
+        { "PAUSE", "ESC" },
+        { "DUNGEON", "F5" },
+        { "DEBUG", "F6" }
+    };
+
+    private static final java.awt.Color CONTROLS_CARD_SHADOW =
+        new java.awt.Color(54, 34, 18, 110);
+    private static final java.awt.Color CONTROLS_CARD_EDGE =
+        new java.awt.Color(131, 92, 51);
+    private static final java.awt.Color CONTROLS_CARD_TAB =
+        new java.awt.Color(167, 124, 78);
+    private static final java.awt.Color CONTROLS_CARD_PARCHMENT =
+        new java.awt.Color(237, 221, 179);
+    private static final java.awt.Color CONTROLS_CARD_PARCHMENT_INNER =
+        new java.awt.Color(246, 235, 201);
+    private static final java.awt.Color CONTROLS_CARD_TITLE =
+        new java.awt.Color(71, 43, 23);
+    private static final java.awt.Color CONTROLS_CARD_BUTTON =
+        new java.awt.Color(95, 196, 143);
+    private static final java.awt.Color CONTROLS_CARD_BUTTON_DARK =
+        new java.awt.Color(42, 113, 80);
+    private static final java.awt.Color CONTROLS_CARD_BUTTON_HIGHLIGHT =
+        new java.awt.Color(160, 235, 189);
 
     // =========================================================
     // DEBUG OVERLAY (F6)
@@ -240,6 +256,9 @@ public class GameplayPane extends GraphicsPane {
 
         // --- player HUD ---
         showPlayerHUD(player);
+        if (controlsCardVisible) {
+            showControlsCard();
+        }
         clearCoinGainPopup();
         lastObservedCoins = player.getCoins();
 
@@ -269,6 +288,7 @@ public class GameplayPane extends GraphicsPane {
         }
 
         hidePlayerHUD();
+        clearControlsCardVisuals();
         clearCoinGainPopup();
         lastObservedCoins = -1;
         lastMusicRoomId = null;
@@ -289,6 +309,7 @@ public class GameplayPane extends GraphicsPane {
         pendingSpawnY = PLAYER_START_Y;
         deathDelayTicks = 0;
         debugOverlayOn = false;
+        controlsCardVisible = true;
         clearCoinGainPopup();
         lastObservedCoins = -1;
         lastMusicRoomId = null;
@@ -302,6 +323,7 @@ public class GameplayPane extends GraphicsPane {
         pendingSpawnY = PLAYER_START_Y;
         deathDelayTicks = 0;
         debugOverlayOn = false;
+        controlsCardVisible = true;
         clearCoinGainPopup();
         lastObservedCoins = -1;
         lastMusicRoomId = null;
@@ -326,6 +348,7 @@ public class GameplayPane extends GraphicsPane {
         pendingSpawnY = roomFound ? spawnY : PLAYER_START_Y;
         deathDelayTicks = 0;
         debugOverlayOn = false;
+        controlsCardVisible = true;
         clearCoinGainPopup();
         lastObservedCoins = -1;
         lastMusicRoomId = null;
@@ -377,6 +400,7 @@ public class GameplayPane extends GraphicsPane {
                 player.draw(canvas); // draw fresh idle sprite at spawn
             }
             updatePlayerHUD(player);
+            bringControlsCardToFront();
             updateCoinGainFeedback(player);
             return; // no player input while dying
         }
@@ -413,7 +437,39 @@ public class GameplayPane extends GraphicsPane {
         }
 
         updatePlayerHUD(player);
+        bringControlsCardToFront();
         updateCoinGainFeedback(player);
+    }
+
+    @Override
+    public boolean tryHandleOverlayKeyPressed(KeyEvent e) {
+        if (e.getKeyCode() != KeyEvent.VK_H) {
+            return false;
+        }
+        if (controlsCardVisible) {
+            hideControlsCard();
+        } else {
+            showControlsCard();
+        }
+        return true;
+    }
+
+    @Override
+    public boolean tryHandleOverlayClick(java.awt.event.MouseEvent e) {
+        if (!controlsCardVisible) {
+            return false;
+        }
+        double x = e.getX();
+        double y = e.getY();
+        if (controlsCardCloseFrame != null && controlsCardCloseFrame.contains(x, y)) {
+            hideControlsCard();
+            return true;
+        }
+        if (controlsCardCloseLabel != null && controlsCardCloseLabel.contains(x, y)) {
+            hideControlsCard();
+            return true;
+        }
+        return false;
     }
 
     private void startDeathSequenceIfNeeded(Player player, GCanvas canvas) {
@@ -551,101 +607,209 @@ public class GameplayPane extends GraphicsPane {
     }
 
     // =========================================================
-    // CONTROLS HINT HELPERS (tech-demo only)
+    // CONTROLS CARD HELPERS
     // =========================================================
 
-    /**
-     * Adds the four controls hint labels to the canvas in the bottom-right corner.
-     * Called from showContent() each time gameplay becomes the active screen.
-     *
-     * // TECH DEMO: placeholder until HUDoverlay is wired in.
-     * // RIG POINT: delete this method and its call in showContent() when the real HUD is ready.
-     */
-    private void addControlsHint(acm.graphics.GCanvas canvas) {
-        // Fixed anchor: 150px from the right edge, bottom label 80px from the bottom edge.
-        // Using a fixed X instead of label.getWidth() because ACM's GLabel.getWidth() returns 0
-        // before the label is added to the canvas, which would push every label off-screen right.
-        // 150px is wide enough to contain the longest hint text ("Move: WASD") at SansSerif-BOLD-13.
-        // TECH DEMO: adjust these two constants if the hint needs to move.
-        double hintX      = mainScreen.getLayoutWidth()  - 150;
-        double hintBottom = mainScreen.getLayoutHeight() -  80;
-        double lineHeight = 18;
+    private void showControlsCard() {
+        clearControlsCardVisuals();
+        controlsCardVisible = true;
 
-        // “Relic ability” = intangible invuln after obtaining relic (see Player.hasIntangible / chests / save).
-        String[] lines = { "Pause: ESC", "Relic ability: K", "Attack: J", "Move: WASD" };
-        acm.graphics.GLabel[] targets = { hintPause, hintAbility, hintAttack, hintMove };
+        double scale = uniformScale();
+        double marginRight = 34.0 * scale;
+        double bottomMargin = 42.0 * scale;
+        double cardW = 186.0 * scale;
+        double topPad = 10.0 * scale;
+        double sidePad = 10.0 * scale;
+        double closeSide = 19.0 * scale;
+        double headerH = 22.0 * scale;
+        double rowH = 26.0 * scale;
+        double rowGap = 6.0 * scale;
+        double bottomPad = 12.0 * scale;
+        double shadowOffset = 4.0 * scale;
+        double tabW = 6.0 * scale;
+        double tabH = 16.0 * scale;
+        double cardH = topPad + headerH + 8.0 * scale
+            + CONTROLS_CARD_ROWS.length * rowH
+            + (CONTROLS_CARD_ROWS.length - 1) * rowGap
+            + bottomPad;
+        double cardX = originX() + mainScreen.getLayoutWidth() - cardW - marginRight;
+        double cardY = originY() + mainScreen.getLayoutHeight() - cardH - bottomMargin;
+        double cardArc = 14.0 * scale;
 
-        for (int i = 0; i < lines.length; i++) {
-            acm.graphics.GLabel label = new acm.graphics.GLabel(lines[i]);
-            label.setFont("SansSerif-BOLD-13");
-            label.setColor(java.awt.Color.WHITE);
-            label.setLocation(hintX, hintBottom - i * lineHeight);
-            canvas.add(label);
-            targets[i] = label;
+        acm.graphics.GRoundRect shadow =
+            new acm.graphics.GRoundRect(
+                cardX + shadowOffset, cardY + shadowOffset, cardW, cardH, cardArc, cardArc);
+        shadow.setFilled(true);
+        shadow.setFillColor(CONTROLS_CARD_SHADOW);
+        shadow.setColor(CONTROLS_CARD_SHADOW);
+        addControlsCardObject(shadow);
+
+        acm.graphics.GRect leftTab =
+            new acm.graphics.GRect(cardX - tabW + 1.0, cardY + 30.0 * scale, tabW, tabH);
+        leftTab.setFilled(true);
+        leftTab.setFillColor(CONTROLS_CARD_TAB);
+        leftTab.setColor(CONTROLS_CARD_EDGE);
+        addControlsCardObject(leftTab);
+
+        acm.graphics.GRect rightTab =
+            new acm.graphics.GRect(cardX + cardW - 1.0, cardY + cardH - 46.0 * scale, tabW, tabH);
+        rightTab.setFilled(true);
+        rightTab.setFillColor(CONTROLS_CARD_TAB);
+        rightTab.setColor(CONTROLS_CARD_EDGE);
+        addControlsCardObject(rightTab);
+
+        acm.graphics.GRoundRect outer =
+            new acm.graphics.GRoundRect(cardX, cardY, cardW, cardH, cardArc, cardArc);
+        outer.setFilled(true);
+        outer.setFillColor(CONTROLS_CARD_PARCHMENT);
+        outer.setColor(CONTROLS_CARD_EDGE);
+        addControlsCardObject(outer);
+
+        double innerInset = 7.0 * scale;
+        acm.graphics.GRoundRect inner =
+            new acm.graphics.GRoundRect(
+                cardX + innerInset,
+                cardY + innerInset,
+                cardW - innerInset * 2.0,
+                cardH - innerInset * 2.0,
+                Math.max(8.0, cardArc - innerInset),
+                Math.max(8.0, cardArc - innerInset));
+        inner.setFilled(true);
+        inner.setFillColor(CONTROLS_CARD_PARCHMENT_INNER);
+        inner.setColor(CONTROLS_CARD_EDGE);
+        addControlsCardObject(inner);
+
+        acm.graphics.GLabel title = pixelLabel("CONTROLS", 14, CONTROLS_CARD_TITLE);
+        double titleY = cardY + topPad + title.getAscent();
+        title.setLocation(cardX + sidePad, titleY);
+        addControlsCardObject(title);
+
+        controlsCardCloseFrame =
+            new acm.graphics.GRoundRect(
+                cardX + cardW - sidePad - closeSide,
+                cardY + topPad - 2.0 * scale,
+                closeSide,
+                closeSide,
+                5.0 * scale,
+                5.0 * scale);
+        controlsCardCloseFrame.setFilled(true);
+        controlsCardCloseFrame.setFillColor(CONTROLS_CARD_TITLE);
+        controlsCardCloseFrame.setColor(CONTROLS_CARD_EDGE);
+        addControlsCardObject(controlsCardCloseFrame);
+
+        controlsCardCloseLabel = pixelLabel("X", 10, CONTROLS_CARD_PARCHMENT_INNER);
+        addControlsCardObject(controlsCardCloseLabel);
+        centerControlsCardLabel(
+            controlsCardCloseLabel,
+            controlsCardCloseFrame.getX(),
+            controlsCardCloseFrame.getY(),
+            controlsCardCloseFrame.getWidth(),
+            controlsCardCloseFrame.getHeight());
+
+        acm.graphics.GLine divider =
+            new acm.graphics.GLine(
+                cardX + sidePad,
+                cardY + topPad + headerH,
+                cardX + cardW - sidePad,
+                cardY + topPad + headerH);
+        divider.setColor(CONTROLS_CARD_EDGE);
+        addControlsCardObject(divider);
+
+        double rowX = cardX + sidePad;
+        double rowW = cardW - sidePad * 2.0;
+        double rowY = cardY + topPad + headerH + 8.0 * scale;
+        double rowTextPad = 10.0 * scale;
+
+        for (String[] row : CONTROLS_CARD_ROWS) {
+            acm.graphics.GRoundRect rowShadow =
+                new acm.graphics.GRoundRect(
+                    rowX + 1.5 * scale,
+                    rowY + 2.0 * scale,
+                    rowW,
+                    rowH,
+                    8.0 * scale,
+                    8.0 * scale);
+            rowShadow.setFilled(true);
+            rowShadow.setFillColor(new java.awt.Color(45, 83, 63, 95));
+            rowShadow.setColor(new java.awt.Color(45, 83, 63, 95));
+            addControlsCardObject(rowShadow);
+
+            acm.graphics.GRoundRect rowFrame =
+                new acm.graphics.GRoundRect(rowX, rowY, rowW, rowH, 8.0 * scale, 8.0 * scale);
+            rowFrame.setFilled(true);
+            rowFrame.setFillColor(CONTROLS_CARD_BUTTON);
+            rowFrame.setColor(CONTROLS_CARD_BUTTON_DARK);
+            addControlsCardObject(rowFrame);
+
+            acm.graphics.GLine highlight =
+                new acm.graphics.GLine(
+                    rowX + 8.0 * scale,
+                    rowY + 5.0 * scale,
+                    rowX + rowW - 8.0 * scale,
+                    rowY + 5.0 * scale);
+            highlight.setColor(CONTROLS_CARD_BUTTON_HIGHLIGHT);
+            addControlsCardObject(highlight);
+
+            acm.graphics.GLabel actionLabel = pixelLabel(row[0], 10, CONTROLS_CARD_TITLE);
+            double actionBaseY = rowY + (rowH + actionLabel.getAscent() - actionLabel.getDescent()) / 2.0;
+            actionLabel.setLocation(rowX + rowTextPad, actionBaseY);
+            addControlsCardObject(actionLabel);
+
+            acm.graphics.GLabel keyLabel = pixelLabel(row[1], 10, CONTROLS_CARD_TITLE);
+            addControlsCardObject(keyLabel);
+            double keyBaseY = rowY + (rowH + keyLabel.getAscent() - keyLabel.getDescent()) / 2.0;
+            keyLabel.setLocation(rowX + rowW - rowTextPad - keyLabel.getWidth(), keyBaseY);
+
+            rowY += rowH + rowGap;
         }
 
-        hintPause   = targets[0];
-        hintAbility = targets[1];
-        hintAttack  = targets[2];
-        hintMove    = targets[3];
+        bringControlsCardToFront();
+    }
 
-        String[] debugLines = { "Debug: F6", "Dungeon: F5" };
-        acm.graphics.GLabel prev = null;
-        for (int i = 0; i < debugLines.length; i++) {
-            acm.graphics.GLabel lbl = new acm.graphics.GLabel(debugLines[i]);
-            lbl.setFont("SansSerif-BOLD-13");
-            lbl.setColor(new java.awt.Color(255, 200, 100));
-            lbl.setLocation(hintX, hintBottom + (i + 1) * lineHeight + 6);
-            canvas.add(lbl);
-            if (i == 0) hintDebug = lbl;
-            else prev = lbl;
+    private void hideControlsCard() {
+        controlsCardVisible = false;
+        clearControlsCardVisuals();
+    }
+
+    private void clearControlsCardVisuals() {
+        if (controlsCardObjects.isEmpty()) {
+            controlsCardCloseFrame = null;
+            controlsCardCloseLabel = null;
+            return;
         }
-        // Store second debug label for cleanup — reuse hintDebug for the first one
-        hintDebug2 = prev;
+        for (acm.graphics.GObject obj : controlsCardObjects) {
+            mainScreen.remove(obj);
+            contents.remove(obj);
+        }
+        controlsCardObjects.clear();
+        controlsCardCloseFrame = null;
+        controlsCardCloseLabel = null;
     }
 
-    /**
-     * Removes the four controls hint labels from the canvas.
-     * Called from hideContent() whenever gameplay is no longer the active screen.
-     *
-     * // TECH DEMO: paired with addControlsHint().
-     * // RIG POINT: delete this method and its call in hideContent() when the real HUD is ready.
-     */
-    private void removeControlsHint(acm.graphics.GCanvas canvas) {
-        if (hintMove    != null) { canvas.remove(hintMove);    hintMove    = null; }
-        if (hintAttack  != null) { canvas.remove(hintAttack);  hintAttack  = null; }
-        if (hintAbility != null) { canvas.remove(hintAbility); hintAbility = null; }
-        if (hintPause   != null) { canvas.remove(hintPause);   hintPause   = null; }
-        if (hintDebug   != null) { canvas.remove(hintDebug);   hintDebug   = null; }
-        if (hintDebug2  != null) { canvas.remove(hintDebug2);  hintDebug2  = null; }
+    private void addControlsCardObject(acm.graphics.GObject obj) {
+        controlsCardObjects.add(obj);
+        place(obj);
     }
 
-    /**
-     * Re-stacks every hint label on top of the canvas z-order.
-     * Called once per tick after the world update so that room tiles added during a
-     * room-transition animation never permanently bury the hint labels.
-     *
-     * Why this is needed: when {@code RoomTransition.start()} calls {@code toRoom.addTo(canvas)},
-     * the incoming room's tiles are added to the canvas after the hint labels were originally
-     * added. In ACM, later additions sit on top, covering earlier ones. The hints become invisible
-     * and never recover on their own.
-     *
-     * In ACM, calling {@code canvas.add(object)} on an object already present in the canvas
-     * moves it to the front of the draw order — this is the standard ACM pattern for keeping
-     * a static overlay always visible above dynamic content.
-     *
-     * // TECH DEMO: only needed because hint labels are plain GLabels, not part of a managed
-     * //            HUD layer. Four canvas.add() calls per tick is negligible cost.
-     * // RIG POINT: delete this method and its call in onTick() once HUDoverlay.showAll() is
-     * //            wired in — a proper HUD layer will manage its own z-order.
-     */
-    private void restackHintsOnTop(acm.graphics.GCanvas canvas) {
-        if (hintMove    != null) canvas.add(hintMove);
-        if (hintAttack  != null) canvas.add(hintAttack);
-        if (hintAbility != null) canvas.add(hintAbility);
-        if (hintPause   != null) canvas.add(hintPause);
-        if (hintDebug   != null) canvas.add(hintDebug);
-        if (hintDebug2  != null) canvas.add(hintDebug2);
+    private void bringControlsCardToFront() {
+        if (!controlsCardVisible) {
+            return;
+        }
+        if (mainScreen.getDialogue() != null && mainScreen.getDialogue().isOpen()) {
+            return;
+        }
+        for (acm.graphics.GObject obj : controlsCardObjects) {
+            if (obj != null) {
+                obj.sendToFront();
+            }
+        }
+    }
+
+    private void centerControlsCardLabel(
+        acm.graphics.GLabel label, double x, double y, double width, double height) {
+        label.setLocation(
+            x + (width - label.getWidth()) / 2.0,
+            y + (height + label.getAscent() - label.getDescent()) / 2.0);
     }
 
     /** Detects wallet increases and keeps the short-lived coin popup visible while it is active. */
