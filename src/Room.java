@@ -142,6 +142,9 @@ public class Room {
     /** Items lying on the ground waiting for the player to walk over them. */
     private final List<Item> droppedItems = new ArrayList<>();
 
+    /** Active projectiles fired inside this room. Cleared on room reset / exit. */
+    private final List<Projectile> projectiles = new ArrayList<>();
+
     /**
      * Which edges of this room have open exits.
      * Set by WorldMap when the room is constructed. Room does not decide its own connections.
@@ -323,6 +326,13 @@ public class Room {
             entity.draw(canvas);
         }
 
+        // --- projectiles (draw above items/objects, below debug/UI) ---
+        for (Projectile projectile : projectiles) {
+            if (projectile.isAlive()) {
+                projectile.draw(canvas);
+            }
+        }
+
         // --- room ID label (tech-demo only) ---
         // TECH DEMO: visible room ID label; remove when real room art replaces buildDummy().
         // Reset position before adding — dummyLabel.move() was called during pan animations
@@ -371,6 +381,11 @@ public class Room {
             entity.removeSpriteFromCanvas(canvas);
         }
 
+        // --- projectiles ---
+        for (Projectile projectile : projectiles) {
+            projectile.removeSpriteFromCanvas(canvas);
+        }
+
         // --- room ID label ---
         if (dummyLabel != null) {
             canvas.remove(dummyLabel);
@@ -406,6 +421,12 @@ public class Room {
             }
         }
 
+        for (Projectile projectile : projectiles) {
+            if (projectile.isAlive()) {
+                projectile.update(dt);
+            }
+        }
+
         // --- enemy-to-enemy separation (prevent stacking) ---
         for (int i = 0; i < entities.size(); i++) {
             if (!(entities.get(i) instanceof Enemy)) continue;
@@ -429,12 +450,48 @@ public class Room {
             }
         }
 
-        // --- redraw entities so animator frame swaps remove the old frame from canvas ---
+        // --- projectile hit resolution ---
+        for (Projectile projectile : projectiles) {
+            if (!projectile.isAlive()) {
+                continue;
+            }
+            if (projectile.checkHit(player, true)) {
+                continue;
+            }
+            if (!projectile.isReflected()) {
+                continue;
+            }
+            for (Entity entity : entities) {
+                if (!(entity instanceof Enemy) || entity.getHealth() <= 0) {
+                    continue;
+                }
+                if (projectile.checkHit(entity, false)) {
+                    break;
+                }
+            }
+        }
+
+        // --- remove dead projectiles before redraw so stale visuals disappear immediately ---
+        java.util.Iterator<Projectile> projectileIt = projectiles.iterator();
+        while (projectileIt.hasNext()) {
+            Projectile projectile = projectileIt.next();
+            if (!projectile.isAlive()) {
+                if (canvas != null) {
+                    projectile.removeSpriteFromCanvas(canvas);
+                }
+                projectileIt.remove();
+            }
+        }
+
+        // --- redraw entities/projectiles so animation swaps remove old visuals from canvas ---
         // Without this, direction changes leave ghost sprites because draw() is the only
         // method that calls canvas.remove(lastDrawnVisual) before adding the new frame.
         if (canvas != null) {
             for (Entity entity : entities) {
                 entity.draw(canvas);
+            }
+            for (Projectile projectile : projectiles) {
+                projectile.draw(canvas);
             }
         }
 
@@ -643,6 +700,14 @@ public class Room {
         }
         droppedItems.clear();
 
+        // --- projectiles ---
+        if (canvas != null) {
+            for (Projectile projectile : projectiles) {
+                projectile.removeSpriteFromCanvas(canvas);
+            }
+        }
+        projectiles.clear();
+
         // --- enemies ---
         // D1 currently registers respawn factories through addRespawningEntity().
         // Other combat rooms can opt into the same behavior once their real enemy layouts exist.
@@ -662,6 +727,7 @@ public class Room {
             for (Supplier<Entity> entitySupplier : respawnEntitySuppliers) {
                 Entity entity = entitySupplier.get();
                 if (entity == null) continue;
+                prepareEntityForRoom(entity);
                 entities.add(entity);
                 if (initialized && canvas != null) {
                     entity.draw(canvas);
@@ -769,6 +835,11 @@ public class Room {
             entity.panVisual(panX, panY);
         }
 
+        // --- projectiles ---
+        for (Projectile projectile : projectiles) {
+            projectile.panVisual(panX, panY);
+        }
+
         // --- dropped items ---
         for (Item item : droppedItems) {
             item.panVisual(panX, panY);
@@ -789,6 +860,15 @@ public class Room {
     // CONTENT ADDERS — called during room construction
     // =========================================================
 
+    /** Wires room-owned shared systems into entities as they are spawned. */
+    private void prepareEntityForRoom(Entity entity) {
+        if (entity instanceof RangedEnemy) {
+            ((RangedEnemy) entity).setProjectileList(projectiles);
+        } else if (entity instanceof Boss) {
+            ((Boss) entity).setProjectileList(projectiles);
+        }
+    }
+
     /** Adds a resettable entity factory and spawns its initial instance immediately. */
     public void addRespawningEntity(Supplier<Entity> entitySupplier) {
         if (entitySupplier == null) return;
@@ -796,6 +876,7 @@ public class Room {
         Entity entity = entitySupplier.get();
         if (entity == null) return;
 
+        prepareEntityForRoom(entity);
         respawnEntitySuppliers.add(entitySupplier);
         entities.add(entity);
 
@@ -805,7 +886,14 @@ public class Room {
     }
 
     /** Adds an entity (enemy) to this room's entity list. */
-    public void addEntity(Entity e)       { entities.add(e); }
+    public void addEntity(Entity e) {
+        if (e == null) return;
+        prepareEntityForRoom(e);
+        entities.add(e);
+        if (initialized && canvas != null) {
+            e.draw(canvas);
+        }
+    }
 
     /** Adds a WorldObject (interactable) to this room. */
     public void addObject(WorldObject o)  { objects.add(o); }
@@ -847,8 +935,7 @@ public class Room {
         return enemies;
     }
 
-    /** Returns an empty list — placeholder until projectile system is wired in. */
     public List<Projectile> getProjectiles() {
-        return new ArrayList<>();
+        return projectiles;
     }
 }

@@ -402,6 +402,7 @@ public class WorldMap {
 
         reserveTeleportTriggerTilesForPlayers();
 
+        populateOverworldEnemyRooms();
         populateD1();
 
         installStarterSavePoint();
@@ -525,8 +526,27 @@ public class WorldMap {
         ));
     }
 
+    /** Seeds live overworld enemy encounters into the currently-walkable dummy rooms. */
+    private void populateOverworldEnemyRooms() {
+        populateB2();
+        populateC2();
+    }
+
+    /** Places an armored bruiser in the ore route so that room now has a live encounter. */
+    private void populateB2() {
+        Room b2 = overworldGrid[1][1];
+        b2.addRespawningEntity(() -> new ArmorEnemy(420, 300, b2.getTileMap()));
+    }
+
+    /** Gives the forest a mixed encounter: one armored chaser and one ranged shooter. */
+    private void populateC2() {
+        Room c2 = overworldGrid[2][1];
+        c2.addRespawningEntity(() -> new ArmorEnemy(360, 252, c2.getTileMap()));
+        c2.addRespawningEntity(() -> new RangedEnemy(920, 432, c2.getTileMap()));
+    }
+
     /**
-     * Spawns test MeleeEnemy instances in Dungeon Room 1.
+     * Spawns a mixed starter wave in Dungeon Room 1.
      * Called from initRooms() after D1 is created.
      */
     private void populateD1() {
@@ -534,8 +554,8 @@ public class WorldMap {
 
         // Register D1's enemy wave so Room.reset() can rebuild it on every re-entry.
         d1.addRespawningEntity(() -> new MeleeEnemy(300, 250, d1.getTileMap()));
-        d1.addRespawningEntity(() -> new MeleeEnemy(900, 500, d1.getTileMap()));
-        d1.addRespawningEntity(() -> new MeleeEnemy(640, 360, d1.getTileMap()));
+        d1.addRespawningEntity(() -> new RangedEnemy(940, 260, d1.getTileMap()));
+        d1.addRespawningEntity(() -> new MeleeEnemy(640, 500, d1.getTileMap()));
     }
 
     /**

@@ -966,6 +966,7 @@ public class GameplayPane extends GraphicsPane {
 
         Room activeRoom = worldMap.getActiveRoom();
         java.util.List<Enemy> enemies = activeRoom.getEnemies();
+        java.util.List<Projectile> projectiles = activeRoom.getProjectiles();
 
         // --- player hitbox (blue) ---
         Hitbox ph = player.getHitbox();
@@ -1050,12 +1051,21 @@ public class GameplayPane extends GraphicsPane {
             debugObjects.add(toPlayer);
 
             // --- aggro range circle (yellow) ---
-            double aggroR = 224; // MeleeEnemy aggroRange
+            double aggroR = e.getAggroRange();
             acm.graphics.GOval aggroCircle = new acm.graphics.GOval(
                 ex - aggroR, ey - aggroR, aggroR * 2, aggroR * 2);
             aggroCircle.setColor(new java.awt.Color(255, 255, 0, 80));
             canvas.add(aggroCircle);
             debugObjects.add(aggroCircle);
+
+            if (e instanceof RangedEnemy) {
+                double retreatR = ((RangedEnemy) e).getRetreatDistance();
+                acm.graphics.GOval retreatCircle = new acm.graphics.GOval(
+                    ex - retreatR, ey - retreatR, retreatR * 2, retreatR * 2);
+                retreatCircle.setColor(new java.awt.Color(120, 220, 255, 80));
+                canvas.add(retreatCircle);
+                debugObjects.add(retreatCircle);
+            }
 
             // --- debug health bar (green/red) below enemy ---
             double barW = 40, barH = 4;
@@ -1130,6 +1140,63 @@ public class GameplayPane extends GraphicsPane {
             stateLbl.setLocation(barX, eBarY + stateLbl.getAscent());
             canvas.add(stateLbl);
             debugObjects.add(stateLbl);
+        }
+
+        for (Projectile projectile : projectiles) {
+            java.awt.Color projColor = projectile.isReflected()
+                ? new java.awt.Color(100, 210, 255)
+                : new java.awt.Color(255, 180, 90);
+
+            Hitbox projHitbox = projectile.getHitbox();
+            acm.graphics.GRect projRect = new acm.graphics.GRect(
+                projHitbox.x, projHitbox.y, projHitbox.width, projHitbox.height);
+            projRect.setColor(projColor);
+            canvas.add(projRect);
+            debugObjects.add(projRect);
+
+            java.util.List<double[]> trail = projectile.getTrailPoints();
+            for (int i = 1; i < trail.size(); i++) {
+                double[] a = trail.get(i - 1);
+                double[] b = trail.get(i);
+                acm.graphics.GLine seg = new acm.graphics.GLine(a[0], a[1], b[0], b[1]);
+                seg.setColor(projectile.isReflected()
+                    ? new java.awt.Color(120, 230, 255, 110)
+                    : new java.awt.Color(255, 190, 110, 110));
+                canvas.add(seg);
+                debugObjects.add(seg);
+            }
+
+            double headingLen = 24.0;
+            double vx = projectile.getVelocityX();
+            double vy = projectile.getVelocityY();
+            double speed = Math.max(1.0, projectile.getCurrentSpeed());
+            acm.graphics.GLine heading = new acm.graphics.GLine(
+                projectile.getX(),
+                projectile.getY(),
+                projectile.getX() + (vx / speed) * headingLen,
+                projectile.getY() + (vy / speed) * headingLen
+            );
+            heading.setColor(projColor);
+            canvas.add(heading);
+            debugObjects.add(heading);
+
+            String ownerName = projectile.getOwner() == null
+                ? "Unknown"
+                : projectile.getOwner().getClass().getSimpleName();
+            String projLabelText = String.format(
+                "%s shot | %s | %.0f px/s | age %.2fs | %s",
+                ownerName,
+                projectile.getMotionProfileLabel(),
+                projectile.getCurrentSpeed(),
+                projectile.getAgeSeconds(),
+                projectile.isReflected() ? "REFLECTED" : projectile.getDirection().name()
+            );
+            acm.graphics.GLabel projLabel = new acm.graphics.GLabel(projLabelText, 0, 0);
+            projLabel.setFont("SansSerif-BOLD-9");
+            projLabel.setColor(projColor);
+            projLabel.setLocation(projectile.getX() + 12, projectile.getY() - 10);
+            canvas.add(projLabel);
+            debugObjects.add(projLabel);
         }
 
         for (Item item : activeRoom.getDroppedItems()) {

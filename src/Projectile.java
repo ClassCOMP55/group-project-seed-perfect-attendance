@@ -1,221 +1,278 @@
-/**
- * Projectile.java
- *
- * A moving projectile fired by RangedEnemy and Boss. Travels in a fixed
- * cardinal direction until it hits a wall or a target. Can be reflected
- * back at enemies by the player's SwordSwing if they have the Reflect relic.
- *
- * Extends Entity for position, hitbox, draw(), and tile-aware move().
- * The hitbox is overridden to 16x16 (smaller than the standard 48x48)
- * so dodging feels fair. Note: Entity.move() still probes using 48px
- * geometry internally — the wall-stop margin is slightly conservative
- * as a result, which is acceptable.
- *
- * Lifecycle:
- *   - Created by RangedEnemy (or Boss) at their position, aimed at the player.
- *   - Each tick: moves in direction, self-destructs if blocked by a wall.
- *   - Room calls checkHit(player, true) and checkHit(enemy, false) each tick.
- *   - If SwordSwing overlaps it while canReflect is true: reflect() reverses it.
- *   - isAlive() == false → Room removes from active list.
- *
- * NOTE: checkHit(target, targetIsPlayer=true) requires Player to extend Entity
- * and expose getHitbox(). Player.java does not yet extend Entity — that path
- * is a forward stub that will work once Player is refactored.
- *
- * Person 3 — Combat & Enemies
- */
-import acm.graphics.*;
+import acm.graphics.GCanvas;
+import acm.graphics.GOval;
+import java.awt.Color;
+import java.util.ArrayList;
+import java.util.List;
 
+/**
+ * A visible energy ball fired by ranged enemies and bosses.
+ *
+ * Travel model:
+ *   - Path is a straight line based on the original aim vector.
+ *   - Speed ramps up exponentially over time ("linear/expo" in debug text).
+ *   - Reflection reverses the same vector, so the ball retraces a believable return path.
+ */
 public class Projectile extends Entity {
 
-    // ==========================================================
-    // CONSTANTS
-    // ==========================================================
+    private static final String FALLBACK_SPRITE =
+        "assets/visuals/skeley-mob-1/normalized/skeley-mob-1-idle-front.gif";
 
-    /** Projectile hitbox size in pixels — smaller than entities (48px) for fair dodging. */
+    /** Smaller hitbox than a full entity so dodging still feels fair. */
     private static final int PROJ_HITBOX_SIZE = 16;
-    private static final int PROJ_HITBOX_HALF = 8;  // 16 / 2
+    private static final double PROJ_HITBOX_HALF = PROJ_HITBOX_SIZE / 2.0;
 
-    /** Sprite size matches hitbox. Resize the GImage asset here if needed. */
-    private static final int PROJ_SPRITE_SIZE = 16;
-    private static final int PROJ_SPRITE_HALF = 8;  // 16 / 2
+    /** Slightly smaller visual than the hitbox so collisions feel readable. */
+    private static final int PROJ_VISUAL_SIZE = 14;
+    private static final double PROJ_VISUAL_HALF = PROJ_VISUAL_SIZE / 2.0;
 
-    // ==========================================================
-    // FIELDS
-    // ==========================================================
+    /** Straight line path, exponential speed ramp. */
+    private static final String MOTION_PROFILE_LABEL = "linear/expo";
+    private static final double START_SPEED = 120.0;
+    private static final double MAX_SPEED = 280.0;
+    private static final double EXP_ACCEL_RATE = 3.0;
+    private static final double COLLISION_STEP_PX = 6.0;
+    private static final int MAX_TRAIL_POINTS = 14;
 
-    /**
-     * Cardinal direction this projectile is traveling.
-     * Determined at construction via Direction.fromDelta(); reversed by reflect().
-     */
+    private static final Color BALL_FILL = new Color(255, 170, 74);
+    private static final Color BALL_OUTLINE = new Color(255, 236, 194);
+    private static final Color REFLECT_FILL = new Color(90, 196, 255);
+    private static final Color REFLECT_OUTLINE = new Color(220, 246, 255);
+
+    /** Approximate facing for overlays and reflect logic. */
     private Direction direction;
 
-    /**
-     * True once reflect() has been called.
-     * Drives targeting in checkHit():
-     *   false → hits Player only
-     *   true  → hits Enemies only
-     */
+    /** Fixed normalized travel vector. Reversed when reflected. */
+    private double dirX;
+    private double dirY;
+
+    /** Shared targeting state. */
     private boolean isReflected;
+    private final Entity owner;
 
-    /**
-     * The entity that fired this projectile. Stored for future use
-     * (e.g. damage attribution, Boss phase logic). Not used in hit
-     * detection — isReflected drives targeting instead.
-     */
-    private Entity owner;
+    /** Debug-visible motion stats. */
+    private final double spawnX;
+    private final double spawnY;
+    private double ageSeconds;
+    private double currentSpeed;
+    private double distanceTravelled;
+    private final List<double[]> trailPoints = new ArrayList<>();
 
-    // ==========================================================
-    // CONSTRUCTOR
-    // ==========================================================
+    /** Procedural ball visual so the projectile is visible without external art. */
+    private final GOval ballVisual;
 
-    /**
-     * Creates a Projectile fired from (startX, startY) toward (toX, toY).
-     *
-     * The travel direction is snapped to the nearest cardinal direction
-     * (the dominant axis of the start-to-target vector). Speed is 200 px/s.
-     *
-     * The hitbox is replaced from the default 48x48 to 16x16 after super()
-     * so dodging is possible. The sprite is also resized to 16x16.
-     *
-     * @param startX  Spawn center X in world pixels (typically the enemy's x)
-     * @param startY  Spawn center Y in world pixels (typically the enemy's y)
-     * @param toX     Target center X to aim toward (typically the player's x)
-     * @param toY     Target center Y to aim toward (typically the player's y)
-     * @param tileMap Tile map for wall collision
-     * @param owner   The entity that fired this projectile
-     */
     public Projectile(double startX, double startY,
                       double toX, double toY,
                       TileMap tileMap, Entity owner) {
-        // health=1 (alive = not yet hit), speed=200px/s
-        super(startX, startY, "assets/projectile.png", tileMap, 1, 200.0);
+        super(startX, startY, FALLBACK_SPRITE, tileMap, 1, MAX_SPEED);
 
-        // Snap travel direction to dominant cardinal axis
-        this.direction  = Direction.fromDelta(toX - startX, toY - startY);
-        this.owner      = owner;
+        double aimDx = toX - startX;
+        double aimDy = toY - startY;
+        double aimDist = Math.sqrt(aimDx * aimDx + aimDy * aimDy);
+        if (aimDist < 0.001) {
+            this.dirX = 0.0;
+            this.dirY = 1.0;
+        } else {
+            this.dirX = aimDx / aimDist;
+            this.dirY = aimDy / aimDist;
+        }
+
+        this.direction = Direction.fromDelta(dirX, dirY);
+        this.owner = owner;
         this.isReflected = false;
+        this.ageSeconds = 0.0;
+        this.currentSpeed = START_SPEED;
+        this.distanceTravelled = 0.0;
 
-        // Replace Entity's default 48x48 hitbox with a smaller 16x16 hitbox.
-        // hitbox is protected in Entity — direct reassignment is valid here.
+        double spawnOffset = 0.0;
+        if (owner != null && owner.getHitbox() != null) {
+            spawnOffset = Math.max(owner.getHitbox().width, owner.getHitbox().height) / 2.0
+                + PROJ_HITBOX_HALF + 2.0;
+        }
+        this.spawnX = startX + dirX * spawnOffset;
+        this.spawnY = startY + dirY * spawnOffset;
+        this.x = spawnX;
+        this.y = spawnY;
+
         this.hitbox = new Hitbox(
-            startX - PROJ_HITBOX_HALF,
-            startY - PROJ_HITBOX_HALF,
+            x - PROJ_HITBOX_HALF,
+            y - PROJ_HITBOX_HALF,
             PROJ_HITBOX_SIZE,
             PROJ_HITBOX_SIZE
         );
 
-        // Resize the sprite to match the smaller hitbox visual.
-        // sprite is protected in Entity — setSize/setLocation on the same GImage object.
-        this.sprite.setSize(PROJ_SPRITE_SIZE, PROJ_SPRITE_SIZE);
-        this.sprite.setLocation(startX - PROJ_SPRITE_HALF, startY - PROJ_SPRITE_HALF);
+        this.ballVisual = new GOval(
+            x - PROJ_VISUAL_HALF,
+            y - PROJ_VISUAL_HALF,
+            PROJ_VISUAL_SIZE,
+            PROJ_VISUAL_SIZE
+        );
+        this.ballVisual.setFilled(true);
+        applyVisualState();
+
+        // Projectile visuals are drawn manually via GOval, not via Entity's animator/sprite.
+        this.sprite = null;
+        this.animator.clearFrames();
+        recordTrailPoint(x, y);
     }
 
-    // ==========================================================
-    // UPDATE — movement and wall detection
-    // ==========================================================
-
-    /**
-     * Moves the projectile one tick in its travel direction.
-     * Destroys the projectile if it is blocked by a wall.
-     *
-     * Entity.move() stops movement at walls without flagging anything.
-     * Wall detection: if position is unchanged after a non-zero move
-     * attempt, move() was fully blocked → self-destruct via takeDamage(health).
-     *
-     * Holes are intentionally ignored — projectiles fly over them.
-     *
-     * @param dt Delta-time in seconds (~0.016 at 60fps)
-     */
     @Override
     public void update(double dt) {
-        double[] delta = direction.toDelta();  // unit vector: e.g. RIGHT → {1, 0}
-        double   dx    = delta[0] * speed * dt; // e.g. 200 * 0.016 = 3.2 px
-        double   dy    = delta[1] * speed * dt;
-
-        // Snapshot position before attempting move
-        double prevX = x;
-        double prevY = y;
-
-        move(dx, dy); // Entity.move() handles tile collision; stops at walls silently
-
-        // If position is completely unchanged despite a non-zero delta → wall hit
-        if (x == prevX && y == prevY && (dx != 0 || dy != 0)) {
-            takeDamage(health); // health=1 → sets health=0 → isAlive() = false
+        if (!isAlive()) {
+            return;
         }
 
-        // Sync the small 16x16 hitbox to the new center position
-        // (Entity.move() syncs the inherited 48px hitbox ref, but we replaced it)
+        ageSeconds += Math.max(0.0, dt);
+        currentSpeed = computeSpeed(ageSeconds);
+
+        double dx = dirX * currentSpeed * dt;
+        double dy = dirY * currentSpeed * dt;
+        moveWithCollision(dx, dy);
+
         hitbox.updatePosition(x - PROJ_HITBOX_HALF, y - PROJ_HITBOX_HALF);
+        syncBallVisual();
+        recordTrailPoint(x, y);
     }
 
-    // ==========================================================
-    // HIT DETECTION
-    // ==========================================================
+    private double computeSpeed(double age) {
+        double accel = 1.0 - Math.exp(-EXP_ACCEL_RATE * Math.max(0.0, age));
+        return START_SPEED + (MAX_SPEED - START_SPEED) * accel;
+    }
 
-    /**
-     * Tests whether this projectile has hit the given target and applies damage.
-     *
-     * Targeting rules based on isReflected:
-     *   isReflected = false → only damages Player  (pass targetIsPlayer = true)
-     *   isReflected = true  → only damages Enemies (pass targetIsPlayer = false)
-     *
-     * Returns true if a hit was registered so the caller (Room game loop) can
-     * immediately remove the projectile from the active list:
-     *   if (proj.checkHit(enemy, false)) iter.remove();
-     *
-     * NOTE: targetIsPlayer = true path requires Player to extend Entity and
-     * expose getHitbox(). This is a forward stub — it will work once Player
-     * is refactored to extend Entity. No changes to this method will be needed.
-     *
-     * @param target         Entity to test (Player or Enemy, passed as Entity)
-     * @param targetIsPlayer true if target is the Player; false if Enemy
-     * @return true if damage was dealt (projectile also self-destructs)
-     */
+    /** Advances in small steps so fast shots cannot tunnel through walls. */
+    private void moveWithCollision(double dx, double dy) {
+        double distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance <= 0.0001) {
+            return;
+        }
+
+        int steps = Math.max(1, (int) Math.ceil(distance / COLLISION_STEP_PX));
+        double stepDx = dx / steps;
+        double stepDy = dy / steps;
+
+        for (int i = 0; i < steps; i++) {
+            double nextX = x + stepDx;
+            double nextY = y + stepDy;
+            if (!canOccupy(nextX, nextY)) {
+                takeDamage(health);
+                return;
+            }
+            x = nextX;
+            y = nextY;
+            distanceTravelled += Math.sqrt(stepDx * stepDx + stepDy * stepDy);
+        }
+
+        direction = Direction.fromDelta(dirX, dirY);
+    }
+
+    private boolean canOccupy(double centerX, double centerY) {
+        if (tileMap == null) {
+            return true;
+        }
+
+        double left = centerX - PROJ_HITBOX_HALF + 1.0;
+        double right = centerX + PROJ_HITBOX_HALF - 1.0;
+        double top = centerY - PROJ_HITBOX_HALF + 1.0;
+        double bottom = centerY + PROJ_HITBOX_HALF - 1.0;
+
+        return pointPassable(left, top)
+            && pointPassable(right, top)
+            && pointPassable(left, bottom)
+            && pointPassable(right, bottom);
+    }
+
+    private boolean pointPassable(double px, double py) {
+        return tileMap.containsPixel(px, py) && tileMap.isPassable(px, py);
+    }
+
+    private void applyVisualState() {
+        if (isReflected) {
+            ballVisual.setFillColor(REFLECT_FILL);
+            ballVisual.setColor(REFLECT_OUTLINE);
+        } else {
+            ballVisual.setFillColor(BALL_FILL);
+            ballVisual.setColor(BALL_OUTLINE);
+        }
+    }
+
+    private void syncBallVisual() {
+        ballVisual.setLocation(x - PROJ_VISUAL_HALF, y - PROJ_VISUAL_HALF);
+    }
+
+    private void recordTrailPoint(double px, double py) {
+        if (!trailPoints.isEmpty()) {
+            double[] last = trailPoints.get(trailPoints.size() - 1);
+            double ddx = px - last[0];
+            double ddy = py - last[1];
+            if (ddx * ddx + ddy * ddy < 4.0) {
+                return;
+            }
+        }
+        trailPoints.add(new double[]{ px, py });
+        while (trailPoints.size() > MAX_TRAIL_POINTS) {
+            trailPoints.remove(0);
+        }
+    }
+
     public boolean checkHit(Entity target, boolean targetIsPlayer) {
-        if (target == null || !target.isAlive() || !this.isAlive()) return false;
+        if (target == null || !target.isAlive() || !isAlive()) {
+            return false;
+        }
 
-        // Gate: unreflected → hits Player; reflected → hits Enemy
         boolean shouldCheck = (targetIsPlayer && !isReflected)
                            || (!targetIsPlayer && isReflected);
-        if (!shouldCheck) return false;
+        if (!shouldCheck) {
+            return false;
+        }
 
         if (hitbox.overlaps(target.getHitbox())) {
             target.takeDamage(1);
-            takeDamage(health); // self-destruct on contact
+            takeDamage(health);
             return true;
         }
         return false;
     }
 
-    // ==========================================================
-    // REFLECT
-    // ==========================================================
-
-    /**
-     * Reverses the projectile's travel direction and marks it as reflected.
-     *
-     * Called by SwordSwing.update() when the player has the Reflect relic
-     * and the swing hitbox overlaps this projectile.
-     *
-     * After reflection:
-     *   - Travels in the opposite cardinal direction
-     *   - checkHit() now targets Enemies instead of the Player
-     *
-     * Calling reflect() a second time (e.g. an enemy swings back — future mechanic)
-     * would re-reverse direction but isReflected stays true, so it still targets
-     * enemies. Add isReflected = !isReflected if two-bounce targeting is ever needed.
-     */
     public void reflect() {
-        direction   = direction.opposite();
+        if (isReflected) {
+            return;
+        }
+        dirX = -dirX;
+        dirY = -dirY;
+        direction = Direction.fromDelta(dirX, dirY);
         isReflected = true;
+        applyVisualState();
+        recordTrailPoint(x, y);
     }
 
-    // ==========================================================
-    // GETTERS
-    // ==========================================================
+    @Override
+    public void draw(GCanvas canvas) {
+        if (canvas == null || !isAlive()) {
+            return;
+        }
+        syncBallVisual();
+        if (ballVisual.getParent() == null) {
+            canvas.add(ballVisual);
+        } else {
+            ballVisual.sendToFront();
+        }
+    }
 
-    /** @return current travel direction */
+    @Override
+    public void panVisual(double panX, double panY) {
+        if (ballVisual != null) {
+            ballVisual.move(panX, panY);
+        }
+    }
+
+    @Override
+    public void removeSpriteFromCanvas(GCanvas canvas) {
+        if (canvas != null && ballVisual != null) {
+            canvas.remove(ballVisual);
+        }
+        super.removeSpriteFromCanvas(canvas);
+    }
+
+    /** @return current travel direction, approximated to the nearest cardinal */
     public Direction getDirection() { return direction; }
 
     /** @return true if this projectile has been reflected by a SwordSwing */
@@ -223,4 +280,31 @@ public class Projectile extends Entity {
 
     /** @return the entity that originally fired this projectile */
     public Entity getOwner() { return owner; }
+
+    /** @return world X component of the current velocity in px/s */
+    public double getVelocityX() { return dirX * currentSpeed; }
+
+    /** @return world Y component of the current velocity in px/s */
+    public double getVelocityY() { return dirY * currentSpeed; }
+
+    /** @return current projectile speed in px/s */
+    public double getCurrentSpeed() { return currentSpeed; }
+
+    /** @return seconds since spawn */
+    public double getAgeSeconds() { return ageSeconds; }
+
+    /** @return cumulative distance traveled in pixels */
+    public double getDistanceTravelled() { return distanceTravelled; }
+
+    /** @return spawn X used by debug overlays */
+    public double getSpawnX() { return spawnX; }
+
+    /** @return spawn Y used by debug overlays */
+    public double getSpawnY() { return spawnY; }
+
+    /** @return text label describing the motion profile */
+    public String getMotionProfileLabel() { return MOTION_PROFILE_LABEL; }
+
+    /** @return copy of recent path points for debug overlays */
+    public List<double[]> getTrailPoints() { return new ArrayList<>(trailPoints); }
 }

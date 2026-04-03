@@ -524,6 +524,46 @@ public class Enemy extends Entity {
     }
 
     // ==========================================================
+    // SHARED VISUAL HELPERS
+    // ==========================================================
+
+    /**
+     * Loads the normalized skeleton sprite sheet used by the current enemy variants.
+     * This keeps prototype enemies visible even before bespoke art lands.
+     */
+    protected void loadSkeletonAnimations(String spriteDir, String spritePrefix) {
+        String[][] names = {
+            { "-idle-front.gif",  "-idle-back.gif",  "-idle-left.gif",  "-idle-right.gif"  },
+            { "-attack-front.gif","-attack-back.gif","-attack-left.gif","-attack-right.gif" },
+            { "-damage-front.gif","-damage-back.gif","-damage-left.gif","-damage-right.gif" },
+            { "-death-front.gif", "-death-back.gif", "-death-left.gif", "-death-right.gif"  },
+        };
+
+        animSprites = new GImage[4][4];
+        for (int state = 0; state < names.length; state++) {
+            for (int dir = 0; dir < names[state].length; dir++) {
+                animSprites[state][dir] = new GImage(spriteDir + spritePrefix + names[state][dir]);
+            }
+        }
+
+        SpriteAnimator anim = getAnimator();
+        Direction[] dirs = { Direction.DOWN, Direction.UP, Direction.LEFT, Direction.RIGHT };
+        for (int i = 0; i < dirs.length; i++) {
+            anim.addFrames(dirs[i], java.util.Collections.singletonList(animSprites[0][i]));
+        }
+        anim.setFallbackFrame(animSprites[0][0]);
+
+        String[] deathDirs = { "front", "back", "left", "right" };
+        deathFramePathsByDirection = new String[4][10];
+        for (int dir = 0; dir < deathDirs.length; dir++) {
+            for (int frame = 0; frame < 10; frame++) {
+                deathFramePathsByDirection[dir][frame] =
+                    spriteDir + spritePrefix + "-death-" + deathDirs[dir] + "-frame-" + frame + ".png";
+            }
+        }
+    }
+
+    // ==========================================================
     // ANIMATION STATE MANAGEMENT
     // ==========================================================
 
@@ -944,6 +984,15 @@ public class Enemy extends Entity {
 
     /** @return current animation state (IDLE, ATTACK, DAMAGE, DEATH) */
     public AnimState getAnimState() { return animState; }
+
+    /** @return aggro radius in pixels */
+    public double getAggroRange() { return aggroRange; }
+
+    /** @return patrol speed in pixels per second */
+    public double getPatrolSpeed() { return patrolSpeed; }
+
+    /** @return chase speed in pixels per second */
+    public double getChaseSpeed() { return chaseSpeed; }
 
     /** @return the patrol waypoint list (for debug overlay) */
     public java.util.List<double[]> getPatrolPath() { return patrolPath; }

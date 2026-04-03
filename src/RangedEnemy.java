@@ -22,6 +22,10 @@ import java.util.List;
  */
 public class RangedEnemy extends Enemy {
 
+    private static final String SPRITE_DIR = "assets/visuals/skeley-mob-1/normalized/";
+    private static final String SPRITE_PREFIX = "skeley-mob-1";
+    private static final int MAX_HEALTH = Player.HALF_HEARTS_PER_HEART;
+
     // ==========================================================
     // FIELDS
     // ==========================================================
@@ -58,14 +62,16 @@ public class RangedEnemy extends Enemy {
      * @param tileMap Tile map for collision and line-of-sight
      */
     public RangedEnemy(double x, double y, TileMap tileMap) {
-        super(x, y, "assets/enemy_ranged.png", tileMap,
-              2,      // maxHealth   — fragile, 2 hits to kill
+        super(x, y, SPRITE_DIR + SPRITE_PREFIX + "-idle-front.gif", tileMap,
+              MAX_HEALTH, // maxHealth   — fragile, 2 hits to kill
               50.0,   // patrolSpeed (px/s)
               90.0,   // chaseSpeed  (px/s) — used as retreat speed
               256.0); // aggroRange  (px)   — 4 tiles, spots player early
         this.fireRate        = 90;
         this.retreatDistance = 160.0;
         this.projectiles     = null; // wired by Room via setProjectileList()
+        loadSkeletonAnimations(SPRITE_DIR, SPRITE_PREFIX);
+        setSpriteRenderSize(72, 72);
     }
 
     /**
@@ -129,9 +135,18 @@ public class RangedEnemy extends Enemy {
     protected void tryAttack(Entity target) {
         if (target == null) return;
         if (attackCooldownTicks > 0) return;
+        if (animState == AnimState.DAMAGE || animState == AnimState.DEATH) return;
         if (projectiles == null) return;
 
         projectiles.add(new Projectile(x, y, target.getX(), target.getY(), tileMap, this));
         attackCooldownTicks = fireRate;
+        setAnimState(AnimState.ATTACK);
+        animTimer = attackAnimDuration;
     }
+
+    /** @return preferred minimum player distance in pixels */
+    public double getRetreatDistance() { return retreatDistance; }
+
+    /** @return cooldown between shots in ticks */
+    public int getFireRate() { return fireRate; }
 }
