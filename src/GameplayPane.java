@@ -146,6 +146,16 @@ public class GameplayPane extends GraphicsPane {
     /** True when the F6 debug overlay is visible. */
     private boolean debugOverlayOn = false;
 
+    // =========================================================
+    // PLAYER DEATH
+    // =========================================================
+
+    /** Ticks remaining in the death animation before transitioning to game-over. 0 = not dying. */
+    private int deathDelayTicks = 0;
+
+    /** ~5 seconds at 60fps — lets the death animation breathe before respawn. */
+    private static final int DEATH_DELAY = 300;
+
     /** Transient GObjects drawn each tick for the debug overlay — cleared and redrawn every frame. */
     private final java.util.List<acm.graphics.GObject> debugObjects = new java.util.ArrayList<>();
 
@@ -181,6 +191,8 @@ public class GameplayPane extends GraphicsPane {
         GCanvas canvas = mainScreen.getGCanvas();
         Player player  = mainScreen.getPlayer();
         if (player == null) return;
+
+        deathDelayTicks = 0;
 
         // --- first entry: place player at starting position ---
         if (firstShow) {
@@ -234,6 +246,16 @@ public class GameplayPane extends GraphicsPane {
         clearDebugOverlay(canvas);
     }
 
+    /**
+     * Resets pane state so the next showContent() starts a fresh game.
+     * Called from MainApplication.switchToGameOverScreen() before screen switch.
+     */
+    public void resetForNewGame() {
+        firstShow = true;
+        deathDelayTicks = 0;
+        debugOverlayOn = false;
+    }
+
     // =========================================================
     // GAME LOOP — called every tick by GameLoop
     // =========================================================
@@ -261,6 +283,22 @@ public class GameplayPane extends GraphicsPane {
 
         GCanvas canvas = mainScreen.getGCanvas();
 
+        // --- death delay countdown ---
+        if (deathDelayTicks > 0) {
+            deathDelayTicks--;
+            player.tickDeathAnimation(); // swap to static frame once GIF cycle ends
+            player.draw(canvas);
+            worldMap.update(dt, player); // keep enemies roaming while dead
+            if (debugOverlayOn) drawDebugOverlay(canvas, player);
+            restackHintsOnTop(canvas);
+            if (deathDelayTicks <= 0) {
+                deathDelayTicks = 0;
+                player.resetDeathState();
+                player.draw(canvas);
+            }
+            return; // no player input while dying
+        }
+
         // --- player input and animation (PLAYING state only) ---
         // Skipped during TRANSITIONING so the player cannot move mid-pan.
         // Also skipped during PAUSED, DIALOGUE, and CUTSCENE (those states freeze input).
@@ -275,6 +313,12 @@ public class GameplayPane extends GraphicsPane {
 
             // Sync animation frame and sprite position after movement
             player.draw(canvas);
+
+            // --- player death check ---
+            if (!player.isAlive()) {
+                player.triggerDeathAnimation();
+                deathDelayTicks = DEATH_DELAY;
+            }
         }
 
         // --- world update (always runs; WorldMap handles state internally) ---

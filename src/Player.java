@@ -34,8 +34,8 @@ public class Player extends Entity {
     /** Ticks of invincibility after taking damage (i-frames). */
     private static final int IFRAMES_DURATION = 40;
 
-    /** Cooldown ticks between sword swings. */
-    private static final int ATTACK_COOLDOWN = 20;
+    /** Cooldown ticks between sword swings (~3s at 60fps). */
+    private static final int ATTACK_COOLDOWN = 180;
 
     /**
      * Intangible ability: active window length in game ticks.
@@ -138,9 +138,28 @@ public class Player extends Entity {
     private static final String PLAYER_WALK_BACK  = NORMALIZED_SPRITE_DIR + "player-walking-back.gif";
     private static final String PLAYER_WALK_LEFT  = NORMALIZED_SPRITE_DIR + "player-walk-left.gif";
     private static final String PLAYER_WALK_RIGHT = NORMALIZED_SPRITE_DIR + "player-walking-right.gif";
+    private static final String PLAYER_DEATH_FRONT = NORMALIZED_SPRITE_DIR + "player-death-animation-front.gif";
+    private static final String PLAYER_DEATH_BACK  = NORMALIZED_SPRITE_DIR + "player-death-animation-back.gif";
+    private static final String PLAYER_DEATH_LEFT  = NORMALIZED_SPRITE_DIR + "player-death-animation-left.gif";
+    private static final String PLAYER_DEATH_RIGHT = NORMALIZED_SPRITE_DIR + "player-death-animation-right.gif";
+    private static final String PLAYER_DEATH_FRONT_FINAL = NORMALIZED_SPRITE_DIR + "player-death-animation-front-final.png";
+    private static final String PLAYER_DEATH_BACK_FINAL  = NORMALIZED_SPRITE_DIR + "player-death-animation-back-final.png";
+    private static final String PLAYER_DEATH_LEFT_FINAL  = NORMALIZED_SPRITE_DIR + "player-death-animation-left-final.png";
+    private static final String PLAYER_DEATH_RIGHT_FINAL = NORMALIZED_SPRITE_DIR + "player-death-animation-right-final.png";
+
+    /** Ticks for one play-through of the death GIF (~500ms ≈ 30 ticks at 60fps). */
+    private static final int DEATH_ANIM_TICKS = 34;
 
     private final Map<Direction, GImage> idleByDirection = new EnumMap<>(Direction.class);
     private final Map<Direction, GImage> walkByDirection = new EnumMap<>(Direction.class);
+    private final Map<Direction, GImage> deathByDirection = new EnumMap<>(Direction.class);
+    private final Map<Direction, GImage> deathFinalByDirection = new EnumMap<>(Direction.class);
+
+    /** True once triggerDeathAnimation() has been called — prevents re-triggering. */
+    private boolean isDying = false;
+
+    /** Ticks remaining before the animated death GIF is swapped to a static final frame. */
+    private int deathAnimTicksLeft = 0;
 
     /**
      * Creates a Player with no TileMap (e.g. for save-load / menu use).
@@ -215,6 +234,7 @@ public class Player extends Entity {
      * @param dt          delta-time in seconds (e.g. 0.016 for ~60fps)
      */
     public void update(InputHandler input, List<Enemy> enemies, List<Projectile> projectiles, double dt) {
+        if (isDying) return;
         if (iframesTicks > 0) iframesTicks--;
         if (attackCooldownTicks > 0) attackCooldownTicks--;
 
@@ -338,6 +358,7 @@ public class Player extends Entity {
      * Returns whether the body sprite should be visible this tick (post-hit i-frame flicker).
      */
     public boolean shouldShowSprite() {
+        if (isDying) return true; // always visible during death animation
         boolean visible = true;
         if (iframesTicks > 0 && iframesTicks % 4 < 2) {
             visible = false;
@@ -577,10 +598,21 @@ public class Player extends Entity {
         walkByDirection.put(Direction.LEFT, new GImage(PLAYER_WALK_LEFT, 0, 0));
         walkByDirection.put(Direction.RIGHT, new GImage(PLAYER_WALK_RIGHT, 0, 0));
 
+        deathByDirection.put(Direction.DOWN, new GImage(PLAYER_DEATH_FRONT, 0, 0));
+        deathByDirection.put(Direction.UP, new GImage(PLAYER_DEATH_BACK, 0, 0));
+        deathByDirection.put(Direction.LEFT, new GImage(PLAYER_DEATH_LEFT, 0, 0));
+        deathByDirection.put(Direction.RIGHT, new GImage(PLAYER_DEATH_RIGHT, 0, 0));
+
+        deathFinalByDirection.put(Direction.DOWN, new GImage(PLAYER_DEATH_FRONT_FINAL, 0, 0));
+        deathFinalByDirection.put(Direction.UP, new GImage(PLAYER_DEATH_BACK_FINAL, 0, 0));
+        deathFinalByDirection.put(Direction.LEFT, new GImage(PLAYER_DEATH_LEFT_FINAL, 0, 0));
+        deathFinalByDirection.put(Direction.RIGHT, new GImage(PLAYER_DEATH_RIGHT_FINAL, 0, 0));
+
         applyDirectionalVisual(false);
     }
 
     private void applyDirectionalVisual(boolean moving) {
+        if (isDying) return; // lock visuals during death
         Map<Direction, GImage> source;
         source = moving ? walkByDirection : idleByDirection;
         GImage visual = source.get(facing);
@@ -591,5 +623,63 @@ public class Player extends Entity {
             animator.setFallbackFrame(visual);
             syncVisualPosition();
         }
+    }
+
+    /**
+     * Switches the player sprite to the death animation for the current facing direction.
+     * Called once by GameplayPane when health reaches 0.
+     */
+    public void triggerDeathAnimation() {
+        if (isDying) return;
+        isDying = true;
+        deathAnimTicksLeft = DEATH_ANIM_TICKS;
+        GImage deathVisual = deathByDirection.get(facing);
+        if (deathVisual == null) deathVisual = deathByDirection.get(Direction.DOWN);
+        if (deathVisual != null) {
+            animator.clearFrames(); // wipe direction frames so fallback wins
+            animator.setFallbackFrame(deathVisual);
+            syncVisualPosition();
+        }
+    }
+
+    /**
+     * Called every tick while the player is dying. After the animated GIF has played
+     * through once, swaps to a static final-frame PNG so the corpse doesn't loop.
+     */
+    public void tickDeathAnimation() {
+        if (!isDying) return;
+        if (deathAnimTicksLeft > 0) {
+            deathAnimTicksLeft--;
+            if (deathAnimTicksLeft <= 0) {
+                GImage finalFrame = deathFinalByDirection.get(facing);
+                if (finalFrame == null) finalFrame = deathFinalByDirection.get(Direction.DOWN);
+                if (finalFrame != null) {
+                    animator.setFallbackFrame(finalFrame);
+                    syncVisualPosition();
+                }
+            }
+        }
+    }
+
+    /** True once the death animation has been triggered. */
+    public boolean isDying() {
+        return isDying;
+    }
+
+    /**
+     * Resets the player to a fully alive state and warps to spawn.
+     * Re-initializes directional sprites since triggerDeathAnimation()
+     * clears the animator's frame lists.
+     */
+    public void resetDeathState() {
+        isDying = false;
+        deathAnimTicksLeft = 0;
+        health = MAX_HEARTS;
+        iframesTicks = 0;
+        initializeDirectionalSprites(); // rebuild direction frames wiped by clearFrames()
+        x = respawnX;
+        y = respawnY;
+        hitbox.updatePosition(x - 24, y - 24);
+        syncVisualPosition();
     }
 }

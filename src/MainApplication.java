@@ -184,8 +184,13 @@ public class MainApplication extends GraphicsProgram{
 		switchToScreen(worldMapGameplayPane);
 	}
 
-	/** Routes to landing as a stub until the real game-over screen is built. */
+	/**
+	 * Handles game-over: resets the player so a fresh game can start,
+	 * then routes to the landing screen.
+	 */
 	public void switchToGameOverScreen() {
+		worldMapGameplayPane.resetForNewGame();
+		player = null; // next switchToGameplayScreen() will create a fresh Player
 		switchToScreen(landingPane);
 	}
 

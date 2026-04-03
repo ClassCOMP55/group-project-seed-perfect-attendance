@@ -260,10 +260,18 @@ public class Enemy extends Entity {
         }
 
         // 4. Chase + attack if aggro; otherwise patrol
-        if (isAggro && target != null) {
+        boolean targetAlive = target != null && target.isAlive();
+        if (isAggro && targetAlive) {
             chase(dt, target);
             tryAttack(target);
         } else {
+            if (target != null && !targetAlive) {
+                isAggro = false;
+                if (animState == AnimState.ATTACK) {
+                    setAnimState(AnimState.IDLE);
+                    animTimer = 0;
+                }
+            }
             patrol(dt);
         }
 

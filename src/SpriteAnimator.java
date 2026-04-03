@@ -93,6 +93,17 @@ public class SpriteAnimator {
     }
 
     /**
+     * Removes all direction-based frame lists so {@link #getCurrentFrame()}
+     * will return the fallback frame. Used when an entity needs to force-display
+     * a single sprite (e.g. death animation) regardless of direction.
+     */
+    public void clearFrames() {
+        framesByDirection.clear();
+        currentFrame = 0;
+        tickCount = 0;
+    }
+
+    /**
      * Sets the current animation direction. Call when the entity changes facing.
      * Resets the frame counter if the direction actually changed.
      *
