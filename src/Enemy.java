@@ -182,16 +182,24 @@ public class Enemy extends Entity {
      */
     private void buildDefaultPatrolPath() {
         patrolPath = new ArrayList<>();
-        int numPoints = 3 + rgen.nextInt(4); // 3 to 6 waypoints
-        double radius = TILE * (1 + rgen.nextDouble() * 2); // 1-3 tiles from spawn
+        int numPoints = 4 + rgen.nextInt(4); // 4 to 7 waypoints
+        double radius = TILE * (4 + rgen.nextDouble() * 4); // 4-8 tiles from spawn
 
         for (int i = 0; i < numPoints; i++) {
             double angle = 2 * Math.PI * i / numPoints + rgen.nextDouble() * 0.6 - 0.3;
-            double dist  = radius * (0.5 + rgen.nextDouble() * 0.5);
-            patrolPath.add(new double[]{
-                spawnX + Math.cos(angle) * dist,
-                spawnY + Math.sin(angle) * dist
-            });
+            double dist  = radius * (0.4 + rgen.nextDouble() * 0.6);
+            double wx = spawnX + Math.cos(angle) * dist;
+            double wy = spawnY + Math.sin(angle) * dist;
+
+            // Only use waypoints that land on passable tiles
+            if (tileMap != null && !tileMap.isPassable(wx, wy)) continue;
+
+            patrolPath.add(new double[]{ wx, wy });
+        }
+
+        // Fallback: if all waypoints were culled, stay at spawn
+        if (patrolPath.isEmpty()) {
+            patrolPath.add(new double[]{ spawnX, spawnY });
         }
     }
 
@@ -311,8 +319,12 @@ public class Enemy extends Entity {
         double   dist = Math.sqrt(dx * dx + dy * dy);
 
         if (dist <= WAYPOINT_THRESHOLD) {
-            // Reached this waypoint — advance to the next, wrapping around the list
-            patrolIndex = (patrolIndex + 1) % patrolPath.size();
+            // Pick a random different waypoint to avoid predictable loops
+            if (patrolPath.size() > 1) {
+                int next;
+                do { next = rgen.nextInt(patrolPath.size()); } while (next == patrolIndex);
+                patrolIndex = next;
+            }
             return;
         }
 
@@ -527,4 +539,10 @@ public class Enemy extends Entity {
 
     /** @return current animation state (IDLE, ATTACK, DAMAGE, DEATH) */
     public AnimState getAnimState() { return animState; }
+
+    /** @return the patrol waypoint list (for debug overlay) */
+    public java.util.List<double[]> getPatrolPath() { return patrolPath; }
+
+    /** @return index of the current target waypoint */
+    public int getPatrolIndex() { return patrolIndex; }
 }

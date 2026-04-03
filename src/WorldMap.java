@@ -367,9 +367,15 @@ public class WorldMap {
     private void populateD1() {
         Room d1 = dungeonRooms[0];
         TileMap tm = d1.getTileMap();
-        d1.addEntity(new MeleeEnemy(400, 300, tm));
-        d1.addEntity(new MeleeEnemy(800, 400, tm));
-        d1.addEntity(new MeleeEnemy(600, 200, tm));
+
+        // Spread enemies across the dungeon floor (room is ~1248x720)
+        MeleeEnemy e1 = new MeleeEnemy(300, 250, tm);
+        MeleeEnemy e2 = new MeleeEnemy(900, 500, tm);
+        MeleeEnemy e3 = new MeleeEnemy(640, 360, tm);
+
+        d1.addEntity(e1);
+        d1.addEntity(e2);
+        d1.addEntity(e3);
     }
 
     /**

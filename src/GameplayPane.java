@@ -587,6 +587,40 @@ public class GameplayPane extends GraphicsPane {
                 debugObjects.add(hpBar);
             }
 
+            // --- patrol path (orange waypoints + lines) ---
+            java.util.List<double[]> path = e.getPatrolPath();
+            if (path != null && !path.isEmpty()) {
+                int pidx = e.getPatrolIndex();
+                for (int i = 0; i < path.size(); i++) {
+                    double[] wp = path.get(i);
+                    boolean isTarget = (i == pidx);
+
+                    // Waypoint dot
+                    double dotSize = isTarget ? 8 : 5;
+                    acm.graphics.GOval dot = new acm.graphics.GOval(
+                        wp[0] - dotSize / 2, wp[1] - dotSize / 2, dotSize, dotSize);
+                    dot.setFilled(true);
+                    dot.setFillColor(isTarget ? java.awt.Color.ORANGE : new java.awt.Color(255, 165, 0, 120));
+                    dot.setColor(isTarget ? java.awt.Color.ORANGE : new java.awt.Color(255, 165, 0, 120));
+                    canvas.add(dot);
+                    debugObjects.add(dot);
+
+                    // Line to next waypoint
+                    double[] next = path.get((i + 1) % path.size());
+                    acm.graphics.GLine seg = new acm.graphics.GLine(wp[0], wp[1], next[0], next[1]);
+                    seg.setColor(new java.awt.Color(255, 165, 0, 80));
+                    canvas.add(seg);
+                    debugObjects.add(seg);
+                }
+
+                // Line from enemy to current target waypoint
+                double[] curWp = path.get(pidx);
+                acm.graphics.GLine toWp = new acm.graphics.GLine(ex, ey, curWp[0], curWp[1]);
+                toWp.setColor(java.awt.Color.ORANGE);
+                canvas.add(toWp);
+                debugObjects.add(toWp);
+            }
+
             // --- state label ---
             String stateText = (e.isAggro() ? "CHASE" : "PATROL")
                 + " | " + e.getAnimState().name()
