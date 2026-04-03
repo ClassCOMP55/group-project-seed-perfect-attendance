@@ -104,6 +104,12 @@ public class Enemy extends Entity {
     /** Step size (pixels) for line-of-sight ray march — half a tile. */
     private static final double LOS_STEP = 32.0;
 
+    /** Step size for straight-line patrol validation so trigger strips cannot be skipped. */
+    private static final double PATROL_SEGMENT_STEP = 12.0;
+
+    /** Matches Entity's 48px hitbox so patrol sampling checks the full enemy body. */
+    private static final double COLLISION_HALF = 24.0;
+
     /** Default patrol speed in pixels per second. */
     private static final double DEFAULT_PATROL_SPEED = 60.0;
 
@@ -226,6 +232,21 @@ public class Enemy extends Entity {
         buildDefaultPatrolPath();
     }
 
+    /**
+     * Enemies obey the normal tile collision plus any player-only trigger strips that the
+     * room marks as blocked for enemy navigation.
+     */
+    @Override
+    protected boolean isPassableForMovement(double px, double py) {
+        if (tileMap == null) {
+            return true;
+        }
+        if (!tileMap.containsPixel(px, py)) {
+            return false;
+        }
+        return tileMap.isEnemyPassable(px, py);
+    }
+
     // ==========================================================
     // PATROL PATH SETUP
     // ==========================================================
@@ -240,15 +261,16 @@ public class Enemy extends Entity {
         int numPoints = 4 + rgen.nextInt(4); // 4 to 7 waypoints
         double radius = TILE * (4 + rgen.nextDouble() * 4); // 4-8 tiles from spawn
 
-        for (int i = 0; i < numPoints; i++) {
-            double angle = 2 * Math.PI * i / numPoints + rgen.nextDouble() * 0.6 - 0.3;
+        for (int attempt = 0; attempt < numPoints * 5 && patrolPath.size() < numPoints; attempt++) {
+            double angle = 2 * Math.PI * rgen.nextDouble();
             double dist  = radius * (0.4 + rgen.nextDouble() * 0.6);
             double wx = spawnX + Math.cos(angle) * dist;
             double wy = spawnY + Math.sin(angle) * dist;
 
             // Keep patrol waypoints inside the room; only the player gets to use
             // out-of-bounds space as an exit zone.
-            if (!isPassableForMovement(wx, wy)) continue;
+            if (!canOccupyPatrolPosition(wx, wy)) continue;
+            if (!isPatrolSegmentClear(spawnX, spawnY, wx, wy)) continue;
 
             patrolPath.add(new double[]{ wx, wy });
         }
@@ -375,23 +397,84 @@ public class Enemy extends Entity {
         if (patrolPath == null || patrolPath.isEmpty()) return;
 
         double[] wp   = patrolPath.get(patrolIndex);
+        if (!isPatrolSegmentClear(x, y, wp[0], wp[1])) {
+            pickReachablePatrolWaypoint(x, y);
+            return;
+        }
+
         double   dx   = wp[0] - x;
         double   dy   = wp[1] - y;
         double   dist = Math.sqrt(dx * dx + dy * dy);
 
         if (dist <= WAYPOINT_THRESHOLD) {
-            // Pick a random different waypoint to avoid predictable loops
-            if (patrolPath.size() > 1) {
-                int next;
-                do { next = rgen.nextInt(patrolPath.size()); } while (next == patrolIndex);
-                patrolIndex = next;
-            }
+            pickReachablePatrolWaypoint(x, y);
             return;
         }
 
         // Normalize to unit vector, scale by patrolSpeed * dt
         double scale = patrolSpeed * dt / dist;
         move(dx * scale, dy * scale);
+    }
+
+    /** Returns true when the enemy's full 48x48 hitbox can stand at the given center point. */
+    private boolean canOccupyPatrolPosition(double centerX, double centerY) {
+        return isPassableForMovement(centerX - COLLISION_HALF + 1, centerY - COLLISION_HALF + 1)
+            && isPassableForMovement(centerX + COLLISION_HALF - 1, centerY - COLLISION_HALF + 1)
+            && isPassableForMovement(centerX - COLLISION_HALF + 1, centerY + COLLISION_HALF - 1)
+            && isPassableForMovement(centerX + COLLISION_HALF - 1, centerY + COLLISION_HALF - 1);
+    }
+
+    /**
+     * Samples the straight segment between two patrol points using the enemy hitbox so a
+     * waypoint jump cannot cut through a blocked strip or wall tile.
+     */
+    private boolean isPatrolSegmentClear(double startX, double startY, double endX, double endY) {
+        double dx = endX - startX;
+        double dy = endY - startY;
+        double dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < 1.0) {
+            return canOccupyPatrolPosition(endX, endY);
+        }
+
+        int steps = Math.max(1, (int) Math.ceil(dist / PATROL_SEGMENT_STEP));
+        for (int i = 1; i <= steps; i++) {
+            double t = i / (double) steps;
+            double px = startX + dx * t;
+            double py = startY + dy * t;
+            if (!canOccupyPatrolPosition(px, py)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** Chooses a random patrol waypoint that is reachable by a clear straight segment. */
+    private boolean pickReachablePatrolWaypoint(double startX, double startY) {
+        if (patrolPath == null || patrolPath.isEmpty()) {
+            return false;
+        }
+
+        List<Integer> reachable = new ArrayList<>();
+        for (int i = 0; i < patrolPath.size(); i++) {
+            double[] candidate = patrolPath.get(i);
+            double dx = candidate[0] - startX;
+            double dy = candidate[1] - startY;
+            double dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist <= WAYPOINT_THRESHOLD) {
+                continue;
+            }
+            if (isPatrolSegmentClear(startX, startY, candidate[0], candidate[1])) {
+                reachable.add(i);
+            }
+        }
+
+        if (reachable.isEmpty()) {
+            return false;
+        }
+
+        patrolIndex = reachable.get(rgen.nextInt(reachable.size()));
+        return true;
     }
 
     // ==========================================================

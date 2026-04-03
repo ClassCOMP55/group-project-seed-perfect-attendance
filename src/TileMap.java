@@ -1,4 +1,7 @@
 import acm.graphics.*;
+import java.awt.geom.Rectangle2D;
+import java.util.ArrayList;
+import java.util.List;
 
 /*
 Person 2: TileMap — 2D grid of Tile objects for one Room.
@@ -48,6 +51,8 @@ public class TileMap {
     private int cols = 26;
     private int rows = 15;
     private int tileSize = 48;
+    /** Player-only trigger strips (teleports, doors) that enemies must never enter. */
+    private final List<Rectangle2D.Double> enemyBlockedZones = new ArrayList<>();
 
     /**
      * Horizontal pixel offset that centers the 1248px-wide map inside the 1280px window.
@@ -239,9 +244,44 @@ public class TileMap {
         return tile.isPassable();
     }
 
+    /**
+     * Enemy-specific movement query.
+     * Uses the normal tile passability plus extra player-only trigger strips that enemies
+     * must treat as blocked even though the player can still walk onto them.
+     */
+    public boolean isEnemyPassable(double px, double py) {
+        if (!isPassable(px, py)) {
+            return false;
+        }
+        for (Rectangle2D.Double zone : enemyBlockedZones) {
+            if (zone.contains(px, py)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public boolean isHole(double px, double py) {
         Tile tile = getTileAtPixel(px, py);
         return tile != null && tile.isHole();
+    }
+
+    /**
+     * Marks a tile-aligned rectangle as blocked for enemies only.
+     * Use this for teleport/door trigger strips that stay walkable for the player.
+     */
+    public void addEnemyBlockedZoneByTiles(int startCol, int startRow, int widthTiles, int heightTiles) {
+        if (widthTiles <= 0 || heightTiles <= 0) {
+            return;
+        }
+        double x = MAP_OFFSET_X + startCol * tileSize;
+        double y = startRow * tileSize;
+        enemyBlockedZones.add(new Rectangle2D.Double(
+            x,
+            y,
+            widthTiles * tileSize,
+            heightTiles * tileSize
+        ));
     }
 
     /** Replaces a tile in place. Used by drawbridge logic to toggle BRIDGE/Hole. */

@@ -360,10 +360,12 @@ public class WorldMap {
         dungeonRooms[1] = new Room("D2"); dungeonRooms[1].buildDummy(); // Puzzle + SaveCrystal
         dungeonRooms[2] = new Room("D3"); dungeonRooms[2].buildDummy(); // Boss fight
 
-        populateD1();
-
         // --- convenience reference to C3 for dungeon entrance checks ---
         roomC3 = overworldGrid[2][2];
+
+        reserveTeleportTriggerTilesForPlayers();
+
+        populateD1();
 
         installStarterSavePoint();
 
@@ -377,6 +379,28 @@ public class WorldMap {
         for (Room dungeonRoom : dungeonRooms) {
             dungeonRoom.setExitCallback(direction -> triggerTransition(direction));
         }
+    }
+
+    /**
+     * Keeps the dungeon entrance/exit trigger strips walkable for the player while blocking
+     * enemy movement and patrol generation across those tile bands.
+     */
+    private void reserveTeleportTriggerTilesForPlayers() {
+        int tileSize = roomC3.getTileMap().getTileSize();
+
+        roomC3.getTileMap().addEnemyBlockedZoneByTiles(
+            (int) ((DUNGEON_ENTRANCE_X - TileMap.MAP_OFFSET_X) / tileSize),
+            (int) (DUNGEON_ENTRANCE_Y / tileSize),
+            (int) (DUNGEON_ENTRANCE_W / tileSize),
+            (int) (DUNGEON_ENTRANCE_H / tileSize)
+        );
+
+        dungeonRooms[0].getTileMap().addEnemyBlockedZoneByTiles(
+            (int) ((DUNGEON_EXIT_X - TileMap.MAP_OFFSET_X) / tileSize),
+            (int) (DUNGEON_EXIT_Y / tileSize),
+            (int) (DUNGEON_EXIT_W / tileSize),
+            (int) (DUNGEON_EXIT_H / tileSize)
+        );
     }
 
     /** Places an always-available save crystal in A1 for early save/load testing. */
