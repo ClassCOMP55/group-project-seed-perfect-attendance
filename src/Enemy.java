@@ -262,9 +262,8 @@ public class Enemy extends Entity {
      *   isAggro = (dist <= aggroRange) && hasLineOfSight(target)
      * This means the player can break aggro by hiding behind a wall.
      *
-     * NOTE: Parameter is Entity (not Player) because Player does not extend Entity yet.
-     * Once Player is refactored to extend Entity, change the parameter type to Player —
-     * no other logic changes are needed.
+     * Parameter is Entity so the combat/aggro layer can target any entity subtype
+     * that exposes position, hitbox, and life-state through the shared base class.
      *
      * Passing null is safe — the enemy will patrol when there is no target.
      *
@@ -278,13 +277,19 @@ public class Enemy extends Entity {
             attackCooldownTicks--;
         }
 
+        // Death is a terminal state: keep advancing the death visual / timer and
+        // never fall back into patrol, chase, or normal animation logic.
+        if (animState == AnimState.DEATH) {
+            if (animTimer > 0) {
+                animTimer -= dt;
+            }
+            tickDeathAnimation(dt);
+            return;
+        }
+
         // 2. Tick down one-shot animation timers (DAMAGE, DEATH, ATTACK)
         if (animTimer > 0) {
             animTimer -= dt;
-            if (animState == AnimState.DEATH) {
-                tickDeathAnimation(dt);
-                return; // frozen during death — no movement, no AI
-            }
             if (animTimer <= 0) {
                 setAnimState(AnimState.IDLE);
             } else if (animState == AnimState.DAMAGE) {
@@ -482,8 +487,9 @@ public class Enemy extends Entity {
     }
 
     /**
-     * Enemy is only considered "dead" (removable) after the death animation finishes.
-     * Health 0 + DEATH state + timer expired = truly dead.
+     * Enemy stays "alive" for room cleanup purposes while its death sequence is
+     * still playing or lingering on the floor. Once the death timer expires,
+     * Room removes it and triggers any drop logic.
      */
     @Override
     public boolean isAlive() {

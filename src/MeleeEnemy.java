@@ -131,7 +131,7 @@ public class MeleeEnemy extends Enemy {
      * are touching — consistent with the contact-damage feel of classic
      * Zelda slimes and bats.
      *
-     * Cooldown: 45 ticks ≈ 0.75s at 60fps.
+     * Cooldown: 180 ticks ≈ 3s at 60fps.
      *
      * @param target Entity to attack (typically the Player)
      */
