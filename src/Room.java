@@ -301,6 +301,7 @@ public class Room {
         // --- dropped items (coins, loot) ---
         // RIG POINT: Item.draw() must be implemented before dropped items appear.
         for (Item item : droppedItems) {
+            item.resetVisualPosition();
             item.draw(canvas);
         }
 
@@ -769,8 +770,9 @@ public class Room {
         }
 
         // --- dropped items ---
-        // RIG POINT: call item.panVisual(panX, panY) once Item.panVisual() is implemented.
-        // Skipped for tech demo — no items are in any room yet.
+        for (Item item : droppedItems) {
+            item.panVisual(panX, panY);
+        }
 
         // --- tech-demo room ID label ---
         if (dummyLabel != null) {

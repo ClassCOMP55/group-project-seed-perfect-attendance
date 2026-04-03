@@ -164,6 +164,27 @@ public class Item {
         // TODO: canvas.remove(icon or placeholder)
     }
 
+    /**
+     * Shifts this item's world-drop visuals during a room transition.
+     * Default: no-op. Ground-drop subclasses such as Coin override when they
+     * have on-canvas placeholder graphics to move.
+     *
+     * @param panX horizontal pixels to shift
+     * @param panY vertical pixels to shift
+     */
+    public void panVisual(double panX, double panY) {
+        // no-op by default
+    }
+
+    /**
+     * Restores this item's world-drop visuals to their canonical world position.
+     * Called before a room redraw so drops do not stay stranded at a panned location.
+     * Default: no-op for inventory-only items.
+     */
+    public void resetVisualPosition() {
+        // no-op by default
+    }
+
     // =========================================================
     // QUERIES
     // =========================================================

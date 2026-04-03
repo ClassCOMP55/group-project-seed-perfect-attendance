@@ -65,8 +65,11 @@ public class Grass extends WorldObject {
     /** Default coin drop probability (50%). TBD per design doc. */
     private static final float DEFAULT_COIN_DROP_CHANCE = 0.5f;
 
-    /** Time in seconds before a cut grass tile becomes harvestable again. */
-    private static final double REGROW_DURATION_SECONDS = 5.0;
+    /** Minimum time in seconds before a cut grass tile becomes harvestable again. */
+    private static final double MIN_REGROW_DURATION_SECONDS = 3.0;
+
+    /** Maximum time in seconds before a cut grass tile becomes harvestable again. */
+    private static final double MAX_REGROW_DURATION_SECONDS = 7.0;
 
     /** Placeholder grass color until real sprite is wired. */
     private static final Color GRASS_COLOR = new Color(60, 160, 60);
@@ -97,6 +100,9 @@ public class Grass extends WorldObject {
      */
     private final Consumer<Item> dropCallback;
 
+    /** True when this tile may keep dropping coins after regrowing. */
+    private final boolean repeatCoinDrops;
+
     /** Placeholder visual until real grass sprite is ready. */
     private GRect placeholder;
 
@@ -105,6 +111,9 @@ public class Grass extends WorldObject {
 
     /** Seconds remaining before the tile regrows. 0 means harvestable now. */
     private double regrowTimerSeconds;
+
+    /** Tracks one-per-visit coin drops for debug/test grass that should not be farmable forever. */
+    private boolean coinDropExhausted;
 
     // =========================================================
     // CONSTRUCTOR
@@ -126,11 +135,26 @@ public class Grass extends WorldObject {
      * @param dropCallback   called with a new Coin if the coin-drop roll succeeds; may be null
      */
     public Grass(double x, double y, float coinDropChance, Consumer<Item> dropCallback) {
+        this(x, y, coinDropChance, dropCallback, true);
+    }
+
+    /**
+     * @param x               top-left world pixel X
+     * @param y               top-left world pixel Y
+     * @param coinDropChance  probability of dropping a coin when harvested
+     * @param dropCallback    called with a new Coin if the coin-drop roll succeeds; may be null
+     * @param repeatCoinDrops true when every regrow cycle may drop again; false to cap at one
+     *                        successful coin drop per room visit
+     */
+    public Grass(double x, double y, float coinDropChance, Consumer<Item> dropCallback,
+                 boolean repeatCoinDrops) {
         super(x, y, 48, 48);
         this.isCut             = false;
         this.coinDropChance    = Math.max(0.0f, Math.min(1.0f, coinDropChance));
         this.dropCallback      = dropCallback;
+        this.repeatCoinDrops   = repeatCoinDrops;
         this.regrowTimerSeconds = 0.0;
+        this.coinDropExhausted = false;
 
         this.placeholder = new GRect(x, y, 48, 48);
         this.placeholder.setFilled(true);
@@ -182,13 +206,16 @@ public class Grass extends WorldObject {
         if (isCut) return;
 
         isCut = true;
-        regrowTimerSeconds = REGROW_DURATION_SECONDS;
+        regrowTimerSeconds = randomRegrowDurationSeconds();
         hitbox.updatePosition(-99999, -99999);
         placeholder.setVisible(false);
         updateDebugLabel();
 
-        if (dropCallback != null && Math.random() < coinDropChance) {
+        if (dropCallback != null && !coinDropExhausted && Math.random() < coinDropChance) {
             dropCallback.accept(new Coin(x + 24, y + 24));
+            if (!repeatCoinDrops) {
+                coinDropExhausted = true;
+            }
         }
     }
 
@@ -200,6 +227,7 @@ public class Grass extends WorldObject {
     public void reset() {
         isCut = false;
         regrowTimerSeconds = 0.0;
+        coinDropExhausted = false;
         hitbox.updatePosition(x, y);
         refreshVisualState();
     }
@@ -214,6 +242,11 @@ public class Grass extends WorldObject {
     public void panVisual(double panX, double panY) {
         placeholder.move(panX, panY);
         debugLabel.move(panX, panY);
+    }
+
+    @Override
+    public void resetVisualPosition() {
+        refreshVisualState();
     }
 
     /** Restores the tile to its ready state after the grow timer completes. */
@@ -251,5 +284,14 @@ public class Grass extends WorldObject {
         double labelX = x + (48 - debugLabel.getWidth()) / 2.0;
         double labelY = y + 30.0;
         debugLabel.setLocation(labelX, labelY);
+    }
+
+    /** Rolls a fresh regrow duration so the patch feels less robotic during testing. */
+    private double randomRegrowDurationSeconds() {
+        if (MAX_REGROW_DURATION_SECONDS <= MIN_REGROW_DURATION_SECONDS) {
+            return MIN_REGROW_DURATION_SECONDS;
+        }
+        return MIN_REGROW_DURATION_SECONDS
+            + Math.random() * (MAX_REGROW_DURATION_SECONDS - MIN_REGROW_DURATION_SECONDS);
     }
 }

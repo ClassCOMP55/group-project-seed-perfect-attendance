@@ -441,7 +441,8 @@ public class GameplayPane extends GraphicsPane {
             deathDelayTicks--;
             player.tickDeathAnimation(); // swap to static frame once GIF cycle ends
             player.draw(canvas);
-            worldMap.update(dt, player); // keep enemies roaming while dead
+            // Freeze room logic during the death pause so enemies, hazards, and stale
+            // combat hitboxes cannot keep advancing into the respawn.
             if (debugOverlayOn) drawDebugOverlay(canvas, player);
             if (deathDelayTicks <= 0) {
                 deathDelayTicks = 0;
@@ -526,6 +527,7 @@ public class GameplayPane extends GraphicsPane {
         if (player == null || player.isAlive() || player.isDying() || deathDelayTicks > 0) {
             return;
         }
+        player.removeSwingFrom(canvas);
         player.triggerDeathAnimation();
         deathDelayTicks = DEATH_DELAY;
         player.draw(canvas);

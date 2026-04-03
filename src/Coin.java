@@ -140,6 +140,7 @@ public class Coin extends Item {
     @Override
     public void draw(GCanvas canvas) {
         if (inWorld && worldSprite != null) {
+            resetVisualPosition();
             canvas.add(worldSprite);
             if (worldLabel != null) {
                 canvas.add(worldLabel);
@@ -156,6 +157,29 @@ public class Coin extends Item {
     /** Coins are not usable from inventory. */
     @Override
     public boolean isUsable() { return false; }
+
+    @Override
+    public void panVisual(double panX, double panY) {
+        if (worldSprite != null) {
+            worldSprite.move(panX, panY);
+        }
+        if (worldLabel != null) {
+            worldLabel.move(panX, panY);
+        }
+    }
+
+    @Override
+    public void resetVisualPosition() {
+        if (worldSprite != null) {
+            worldSprite.setLocation(worldX, worldY);
+        }
+        if (worldLabel != null) {
+            worldLabel.setLocation(
+                worldX + (24.0 - worldLabel.getWidth()) / 2.0,
+                worldY - 4.0
+            );
+        }
+    }
 
     // =========================================================
     // GETTERS

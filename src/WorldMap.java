@@ -288,6 +288,7 @@ public class WorldMap {
     private static final int STARTER_GRASS_PATCH_START_ROW = 2;
     private static final int STARTER_GRASS_PATCH_COLS = 6;
     private static final int STARTER_GRASS_PATCH_ROWS = 2;
+    private static final float STARTER_GRASS_PATCH_COIN_DROP_CHANCE = 0.5f;
 
     /** Starter sign + NPC positions in A1 so room dialogue can be tested immediately from spawn. */
     private static final double START_SIGN_X = TileMap.MAP_OFFSET_X + 15 * 48;
@@ -447,7 +448,7 @@ public class WorldMap {
         ));
     }
 
-    /** Seeds a small 2×3 debug grass patch into A1 near the opening spawn. */
+    /** Seeds a small 2×6 debug grass patch into A1 near the marked test area. */
     private void installStarterGrassPatch() {
         Room startRoom = overworldGrid[0][0];
         if (startRoom == null) {
@@ -460,8 +461,15 @@ public class WorldMap {
                 double worldX = TileMap.MAP_OFFSET_X + (STARTER_GRASS_PATCH_START_COL + col) * tileSize;
                 double worldY = (STARTER_GRASS_PATCH_START_ROW + row) * tileSize;
 
-                // Debug patch: every cut guarantees a coin so the harvest loop is easy to verify.
-                startRoom.addObject(new Grass(worldX, worldY, 1.0f, startRoom::addDroppedItem));
+                // Let the patch regrow for QA, but cap each tile at one successful coin drop per room visit
+                // so the opening room does not become a guaranteed infinite-money farm.
+                startRoom.addObject(new Grass(
+                    worldX,
+                    worldY,
+                    STARTER_GRASS_PATCH_COIN_DROP_CHANCE,
+                    startRoom::addDroppedItem,
+                    false
+                ));
             }
         }
     }

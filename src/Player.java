@@ -747,6 +747,7 @@ public class Player extends Entity {
     @Override
     public void removeSpriteFromCanvas(GCanvas canvas) {
         removeIntangibleAuraFromCanvas(canvas);
+        removeSwingFrom(canvas);
         if (attackVisual != null) canvas.remove(attackVisual);
         if (deathVisualOnCanvas != null) canvas.remove(deathVisualOnCanvas);
         if (previousDeathVisual != null) canvas.remove(previousDeathVisual);
@@ -803,10 +804,15 @@ public class Player extends Entity {
      * Call during room transition cleanup.
      */
     public void removeSwingFrom(GCanvas canvas) {
-        if (activeSwing != null) {
+        if (canvas != null && activeSwing != null) {
             activeSwing.removeFrom(canvas);
-            activeSwing = null;
         }
+        activeSwing = null;
+
+        if (canvas != null && expiredSwing != null) {
+            expiredSwing.removeFrom(canvas);
+        }
+        expiredSwing = null;
     }
 
     private void initializeDirectionalSprites() {
