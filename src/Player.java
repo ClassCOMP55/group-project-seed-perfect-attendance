@@ -152,14 +152,23 @@ public class Player extends Entity {
 
     private final Map<Direction, GImage> idleByDirection = new EnumMap<>(Direction.class);
     private final Map<Direction, GImage> walkByDirection = new EnumMap<>(Direction.class);
-    private final Map<Direction, GImage> deathByDirection = new EnumMap<>(Direction.class);
-    private final Map<Direction, GImage> deathFinalByDirection = new EnumMap<>(Direction.class);
+    private final Map<Direction, String> deathPathByDirection = new EnumMap<>(Direction.class);
+    private final Map<Direction, String> deathFinalPathByDirection = new EnumMap<>(Direction.class);
 
     /** True once triggerDeathAnimation() has been called — prevents re-triggering. */
     private boolean isDying = false;
 
     /** Ticks remaining before the animated death GIF is swapped to a static final frame. */
     private int deathAnimTicksLeft = 0;
+
+    /** The GImage currently on canvas during the death state — tracked for clean removal. */
+    private GImage deathVisualOnCanvas = null;
+
+    /** The previous death visual that needs removing when swapping GIF → PNG. */
+    private GImage previousDeathVisual = null;
+
+    /** True once the initial death visual has been placed on canvas. */
+    private boolean deathSpriteAdded = false;
 
     /**
      * Creates a Player with no TileMap (e.g. for save-load / menu use).
@@ -354,6 +363,24 @@ public class Player extends Entity {
         return INTANGIBLE_COOLDOWN;
     }
 
+    /** @return ticks remaining on intangible active window */
+    public int getIntangibleActiveTicks() { return intangibleActiveTicks; }
+
+    /** @return max active ticks for intangible */
+    public int getIntangibleActiveMax() { return INTANGIBLE_DURATION; }
+
+    /** @return ticks remaining on attack cooldown */
+    public int getAttackCooldownTicks() { return attackCooldownTicks; }
+
+    /** @return max attack cooldown ticks */
+    public int getAttackCooldownMax() { return ATTACK_COOLDOWN; }
+
+    /** @return ticks remaining on iframe invulnerability */
+    public int getIframeTicks() { return iframesTicks; }
+
+    /** @return max iframe ticks */
+    public int getIframeMax() { return IFRAMES_DURATION; }
+
     /**
      * Returns whether the body sprite should be visible this tick (post-hit i-frame flicker).
      */
@@ -492,6 +519,37 @@ public class Player extends Entity {
      */
     @Override
     public void draw(GCanvas canvas) {
+        if (isDying) {
+            // Bypass Entity.draw() entirely — ACM's setSize() corrupts animated GIFs.
+            if (deathVisualOnCanvas == null) return;
+
+            // First death tick: remove old idle/walk sprite, add death GIF
+            if (!deathSpriteAdded) {
+                // strip everything Entity knows about off the canvas
+                if (sprite != null) canvas.remove(sprite);
+                GImage af = animator.getCurrentFrame();
+                if (af != null && af != sprite) canvas.remove(af);
+                // add the death visual
+                deathVisualOnCanvas.setVisible(true);
+                canvas.add(deathVisualOnCanvas);
+                deathSpriteAdded = true;
+            }
+
+            // Swap from animated GIF to static PNG when tickDeathAnimation signals
+            if (previousDeathVisual != null) {
+                canvas.remove(previousDeathVisual);
+                previousDeathVisual = null;
+                deathVisualOnCanvas.setVisible(true);
+                canvas.add(deathVisualOnCanvas);
+            }
+
+            // Keep positioned
+            deathVisualOnCanvas.setLocation(
+                x - deathVisualOnCanvas.getWidth() / 2,
+                y - deathVisualOnCanvas.getHeight() / 2);
+            return;
+        }
+
         applySpriteVisibility(shouldShowSprite());
         // Z-order: add/update aura before super.draw() so Entity.draw() puts the sprite on top.
         if (isIntangibleActive) {
@@ -530,6 +588,8 @@ public class Player extends Entity {
     @Override
     public void removeSpriteFromCanvas(GCanvas canvas) {
         removeIntangibleAuraFromCanvas(canvas);
+        if (deathVisualOnCanvas != null) canvas.remove(deathVisualOnCanvas);
+        if (previousDeathVisual != null) canvas.remove(previousDeathVisual);
         super.removeSpriteFromCanvas(canvas);
     }
 
@@ -598,15 +658,15 @@ public class Player extends Entity {
         walkByDirection.put(Direction.LEFT, new GImage(PLAYER_WALK_LEFT, 0, 0));
         walkByDirection.put(Direction.RIGHT, new GImage(PLAYER_WALK_RIGHT, 0, 0));
 
-        deathByDirection.put(Direction.DOWN, new GImage(PLAYER_DEATH_FRONT, 0, 0));
-        deathByDirection.put(Direction.UP, new GImage(PLAYER_DEATH_BACK, 0, 0));
-        deathByDirection.put(Direction.LEFT, new GImage(PLAYER_DEATH_LEFT, 0, 0));
-        deathByDirection.put(Direction.RIGHT, new GImage(PLAYER_DEATH_RIGHT, 0, 0));
+        deathPathByDirection.put(Direction.DOWN, PLAYER_DEATH_FRONT);
+        deathPathByDirection.put(Direction.UP, PLAYER_DEATH_BACK);
+        deathPathByDirection.put(Direction.LEFT, PLAYER_DEATH_LEFT);
+        deathPathByDirection.put(Direction.RIGHT, PLAYER_DEATH_RIGHT);
 
-        deathFinalByDirection.put(Direction.DOWN, new GImage(PLAYER_DEATH_FRONT_FINAL, 0, 0));
-        deathFinalByDirection.put(Direction.UP, new GImage(PLAYER_DEATH_BACK_FINAL, 0, 0));
-        deathFinalByDirection.put(Direction.LEFT, new GImage(PLAYER_DEATH_LEFT_FINAL, 0, 0));
-        deathFinalByDirection.put(Direction.RIGHT, new GImage(PLAYER_DEATH_RIGHT_FINAL, 0, 0));
+        deathFinalPathByDirection.put(Direction.DOWN, PLAYER_DEATH_FRONT_FINAL);
+        deathFinalPathByDirection.put(Direction.UP, PLAYER_DEATH_BACK_FINAL);
+        deathFinalPathByDirection.put(Direction.LEFT, PLAYER_DEATH_LEFT_FINAL);
+        deathFinalPathByDirection.put(Direction.RIGHT, PLAYER_DEATH_RIGHT_FINAL);
 
         applyDirectionalVisual(false);
     }
@@ -633,13 +693,12 @@ public class Player extends Entity {
         if (isDying) return;
         isDying = true;
         deathAnimTicksLeft = DEATH_ANIM_TICKS;
-        GImage deathVisual = deathByDirection.get(facing);
-        if (deathVisual == null) deathVisual = deathByDirection.get(Direction.DOWN);
-        if (deathVisual != null) {
-            animator.clearFrames(); // wipe direction frames so fallback wins
-            animator.setFallbackFrame(deathVisual);
-            syncVisualPosition();
-        }
+        deathSpriteAdded = false;
+        previousDeathVisual = null;
+        String path = deathPathByDirection.get(facing);
+        if (path == null) path = deathPathByDirection.get(Direction.DOWN);
+        deathVisualOnCanvas = new GImage(path, 0, 0); // fresh GImage every death
+        animator.clearFrames();
     }
 
     /**
@@ -651,11 +710,11 @@ public class Player extends Entity {
         if (deathAnimTicksLeft > 0) {
             deathAnimTicksLeft--;
             if (deathAnimTicksLeft <= 0) {
-                GImage finalFrame = deathFinalByDirection.get(facing);
-                if (finalFrame == null) finalFrame = deathFinalByDirection.get(Direction.DOWN);
-                if (finalFrame != null) {
-                    animator.setFallbackFrame(finalFrame);
-                    syncVisualPosition();
+                String path = deathFinalPathByDirection.get(facing);
+                if (path == null) path = deathFinalPathByDirection.get(Direction.DOWN);
+                if (path != null) {
+                    previousDeathVisual = deathVisualOnCanvas;
+                    deathVisualOnCanvas = new GImage(path, 0, 0); // fresh static PNG
                 }
             }
         }
@@ -674,6 +733,9 @@ public class Player extends Entity {
     public void resetDeathState() {
         isDying = false;
         deathAnimTicksLeft = 0;
+        deathVisualOnCanvas = null;
+        previousDeathVisual = null;
+        deathSpriteAdded = false;
         health = MAX_HEARTS;
         iframesTicks = IFRAMES_DURATION * 3; // generous post-respawn invulnerability
         initializeDirectionalSprites(); // rebuild direction frames wiped by clearFrames()

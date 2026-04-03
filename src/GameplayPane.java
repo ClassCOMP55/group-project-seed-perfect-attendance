@@ -293,8 +293,9 @@ public class GameplayPane extends GraphicsPane {
             restackHintsOnTop(canvas);
             if (deathDelayTicks <= 0) {
                 deathDelayTicks = 0;
+                player.removeSpriteFromCanvas(canvas); // clean up death visual
                 player.resetDeathState();
-                player.draw(canvas);
+                player.draw(canvas); // draw fresh idle sprite at spawn
             }
             return; // no player input while dying
         }
@@ -529,10 +530,49 @@ public class GameplayPane extends GraphicsPane {
         canvas.add(pRect);
         debugObjects.add(pRect);
 
-        // --- player health label ---
-        acm.graphics.GLabel pHp = new acm.graphics.GLabel(
-            "HP " + player.getHealth() + "/" + player.getMaxHealth(),
-            ph.x, ph.y - 4);
+        // --- player cooldown bars (stacked above hitbox) ---
+        double pBarW = 60, pBarH = 4, pBarX = ph.x - 6, pBarY = ph.y - 8;
+
+        // Attack cooldown (magenta)
+        drawCooldownBar(canvas, pBarX, pBarY, pBarW, pBarH,
+            player.getAttackCooldownTicks(), player.getAttackCooldownMax(),
+            java.awt.Color.MAGENTA, "ATK");
+        pBarY -= 10;
+
+        // iFrames (yellow)
+        drawCooldownBar(canvas, pBarX, pBarY, pBarW, pBarH,
+            player.getIframeTicks(), player.getIframeMax(),
+            java.awt.Color.YELLOW, "iFRM");
+        pBarY -= 10;
+
+        // Intangible active (blue glow)
+        if (player.isIntangibleActive()) {
+            drawCooldownBar(canvas, pBarX, pBarY, pBarW, pBarH,
+                player.getIntangibleActiveTicks(), player.getIntangibleActiveMax(),
+                new java.awt.Color(100, 150, 255), "INTG");
+            pBarY -= 10;
+        }
+
+        // Intangible cooldown (dark blue)
+        if (player.getIntangibleCooldownTicks() > 0) {
+            drawCooldownBar(canvas, pBarX, pBarY, pBarW, pBarH,
+                player.getIntangibleCooldownTicks(), player.getIntangibleCooldownMax(),
+                new java.awt.Color(60, 60, 180), "K cd");
+            pBarY -= 10;
+        }
+
+        // Death respawn timer (red)
+        if (deathDelayTicks > 0) {
+            drawCooldownBar(canvas, pBarX, pBarY, pBarW, pBarH,
+                deathDelayTicks, DEATH_DELAY,
+                java.awt.Color.RED, "DEAD");
+            pBarY -= 10;
+        }
+
+        // Player state label
+        String pState = "HP " + player.getHealth() + "/" + player.getMaxHealth();
+        if (player.isDying()) pState += " | DYING";
+        acm.graphics.GLabel pHp = new acm.graphics.GLabel(pState, pBarX, pBarY);
         pHp.setFont("SansSerif-BOLD-11");
         pHp.setColor(java.awt.Color.CYAN);
         canvas.add(pHp);
@@ -561,7 +601,7 @@ public class GameplayPane extends GraphicsPane {
 
             // --- line from enemy to player (red when aggro, dim when patrolling) ---
             acm.graphics.GLine toPlayer = new acm.graphics.GLine(ex, ey, player.getX(), player.getY());
-            toPlayer.setColor(e.isAggro() ? java.awt.Color.RED : new java.awt.Color(255, 0, 0, 40));
+            toPlayer.setColor(e.isAggro() ? java.awt.Color.RED : new java.awt.Color(255, 0, 0, 60));
             canvas.add(toPlayer);
             debugObjects.add(toPlayer);
 
@@ -627,16 +667,55 @@ public class GameplayPane extends GraphicsPane {
                 debugObjects.add(toWp);
             }
 
+            // --- enemy attack cooldown bar (magenta) ---
+            double eBarY = barY - 8;
+            if (e.getAttackCooldown() > 0) {
+                drawCooldownBar(canvas, barX, eBarY, barW, barH,
+                    e.getAttackCooldown(), 180,
+                    java.awt.Color.MAGENTA, "ATK");
+                eBarY -= 10;
+            }
+
             // --- state label ---
             String stateText = (e.isAggro() ? "CHASE" : "PATROL")
                 + " | " + e.getAnimState().name()
                 + " | HP " + e.getHealth();
-            acm.graphics.GLabel stateLbl = new acm.graphics.GLabel(stateText, barX, barY - 2);
+            acm.graphics.GLabel stateLbl = new acm.graphics.GLabel(stateText, barX, eBarY - 2);
             stateLbl.setFont("SansSerif-BOLD-9");
             stateLbl.setColor(java.awt.Color.WHITE);
             canvas.add(stateLbl);
             debugObjects.add(stateLbl);
         }
+    }
+
+    /**
+     * Draws a labeled cooldown bar: dark background + colored fill proportional to remaining/max.
+     */
+    private void drawCooldownBar(acm.graphics.GCanvas canvas,
+            double x, double y, double w, double h,
+            int remaining, int max, java.awt.Color color, String label) {
+        if (max <= 0) return;
+
+        acm.graphics.GRect bg = new acm.graphics.GRect(x, y, w, h);
+        bg.setFilled(true);
+        bg.setFillColor(java.awt.Color.DARK_GRAY);
+        canvas.add(bg);
+        debugObjects.add(bg);
+
+        double ratio = (double) remaining / max;
+        if (ratio > 0) {
+            acm.graphics.GRect bar = new acm.graphics.GRect(x, y, w * ratio, h);
+            bar.setFilled(true);
+            bar.setFillColor(color);
+            canvas.add(bar);
+            debugObjects.add(bar);
+        }
+
+        acm.graphics.GLabel lbl = new acm.graphics.GLabel(label, x + w + 3, y + h);
+        lbl.setFont("SansSerif-BOLD-8");
+        lbl.setColor(color);
+        canvas.add(lbl);
+        debugObjects.add(lbl);
     }
 
     /** Removes all debug overlay GObjects from the canvas. */

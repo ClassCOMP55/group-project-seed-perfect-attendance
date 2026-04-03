@@ -380,6 +380,29 @@ public class Room {
             }
         }
 
+        // --- enemy-to-enemy separation (prevent stacking) ---
+        for (int i = 0; i < entities.size(); i++) {
+            if (!(entities.get(i) instanceof Enemy)) continue;
+            Enemy a = (Enemy) entities.get(i);
+            if (!a.isAlive()) continue;
+            for (int j = i + 1; j < entities.size(); j++) {
+                if (!(entities.get(j) instanceof Enemy)) continue;
+                Enemy b = (Enemy) entities.get(j);
+                if (!b.isAlive()) continue;
+                double dx = b.getX() - a.getX();
+                double dy = b.getY() - a.getY();
+                double dist = Math.sqrt(dx * dx + dy * dy);
+                double minDist = 52; // slightly larger than hitbox (48px)
+                if (dist < minDist && dist > 0.01) {
+                    double overlap = (minDist - dist) / 2.0;
+                    double nx = dx / dist;
+                    double ny = dy / dist;
+                    a.nudge(-nx * overlap, -ny * overlap);
+                    b.nudge( nx * overlap,  ny * overlap);
+                }
+            }
+        }
+
         // --- redraw entities so animator frame swaps remove the old frame from canvas ---
         // Without this, direction changes leave ghost sprites because draw() is the only
         // method that calls canvas.remove(lastDrawnVisual) before adding the new frame.

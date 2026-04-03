@@ -393,6 +393,16 @@ public abstract class Entity {
     // GETTERS
     // ==========================================================
 
+    /**
+     * Raw position shift without tile collision — used for separation pushes.
+     */
+    public void nudge(double dx, double dy) {
+        x += dx;
+        y += dy;
+        hitbox.updatePosition(x - HITBOX_HALF, y - HITBOX_HALF);
+        syncVisualPosition();
+    }
+
     /** @return center x position in world pixels */
     public double getX()            { return x; }
 
