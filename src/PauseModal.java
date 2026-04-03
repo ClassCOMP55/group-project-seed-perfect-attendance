@@ -1,6 +1,7 @@
 import java.awt.Color;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
+import java.util.List;
 
 import acm.graphics.*;
 
@@ -408,7 +409,7 @@ public class PauseModal extends GraphicsPane
     pauseCoinsLabel.setFont("SansSerif-BOLD-14");
     pauseCoinsLabel.setColor(Color.BLACK);
     int displayCoins =
-        Math.max(0, Math.min(PAUSE_HUD_COINS_DISPLAY_MAX, PAUSE_STUB_COINS));
+        Math.max(0, Math.min(PAUSE_HUD_COINS_DISPLAY_MAX, getPauseCoins()));
     pauseCoinsLabel.setLabel(String.valueOf(displayCoins));
 
     inventoryLastSavedLabel = new GLabel("Last Saved: --:--", 0, 0);
@@ -459,7 +460,7 @@ public class PauseModal extends GraphicsPane
         heartsDecoration.innerX + (heartsDecoration.innerW - PAUSE_HEARTS_CLUSTER_WIDTH) / 2;
     double heartsOriginY =
         heartsDecoration.innerY + (heartsDecoration.innerH - PAUSE_HUD_HEART_SEG_H) / 2;
-    addPauseHeartsLikeHud(heartsOriginX, heartsOriginY, PAUSE_STUB_HEART_SEGMENTS_FILLED);
+    addPauseHeartsLikeHud(heartsOriginX, heartsOriginY, getPauseHeartSegmentsFilled());
 
     RoundedDecoration coinSaveDecoration =
         addTightInventoryStatOutline(coinSaveLeft, statsRow1Top, coinSaveOutlineSize);
@@ -577,16 +578,18 @@ public class PauseModal extends GraphicsPane
     inventoryDescInnerW = inventoryDescDecoration.innerW;
     inventoryDescInnerH = inventoryDescDecoration.innerH;
 
-    //Stub list — wire Player later; stackables use "· Name x N" (see plan block).
-    String[] stubItemLines =
-        new String[] {"• Healing Bread x 3", "• Broken Lever", "• Ore"};
+    List<Item> inventoryItems = getPauseInventoryItems();
+    String[] stubItemLines = buildInventoryListLines(inventoryItems);
+    if (pauseInventoryFocusIndex >= stubItemLines.length) {
+      pauseInventoryFocusIndex = Math.max(0, stubItemLines.length - 1);
+    }
     pauseInventoryItemStubLabels = new GLabel[stubItemLines.length];
     double itemLineBaseline = inventoryListDecoration.innerY + 14;
     for (int i = 0; i < stubItemLines.length; i++)
     {
       GLabel row = new GLabel(stubItemLines[i], 0, 0);
       row.setFont("SansSerif-PLAIN-12");
-      row.setColor(Color.BLACK);
+      row.setColor(inventoryItems.isEmpty() ? Color.DARK_GRAY : Color.BLACK);
       row.setLocation(inventoryListDecoration.innerX + 8, itemLineBaseline);
       pauseInventoryItemStubLabels[i] = row;
       addBoth(row);
@@ -986,23 +989,30 @@ public class PauseModal extends GraphicsPane
       return;
     }
     removePauseInventoryDescriptionLines();
-    int n = PAUSE_INVENTORY_STUB_DESCRIPTIONS.length;
-    if (n == 0)
+    List<Item> inventoryItems = getPauseInventoryItems();
+    String description;
+    if (inventoryItems.isEmpty())
     {
-      return;
+      description = "No items in the inventory yet.";
     }
-    int idx = pauseInventoryFocusIndex;
-    if (idx < 0)
+    else
     {
-      idx = 0;
-    }
-    if (idx >= n)
-    {
-      idx = n - 1;
+      int idx = pauseInventoryFocusIndex;
+      if (idx < 0)
+      {
+        idx = 0;
+      }
+      if (idx >= inventoryItems.size())
+      {
+        idx = inventoryItems.size() - 1;
+      }
+      pauseInventoryFocusIndex = idx;
+      Item item = inventoryItems.get(idx);
+      description = item.getDescription();
     }
     pauseInventoryDescriptionLines =
         addWrappedDescriptionLines(
-            PAUSE_INVENTORY_STUB_DESCRIPTIONS[idx],
+            description,
             "SansSerif-PLAIN-12",
             Color.BLACK,
             inventoryDescInnerX,
@@ -1563,10 +1573,88 @@ public class PauseModal extends GraphicsPane
       refreshInventoryDescriptionFromFocus();
       return;
     }
-    if (k == KeyEvent.VK_SPACE)
+    if (k == KeyEvent.VK_SPACE || k == KeyEvent.VK_ENTER)
     {
-      // Stub until Player / consumable wiring.
+      useFocusedInventoryItem();
     }
+  }
+
+  private Player getPausePlayer()
+  {
+    return mainScreen == null ? null : mainScreen.getPlayer();
+  }
+
+  private List<Item> getPauseInventoryItems()
+  {
+    Player player = getPausePlayer();
+    if (player == null)
+    {
+      return new ArrayList<Item>();
+    }
+    return player.getInventory();
+  }
+
+  private int getPauseCoins()
+  {
+    Player player = getPausePlayer();
+    return player == null ? 0 : player.getCoins();
+  }
+
+  private int getPauseHeartSegmentsFilled()
+  {
+    Player player = getPausePlayer();
+    if (player == null)
+    {
+      return 0;
+    }
+    return Math.max(0, Math.min(PAUSE_HUD_HEART_SEGMENT_COUNT, player.getHP() * 2));
+  }
+
+  private String[] buildInventoryListLines(List<Item> inventoryItems)
+  {
+    if (inventoryItems == null || inventoryItems.isEmpty())
+    {
+      return new String[] {"• (empty)"};
+    }
+
+    String[] lines = new String[inventoryItems.size()];
+    for (int i = 0; i < inventoryItems.size(); i++)
+    {
+      Item item = inventoryItems.get(i);
+      String row = "• " + item.getDisplayName();
+      if (item.isStackable())
+      {
+        row += " x " + item.getStackCount();
+      }
+      lines[i] = row;
+    }
+    return lines;
+  }
+
+  private void useFocusedInventoryItem()
+  {
+    Player player = getPausePlayer();
+    if (player == null)
+    {
+      return;
+    }
+    Item focused = player.getInventoryItem(pauseInventoryFocusIndex);
+    if (focused == null || !focused.isUsable())
+    {
+      return;
+    }
+
+    player.useInventoryItem(pauseInventoryFocusIndex);
+    int inventorySize = player.getInventory().size();
+    if (pauseInventoryFocusIndex >= inventorySize && inventorySize > 0)
+    {
+      pauseInventoryFocusIndex = inventorySize - 1;
+    }
+    else if (inventorySize == 0)
+    {
+      pauseInventoryFocusIndex = 0;
+    }
+    showPause();
   }
 
   // Settings tab: see pauseSettingsFocusIndex on fields  

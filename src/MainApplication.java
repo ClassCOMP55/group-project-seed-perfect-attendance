@@ -167,20 +167,36 @@ public class MainApplication extends GraphicsProgram{
 
 	/**
 	 * Launches the room-based gameplay (WorldMap, all 12 rooms, transitions).
-	 * Creates a fresh Player if one does not already exist.
+	 * Creates a fresh Player and starts a brand-new session.
 	 *
-	 * // RIG POINT: When loading a saved game, call setPlayer(savedPlayer) and
-	 * //            worldMapGameplayPane.getWorldMap().getRoomById(savedRoomId)
-	 * //            BEFORE calling this method so the player starts at their saved location.
+	 * Loading now uses {@link #startLoadedGameplaySession(Player, String, double, double)}
+	 * so saved room/spawn data is applied before the gameplay pane is shown.
 	 */
 	public void switchToGameplayScreen() {
-		if (player == null) {
-			Player p = new Player();
-			if (DEV_GRANT_INTANGIBLE_RELIC_ON_NEW_GAME) {
-				p.setHasIntangible(true);
-			}
-			setPlayer(p);
+		Player p = new Player();
+		if (DEV_GRANT_INTANGIBLE_RELIC_ON_NEW_GAME) {
+			p.setHasIntangible(true);
 		}
+		startNewGameplaySession(p);
+	}
+
+	/** Starts a fresh gameplay session with a prepared Player. */
+	public void startNewGameplaySession(Player sessionPlayer) {
+		if (sessionPlayer == null) {
+			return;
+		}
+		setPlayer(sessionPlayer);
+		worldMapGameplayPane.prepareNewSession();
+		switchToScreen(worldMapGameplayPane);
+	}
+
+	/** Starts gameplay from a loaded save using the provided room and spawn position. */
+	public void startLoadedGameplaySession(Player sessionPlayer, String roomId, double spawnX, double spawnY) {
+		if (sessionPlayer == null) {
+			return;
+		}
+		setPlayer(sessionPlayer);
+		worldMapGameplayPane.prepareLoadedSession(roomId, spawnX, spawnY);
 		switchToScreen(worldMapGameplayPane);
 	}
 

@@ -129,7 +129,9 @@ public class Item {
      * @param p the Player who collected this item
      */
     public void onCollect(Player p) {
-        // TODO: p.addToInventory(this); inWorld = false;
+        if (p == null) return;
+        inWorld = false;
+        p.collectItem(this);
     }
 
     /**
@@ -174,6 +176,22 @@ public class Item {
         return false; // override in consumable subclasses
     }
 
+    /**
+     * Human-readable description for the pause inventory panel.
+     * Subclasses override for item-specific copy.
+     */
+    public String getDescription() {
+        return displayName + " cannot be used from the inventory yet.";
+    }
+
+    /**
+     * Pickup bounds for auto-collect while this item is on the ground.
+     * World drops can override this if their visual is smaller than a full tile.
+     */
+    public Hitbox getPickupHitbox() {
+        return new Hitbox(worldX, worldY, 24, 24);
+    }
+
     /** Sets the world position for this item as a ground drop. */
     public void setWorldPosition(double x, double y) {
         this.worldX  = x;
@@ -196,6 +214,13 @@ public class Item {
 
     /** Increments stack count. Only call if stackable = true. */
     public void incrementStack()   { stackCount++; }
+
+    /** Adds multiple items into an existing stack. */
+    public void incrementStackBy(int amount) {
+        if (amount > 0) {
+            stackCount += amount;
+        }
+    }
 
     /** Decrements stack count. Returns true if stack is now empty (remove from inventory). */
     public boolean decrementStack() {

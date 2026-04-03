@@ -442,6 +442,47 @@ public class WorldMap {
         dungeonRooms[2].setExit(Direction.LEFT,  true);
     }
 
+    /**
+     * Sets the active room directly by ID without running a transition animation.
+     * Used when starting or loading a fresh gameplay session.
+     *
+     * @return true if the room ID was found
+     */
+    public boolean setActiveRoomById(String roomId) {
+        Room target = getRoomById(roomId);
+        if (target == null) {
+            return false;
+        }
+        activeTransition = null;
+        activeRoom = target;
+        inDungeon = isDungeonRoom(target);
+        return true;
+    }
+
+    /** Shows only the markers that belong to the current active room. */
+    public void showSpecialMarkersForActiveRoom() {
+        syncSpecialMarkersToActiveRoom();
+    }
+
+    /** Hides all tech-demo room markers from the canvas. */
+    public void hideSpecialMarkers() {
+        if (canvas == null) return;
+        canvas.remove(dungeonEntranceMarker);
+        canvas.remove(dungeonExitMarker);
+    }
+
+    /** Rebuilds marker visibility after room swaps, loads, and screen show/hide. */
+    private void syncSpecialMarkersToActiveRoom() {
+        hideSpecialMarkers();
+        if (canvas == null) return;
+        if (activeRoom == roomC3) {
+            canvas.add(dungeonEntranceMarker);
+        }
+        if (activeRoom == dungeonRooms[0]) {
+            canvas.add(dungeonExitMarker);
+        }
+    }
+
     // =========================================================
     // UPDATE / DRAW — called each tick by GameplayPane
     // =========================================================
@@ -556,28 +597,7 @@ public class WorldMap {
         player.setPosition(newX, newY);
         player.setSpawnPosition(newX, newY);
 
-        // --- manage dungeon entrance marker visibility ---
-        // TECH DEMO: show marker when entering C3, hide it when leaving C3.
-        if (toRoom == roomC3) {
-            canvas.add(dungeonEntranceMarker);
-        }
-        if (fromRoom == roomC3) {
-            canvas.remove(dungeonEntranceMarker);
-        }
-
-        // --- manage dungeon exit marker visibility ---
-        // TECH DEMO: show exit marker when entering D1, hide it when leaving D1.
-        // Without this, the marker stays on canvas when the player transitions to D2/D3
-        // (because it is added directly to the canvas, not through Room.removeFrom),
-        // and it is missing when the player returns to D1 from D2.
-        // RIG POINT: remove this block once a real WorldObject exit door is built into D1
-        //            and manages its own canvas visibility through Room.addTo/removeFrom.
-        if (toRoom == dungeonRooms[0]) {
-            canvas.add(dungeonExitMarker);    // entering D1 — show the exit marker
-        }
-        if (fromRoom == dungeonRooms[0]) {
-            canvas.remove(dungeonExitMarker); // leaving D1  — hide the exit marker
-        }
+        syncSpecialMarkersToActiveRoom();
 
         // --- clean up transition and resume gameplay ---
         activeTransition = null;
@@ -622,7 +642,7 @@ public class WorldMap {
     public void enterDungeon(Player player) {
         // --- remove C3 and the dungeon entrance marker from canvas ---
         activeRoom.removeFrom(canvas);
-        canvas.remove(dungeonEntranceMarker);
+        hideSpecialMarkers();
 
         // --- switch to D1 ---
         activeRoom = dungeonRooms[0];
@@ -631,9 +651,7 @@ public class WorldMap {
         // --- put D1 on canvas, including the exit marker ---
         activeRoom.addTo(canvas);
         activeRoom.reset();
-        // TECH DEMO: add exit marker on top of the room tiles.
-        // RIG POINT: remove this line when a real WorldObject exit door is built into D1.
-        canvas.add(dungeonExitMarker);
+        syncSpecialMarkersToActiveRoom();
 
         // --- place player in center of D1, clear of the exit marker ---
         // RIG POINT: adjust DUNGEON_SPAWN_X/Y if the real dungeon entrance position changes.
@@ -686,7 +704,7 @@ public class WorldMap {
     public void exitDungeon(Player player) {
         // --- remove D1 and the exit marker from canvas ---
         activeRoom.removeFrom(canvas);
-        canvas.remove(dungeonExitMarker);
+        hideSpecialMarkers();
 
         // --- switch back to C3 ---
         activeRoom = roomC3;
@@ -695,9 +713,7 @@ public class WorldMap {
         // --- put C3 on canvas, including the entrance marker ---
         activeRoom.addTo(canvas);
         activeRoom.reset();
-        // TECH DEMO: re-add entrance marker so C3 looks the same as before.
-        // RIG POINT: remove once the real dungeon door WorldObject manages its own visibility.
-        canvas.add(dungeonEntranceMarker);
+        syncSpecialMarkersToActiveRoom();
 
         // --- place player offset from the entrance marker so they don't re-enter ---
         // OVERWORLD_RETURN_X/Y is just south of the marker; player faces south (away from dungeon).

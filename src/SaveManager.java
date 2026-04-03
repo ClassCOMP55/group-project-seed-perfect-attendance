@@ -152,6 +152,7 @@ public final class SaveManager {
 		json.append("  \"hp\": ").append(data.getHp()).append(",\n");
 		json.append("  \"maxHp\": ").append(data.getMaxHp()).append(",\n");
 		json.append("  \"coins\": ").append(data.getCoins()).append(",\n");
+		json.append("  \"healingBreadCount\": ").append(data.getHealingBreadCount()).append(",\n");
 		json.append("  \"roomId\": \"").append(escape(data.getRoomId())).append("\",\n");
 		json.append("  \"spawnX\": ").append(data.getSpawnX()).append(",\n");
 		json.append("  \"spawnY\": ").append(data.getSpawnY()).append(",\n");
@@ -207,6 +208,7 @@ public final class SaveManager {
 		int    hp           = readIntField(raw, "hp", 3);
 		int    maxHp        = readIntField(raw, "maxHp", 3);
 		int    coins        = readIntField(raw, "coins", 0);
+		int    healingBread = readIntField(raw, "healingBreadCount", 0);
 		String roomId       = readStringField(raw, "roomId", "");
 		double spawnX       = readDoubleField(raw, "spawnX", 320.0);
 		double spawnY       = readDoubleField(raw, "spawnY", 240.0);
@@ -220,7 +222,7 @@ public final class SaveManager {
 		System.out.println("[SaveManager] Loaded slot " + slot
 			+ " version=" + version + " room=" + roomId + " hp=" + hp);
 
-		return new SaveData(savedSlot, hp, maxHp, coins, roomId, spawnX, spawnY,
+		return new SaveData(savedSlot, hp, maxHp, coins, healingBread, roomId, spawnX, spawnY,
 		                    halfDmg, reflect, intangible, mark, items, flags);
 	}
 

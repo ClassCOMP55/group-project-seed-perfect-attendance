@@ -427,8 +427,15 @@ public class Room {
         }
 
         // --- dropped item pickup (player walks over a ground drop) ---
-        // RIG POINT: implement Item.onCollect() and Hitbox overlap for item pickup.
-        // Skipped for tech demo — no items are in any room yet.
+        java.util.Iterator<Item> itemIt = droppedItems.iterator();
+        while (itemIt.hasNext()) {
+            Item item = itemIt.next();
+            if (player.getHitbox().overlaps(item.getPickupHitbox())) {
+                item.onCollect(player);
+                if (canvas != null) item.removeFrom(canvas);
+                itemIt.remove();
+            }
+        }
 
         // --- sword hit detection (Grass cut, TrainingDummy react) ---
         SwordSwing swing = player.getActiveSwing();
@@ -458,8 +465,7 @@ public class Room {
                 if (canvas != null) e.removeSpriteFromCanvas(canvas);
                 if (e instanceof Enemy && ((Enemy) e).onDeath()) {
                     Coin coin = new Coin(e.getX(), e.getY());
-                    droppedItems.add(coin);
-                    if (canvas != null) coin.draw(canvas);
+                    addDroppedItem(coin);
                 }
                 eit.remove();
             }
@@ -658,7 +664,13 @@ public class Room {
     public void addGate(ThicketGate gate) { gates.add(gate); }
 
     /** Adds a dropped Item (coin, etc.) to this room's ground-item list. */
-    public void addDroppedItem(Item item) { droppedItems.add(item); }
+    public void addDroppedItem(Item item) {
+        if (item == null) return;
+        droppedItems.add(item);
+        if (initialized && canvas != null) {
+            item.draw(canvas);
+        }
+    }
 
     // =========================================================
     // GETTERS

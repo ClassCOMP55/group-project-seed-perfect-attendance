@@ -11,6 +11,12 @@ import acm.graphics.GRoundRect;
  */
 public class GameSavesPane extends NightScenePane {
 
+    /**
+     * Temporary starter supply so Healing Bread can be tested before merchants/chests are wired.
+     * Loaded saves override this with the persisted inventory count.
+     */
+    private static final int NEW_GAME_STARTING_HEALING_BREAD = 3;
+
     private GLabel subtitleLabel;
     private GRoundRect[] slotFrames = new GRoundRect[3];
     private GLabel[] slotLabels = new GLabel[3];
@@ -173,15 +179,42 @@ public class GameSavesPane extends NightScenePane {
                 loaded = SaveManager.loadSave(slot);
                 System.out.println("Loaded save slot " + slot + ": " + loaded);
             }
-            mainScreen.switchToGameplayScreen();
-            // Restore relic flags from save (new games rely on MainApplication.DEV_GRANT_INTANGIBLE_RELIC_ON_NEW_GAME).
-            Player p = mainScreen.getPlayer();
-            if (p != null && loaded != null) {
-                p.setHasIntangible(loaded.isHasIntangible());
+            if (loaded != null) {
+                Player player = buildLoadedPlayer(loaded);
+                mainScreen.startLoadedGameplaySession(
+                    player, loaded.getRoomId(), loaded.getSpawnX(), loaded.getSpawnY());
+            } else {
+                mainScreen.startNewGameplaySession(buildNewPlayer());
             }
         } catch (Exception ex) {
             System.err.println("Save slot " + slot + ": " + ex.getMessage());
             ex.printStackTrace();
         }
+    }
+
+    private Player buildNewPlayer() {
+        Player player = new Player();
+        if (MainApplication.DEV_GRANT_INTANGIBLE_RELIC_ON_NEW_GAME) {
+            player.setHasIntangible(true);
+        }
+        for (int i = 0; i < NEW_GAME_STARTING_HEALING_BREAD; i++) {
+            player.collectItem(new HealingBread());
+        }
+        return player;
+    }
+
+    private Player buildLoadedPlayer(SaveData loaded) {
+        Player player = new Player();
+        player.setMaxHealth(loaded.getMaxHp());
+        player.setHP(loaded.getHp());
+        player.setCoins(loaded.getCoins());
+        player.setHasHalfDamage(loaded.isHasHalfDamage());
+        player.setHasReflect(loaded.isHasReflect());
+        player.setHasIntangible(loaded.isHasIntangible());
+        player.setHasMarkOfHero(loaded.isHasMarkOfHero());
+        for (int i = 0; i < loaded.getHealingBreadCount(); i++) {
+            player.collectItem(new HealingBread());
+        }
+        return player;
     }
 }

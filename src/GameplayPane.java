@@ -97,7 +97,7 @@ public class GameplayPane extends GraphicsPane {
      * The game world: all 12 rooms, exit connections, transitions, and the dungeon entrance.
      * Created once in the constructor and kept for the lifetime of the application.
      */
-    private final WorldMap worldMap;
+    private WorldMap worldMap;
 
     /** Prevents double-wiring input keys across multiple showContent() calls. */
     private boolean inputsWired;
@@ -112,6 +112,10 @@ public class GameplayPane extends GraphicsPane {
      * //            at their saved location rather than the default starting position.
      */
     private boolean firstShow = true;
+
+    /** Spawn position to apply on the next fresh or loaded session start. */
+    private double pendingSpawnX = PLAYER_START_X;
+    private double pendingSpawnY = PLAYER_START_Y;
 
     // =========================================================
     // CONTROLS HINT OVERLAY (tech-demo placeholder)
@@ -146,6 +150,21 @@ public class GameplayPane extends GraphicsPane {
     /** True when the F6 debug overlay is visible. */
     private boolean debugOverlayOn = false;
 
+    /** Frames the temporary coin-gain popup stays visible after the wallet increases. */
+    private static final int COIN_GAIN_POPUP_TICKS = 50;
+
+    /** Gold popup shown briefly when the player gains coins during regular gameplay. */
+    private acm.graphics.GLabel coinGainLabel;
+
+    /** Backdrop behind the coin-gain popup so it stays readable over the room art. */
+    private acm.graphics.GRect coinGainBackdrop;
+
+    /** Remaining frames for the coin-gain popup. */
+    private int coinGainPopupTicks = 0;
+
+    /** Last wallet total observed by this pane so coin gains can be detected without touching Player. */
+    private int lastObservedCoins = -1;
+
     // =========================================================
     // PLAYER DEATH
     // =========================================================
@@ -172,7 +191,11 @@ public class GameplayPane extends GraphicsPane {
      */
     public GameplayPane(MainApplication mainScreen) {
         this.mainScreen = mainScreen;
-        this.worldMap   = new WorldMap(mainScreen.getGCanvas());
+        rebuildWorldMap();
+    }
+
+    private void rebuildWorldMap() {
+        this.worldMap = new WorldMap(mainScreen.getGCanvas());
     }
 
     // =========================================================
@@ -198,19 +221,22 @@ public class GameplayPane extends GraphicsPane {
         if (firstShow) {
             Room startingRoom = worldMap.getActiveRoom();
             player.setTileMap(startingRoom.getTileMap());
-            player.setPosition(PLAYER_START_X, PLAYER_START_Y);
-            player.setSpawnPosition(PLAYER_START_X, PLAYER_START_Y);
+            player.setPosition(pendingSpawnX, pendingSpawnY);
+            player.setSpawnPosition(pendingSpawnX, pendingSpawnY);
             firstShow = false;
         }
 
         // --- add room graphics to canvas ---
         worldMap.getActiveRoom().addTo(canvas);
+        worldMap.showSpecialMarkersForActiveRoom();
 
         // --- draw the player on top of the room ---
         player.draw(canvas);
 
         // --- player HUD ---
         showPlayerHUD(player);
+        clearCoinGainPopup();
+        lastObservedCoins = player.getCoins();
 
         // --- wire attack / ability keys ---
         wireInputOnce();
@@ -230,6 +256,7 @@ public class GameplayPane extends GraphicsPane {
 
         // --- remove room graphics ---
         worldMap.getActiveRoom().removeFrom(canvas);
+        worldMap.hideSpecialMarkers();
 
         // --- remove player sprite ---
         if (player != null) {
@@ -237,6 +264,8 @@ public class GameplayPane extends GraphicsPane {
         }
 
         hidePlayerHUD();
+        clearCoinGainPopup();
+        lastObservedCoins = -1;
 
         // --- remove debug overlay ---
         clearDebugOverlay(canvas);
@@ -248,8 +277,39 @@ public class GameplayPane extends GraphicsPane {
      */
     public void resetForNewGame() {
         firstShow = true;
+        pendingSpawnX = PLAYER_START_X;
+        pendingSpawnY = PLAYER_START_Y;
         deathDelayTicks = 0;
         debugOverlayOn = false;
+        clearCoinGainPopup();
+        lastObservedCoins = -1;
+    }
+
+    /** Rebuilds gameplay state for a brand-new session that starts in A1. */
+    public void prepareNewSession() {
+        rebuildWorldMap();
+        firstShow = true;
+        pendingSpawnX = PLAYER_START_X;
+        pendingSpawnY = PLAYER_START_Y;
+        deathDelayTicks = 0;
+        debugOverlayOn = false;
+        clearCoinGainPopup();
+        lastObservedCoins = -1;
+        GamePlayState.setCurrent(GamePlayState.PLAYING);
+    }
+
+    /** Rebuilds gameplay state and queues a saved room/spawn for the next showContent(). */
+    public void prepareLoadedSession(String roomId, double spawnX, double spawnY) {
+        rebuildWorldMap();
+        boolean roomFound = worldMap.setActiveRoomById(roomId);
+        firstShow = true;
+        pendingSpawnX = roomFound ? spawnX : PLAYER_START_X;
+        pendingSpawnY = roomFound ? spawnY : PLAYER_START_Y;
+        deathDelayTicks = 0;
+        debugOverlayOn = false;
+        clearCoinGainPopup();
+        lastObservedCoins = -1;
+        GamePlayState.setCurrent(GamePlayState.PLAYING);
     }
 
     // =========================================================
@@ -293,6 +353,7 @@ public class GameplayPane extends GraphicsPane {
                 player.draw(canvas); // draw fresh idle sprite at spawn
             }
             updatePlayerHUD(player);
+            updateCoinGainFeedback(player);
             return; // no player input while dying
         }
 
@@ -327,6 +388,7 @@ public class GameplayPane extends GraphicsPane {
         }
 
         updatePlayerHUD(player);
+        updateCoinGainFeedback(player);
     }
 
     /**
@@ -499,6 +561,82 @@ public class GameplayPane extends GraphicsPane {
         if (hintPause   != null) canvas.add(hintPause);
         if (hintDebug   != null) canvas.add(hintDebug);
         if (hintDebug2  != null) canvas.add(hintDebug2);
+    }
+
+    /** Detects wallet increases and keeps the short-lived coin popup visible while it is active. */
+    private void updateCoinGainFeedback(Player player) {
+        if (player == null) return;
+
+        int currentCoins = player.getCoins();
+        if (lastObservedCoins < 0) {
+            lastObservedCoins = currentCoins;
+        } else {
+            int gainedCoins = currentCoins - lastObservedCoins;
+            if (gainedCoins > 0) {
+                showCoinGainPopup(gainedCoins);
+            }
+            lastObservedCoins = currentCoins;
+        }
+
+        if (coinGainPopupTicks > 0) {
+            coinGainPopupTicks--;
+            if (coinGainBackdrop != null) coinGainBackdrop.sendToFront();
+            if (coinGainLabel != null) coinGainLabel.sendToFront();
+        } else {
+            clearCoinGainPopup();
+        }
+    }
+
+    /** Creates a small floating popup near the top-right with a slight random offset. */
+    private void showCoinGainPopup(int gainedCoins) {
+        clearCoinGainPopup();
+
+        String popupText = gainedCoins == 1 ? "+1 coin" : "+" + gainedCoins + " coins";
+        coinGainLabel = new acm.graphics.GLabel(popupText, 0, 0);
+        coinGainLabel.setFont("SansSerif-BOLD-18");
+        coinGainLabel.setColor(new java.awt.Color(255, 224, 122));
+        place(coinGainLabel);
+
+        double jitterX = (Math.random() - 0.5) * 28.0;
+        double jitterY = Math.random() * 18.0;
+        double minX = originX() + 18.0;
+        double maxX = originX() + mainScreen.getLayoutWidth() - coinGainLabel.getWidth() - 18.0;
+        double labelX = originX() + mainScreen.getLayoutWidth() - coinGainLabel.getWidth() - 44.0 + jitterX;
+        double labelY = originY() + 84.0 + jitterY;
+        labelX = Math.max(minX, Math.min(maxX, labelX));
+        coinGainLabel.setLocation(labelX, labelY);
+
+        double padX = 10.0;
+        double padY = 7.0;
+        coinGainBackdrop = new acm.graphics.GRect(
+            labelX - padX,
+            labelY - coinGainLabel.getAscent() - padY,
+            coinGainLabel.getWidth() + padX * 2.0,
+            coinGainLabel.getAscent() + coinGainLabel.getDescent() + padY * 2.0
+        );
+        coinGainBackdrop.setFilled(true);
+        coinGainBackdrop.setFillColor(new java.awt.Color(18, 14, 10, 210));
+        coinGainBackdrop.setColor(new java.awt.Color(150, 106, 42));
+        place(coinGainBackdrop);
+
+        coinGainBackdrop.sendToFront();
+        coinGainLabel.sendToFront();
+        coinGainPopupTicks = COIN_GAIN_POPUP_TICKS;
+    }
+
+    /** Removes any active coin-gain popup visuals from the canvas. */
+    private void clearCoinGainPopup() {
+        if (coinGainBackdrop != null) {
+            mainScreen.remove(coinGainBackdrop);
+            contents.remove(coinGainBackdrop);
+            coinGainBackdrop = null;
+        }
+        if (coinGainLabel != null) {
+            mainScreen.remove(coinGainLabel);
+            contents.remove(coinGainLabel);
+            coinGainLabel = null;
+        }
+        coinGainPopupTicks = 0;
     }
 
     // =========================================================
@@ -677,6 +815,31 @@ public class GameplayPane extends GraphicsPane {
             stateLbl.setColor(java.awt.Color.WHITE);
             canvas.add(stateLbl);
             debugObjects.add(stateLbl);
+        }
+
+        for (Item item : activeRoom.getDroppedItems()) {
+            Hitbox itemHitbox = item.getPickupHitbox();
+            acm.graphics.GRect itemRect =
+                new acm.graphics.GRect(itemHitbox.x, itemHitbox.y, itemHitbox.width, itemHitbox.height);
+            itemRect.setColor(new java.awt.Color(255, 215, 80));
+            canvas.add(itemRect);
+            debugObjects.add(itemRect);
+
+            String itemText = item.getDisplayName();
+            if (item instanceof Coin) {
+                itemText = "coin +" + ((Coin) item).getValue();
+            }
+            acm.graphics.GLabel itemLabel = new acm.graphics.GLabel(itemText, 0, 0);
+            itemLabel.setFont("SansSerif-BOLD-10");
+            itemLabel.setColor(new java.awt.Color(255, 220, 120));
+            canvas.add(itemLabel);
+            double labelX = itemHitbox.x + (itemHitbox.width - itemLabel.getWidth()) / 2.0;
+            double labelY = Math.max(
+                originY() + itemLabel.getAscent() + 6.0,
+                itemHitbox.y - 4.0
+            );
+            itemLabel.setLocation(labelX, labelY);
+            debugObjects.add(itemLabel);
         }
     }
 

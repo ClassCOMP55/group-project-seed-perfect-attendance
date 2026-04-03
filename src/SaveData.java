@@ -66,6 +66,9 @@ public class SaveData {
 	/** Coins held at time of save. */
 	private final int coins;
 
+	/** Current stack count of Healing Bread in the player's inventory. */
+	private final int healingBreadCount;
+
 	/** ID of the room containing the SavePoint used (for respawn routing on load). */
 	private final String roomId;
 
@@ -89,7 +92,7 @@ public class SaveData {
 	// ALL-FIELDS CONSTRUCTOR  (used by SaveManager on parse)
 	// =========================================================
 
-	public SaveData(int slot, int hp, int maxHp, int coins,
+	public SaveData(int slot, int hp, int maxHp, int coins, int healingBreadCount,
 	                String roomId, double spawnX, double spawnY,
 	                boolean hasHalfDamage, boolean hasReflect,
 	                boolean hasIntangible, boolean hasMarkOfHero,
@@ -98,6 +101,7 @@ public class SaveData {
 		this.hp            = hp;
 		this.maxHp         = maxHp;
 		this.coins         = coins;
+		this.healingBreadCount = Math.max(0, healingBreadCount);
 		this.roomId        = roomId != null ? roomId : "";
 		this.spawnX        = spawnX;
 		this.spawnY        = spawnY;
@@ -127,8 +131,8 @@ public class SaveData {
 	 */
 	public static SaveData from(int slot, Player player,
 	                             String roomId, double spawnX, double spawnY) {
-		// TODO: replace 0 with player.getCoins() once the coin system is implemented (P2)
-		int coins = 0;
+		int coins = player.getCoins();
+		int healingBreadCount = player.getItemCount(HealingBread.ITEM_ID);
 
 		// TODO: replace empty list with actual collected item IDs once item tracking is implemented (P2)
 		List<String> collectedItems = new ArrayList<>();
@@ -141,6 +145,7 @@ public class SaveData {
 			player.getHP(),
 			player.getMaxHealth(),
 			coins,
+			healingBreadCount,
 			roomId,
 			spawnX,
 			spawnY,
@@ -161,6 +166,7 @@ public class SaveData {
 	public int     getHp()             { return hp; }
 	public int     getMaxHp()          { return maxHp; }
 	public int     getCoins()          { return coins; }
+	public int     getHealingBreadCount() { return healingBreadCount; }
 	public String  getRoomId()         { return roomId; }
 	public double  getSpawnX()         { return spawnX; }
 	public double  getSpawnY()         { return spawnY; }

@@ -95,11 +95,14 @@ public class Coin extends Item {
     public Coin(double worldX, double worldY, int value) {
         super("coin", "Coin", true); // stackable = true but coins don't go into inventory
         this.value = value;
-        setWorldPosition(worldX, worldY);
+        double topLeftX = worldX - 12;
+        double topLeftY = worldY - 12;
+        setWorldPosition(topLeftX, topLeftY);
 
-        this.worldSprite = new GRect(worldX + 12, worldY + 12, 24, 24); // smaller than a tile
+        this.worldSprite = new GRect(topLeftX, topLeftY, 24, 24); // smaller than a tile
         this.worldSprite.setFilled(true);
         this.worldSprite.setFillColor(COIN_COLOR);
+        this.worldSprite.setColor(Color.BLACK);
     }
 
     // =========================================================
@@ -115,7 +118,9 @@ public class Coin extends Item {
      */
     @Override
     public void onCollect(Player p) {
-        // TODO: p.coins += value  (or p.addCoins(value) if Player has that method)
+        if (p != null) {
+            p.addCoins(value);
+        }
         inWorld = false;
         // Room removes this from droppedItems and calls removeFrom(canvas) after onCollect returns
     }
