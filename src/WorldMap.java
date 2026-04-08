@@ -209,6 +209,8 @@ public class WorldMap {
 
     /** Shared dialogue overlay used by starter-room signs and NPCs. */
     private final Dialogue dialogue;
+    /** Shared shop overlay used by merchant NPCs. */
+    private final ShopMenu shopMenu;
 
     /**
      * Holds the Player reference for the current update tick.
@@ -302,6 +304,8 @@ public class WorldMap {
     private static final double START_SIGN_Y = 7 * 48;
     private static final double START_NPC_X  = TileMap.MAP_OFFSET_X + 10 * 48;
     private static final double START_NPC_Y  = 7 * 48;
+    private static final double START_BREAD_MERCHANT_X = TileMap.MAP_OFFSET_X + 20 * 48;
+    private static final double START_BREAD_MERCHANT_Y = 7 * 48;
 
     private static final String[] START_SIGN_LINES = {
         "Spawn Island Test Sign",
@@ -338,9 +342,10 @@ public class WorldMap {
      *
      * @param canvas the game canvas (needed for room add/remove during transitions)
      */
-    public WorldMap(GCanvas canvas, Dialogue dialogue) {
+    public WorldMap(GCanvas canvas, Dialogue dialogue, ShopMenu shopMenu) {
         this.canvas = canvas;
         this.dialogue = dialogue;
+        this.shopMenu = shopMenu;
 
         // --- build the dungeon entrance marker (C3) ---
         // TECH DEMO: red GRect standing in for the dungeon door in C3.
@@ -413,6 +418,7 @@ public class WorldMap {
         installStarterGrassPatch();
         installStarterHolePit();
         installSpawnIslandDialogueTestObjects();
+        installStarterBreadMerchant();
 
         // --- wire exit callbacks: each room calls triggerTransition() when the player exits ---
         for (int col = 0; col < COLS; col++) {
@@ -527,6 +533,20 @@ public class WorldMap {
             "Spawn Island Villager",
             START_NPC_LINES,
             dialogue
+        ));
+    }
+
+    /** Adds an interactable bread merchant in A1 that opens the shop overlay. */
+    private void installStarterBreadMerchant() {
+        Room startRoom = overworldGrid[0][0];
+        if (startRoom == null || shopMenu == null) {
+            return;
+        }
+        startRoom.addObject(new BreadMerchant(
+            START_BREAD_MERCHANT_X,
+            START_BREAD_MERCHANT_Y,
+            "Bread Merchant",
+            shopMenu
         ));
     }
 

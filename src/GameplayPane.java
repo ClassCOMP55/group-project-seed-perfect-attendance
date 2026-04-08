@@ -221,7 +221,11 @@ public class GameplayPane extends GraphicsPane {
     }
 
     private void rebuildWorldMap() {
-        this.worldMap = new WorldMap(mainScreen.getGCanvas(), mainScreen.getDialogue());
+        this.worldMap = new WorldMap(
+            mainScreen.getGCanvas(),
+            mainScreen.getDialogue(),
+            mainScreen.getShopMenu()
+        );
     }
 
     // =========================================================

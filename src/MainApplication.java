@@ -28,6 +28,7 @@ public class MainApplication extends GraphicsProgram{
 
 	private PauseModal pauseModal;
 	private Dialogue dialogue;
+	private ShopMenu shopMenu;
 	private GameLoop gameLoop;
 	private InputHandler inputHandler;
 	private Player player;
@@ -102,6 +103,7 @@ public class MainApplication extends GraphicsProgram{
 		});
 		pauseModal = new PauseModal(this);
 		dialogue = new Dialogue(this);
+		shopMenu = new ShopMenu(this);
 		gameLoop = new GameLoop(getGCanvas());
 
 		// Initialize panes
@@ -269,6 +271,9 @@ public class MainApplication extends GraphicsProgram{
 		if (pauseModal != null) {
 			pauseModal.hideContent();
 		}
+		if (shopMenu != null) {
+			shopMenu.close();
+		}
 		if (currentScreen != null) {
 			currentScreen.hideContent();
 		}
@@ -303,6 +308,10 @@ public class MainApplication extends GraphicsProgram{
 		return pauseModal != null && !pauseModal.contents.isEmpty();
 	}
 
+	public boolean isShopMenuOpen() {
+		return shopMenu != null && shopMenu.isOpen();
+	}
+
 	/** Debug: opens the walkable market character test scene. */
 	public void switchToMarketDebug() {
 		switchToScreen(marketDebugPane);
@@ -314,6 +323,10 @@ public class MainApplication extends GraphicsProgram{
 	 */
 	public Dialogue getDialogue() {
 		return dialogue;
+	}
+
+	public ShopMenu getShopMenu() {
+		return shopMenu;
 	}
 
 	/** Shows pause overlay. Driven by ESC in gameplay. */
@@ -360,6 +373,9 @@ public class MainApplication extends GraphicsProgram{
 		if (pauseModal != null && !pauseModal.contents.isEmpty()) {
 			return;
 		}
+		if (shopMenu != null && shopMenu.isOpen()) {
+			return;
+		}
 		if (currentScreen != null) {
 			currentScreen.mousePressed(e);
 		}
@@ -368,6 +384,9 @@ public class MainApplication extends GraphicsProgram{
 	@Override
 	public void mouseReleased(MouseEvent e) {
 		if (pauseModal != null && !pauseModal.contents.isEmpty()) {
+			return;
+		}
+		if (shopMenu != null && shopMenu.isOpen()) {
 			return;
 		}
 		if (currentScreen != null && currentScreen.tryHandleSettingsCornerClick(e)) {
@@ -381,6 +400,10 @@ public class MainApplication extends GraphicsProgram{
 	@Override
 	public void mouseClicked(MouseEvent e) {
 		if (pauseModal != null && !pauseModal.contents.isEmpty()) {
+			return;
+		}
+		if (shopMenu != null && shopMenu.isOpen()) {
+			shopMenu.mouseClicked(e);
 			return;
 		}
 		if (currentScreen != null && currentScreen.tryHandleOverlayClick(e)) {
@@ -403,6 +426,9 @@ public class MainApplication extends GraphicsProgram{
 		if (pauseModal != null && !pauseModal.contents.isEmpty()) {
 			return;
 		}
+		if (shopMenu != null && shopMenu.isOpen()) {
+			return;
+		}
 		if (currentScreen != null) {
 			currentScreen.mouseDragged(e);
 		}
@@ -411,6 +437,9 @@ public class MainApplication extends GraphicsProgram{
 	@Override
 	public void mouseMoved(MouseEvent e) {
 		if (pauseModal != null && !pauseModal.contents.isEmpty()) {
+			return;
+		}
+		if (shopMenu != null && shopMenu.isOpen()) {
 			return;
 		}
 		if (currentScreen != null) {
@@ -440,6 +469,10 @@ public class MainApplication extends GraphicsProgram{
 		if (pauseModal != null && !pauseModal.contents.isEmpty()) 
 		{
 			pauseModal.keyPressed(e);
+			return;
+		}
+		if (shopMenu != null && shopMenu.isOpen()) {
+			shopMenu.keyPressed(e);
 			return;
 		}
 		if (currentScreen != null && currentScreen.tryHandleOverlayKeyPressed(e)) {
@@ -479,6 +512,9 @@ public class MainApplication extends GraphicsProgram{
 		if (pauseModal != null && !pauseModal.contents.isEmpty()) {
 			return;
 		}
+		if (shopMenu != null && shopMenu.isOpen()) {
+			return;
+		}
 		if (currentScreen != null) {
 			currentScreen.keyReleased(e);
 		}
@@ -487,6 +523,9 @@ public class MainApplication extends GraphicsProgram{
 	@Override
 	public void keyTyped(KeyEvent e) {
 		if (pauseModal != null && !pauseModal.contents.isEmpty()) {
+			return;
+		}
+		if (shopMenu != null && shopMenu.isOpen()) {
 			return;
 		}
 		if (currentScreen != null) {
