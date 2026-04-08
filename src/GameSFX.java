@@ -40,10 +40,6 @@ FILE FORMAT
 - .wav only (same as GameMusic). No .mp3 or .ogg — Java's built-in audio only reads .wav.
 - Keep SFX clips short (under ~2 seconds). Longer audio belongs in GameMusic as a looping track.
 
-WHAT IS NOT HERE (future sessions)
-- No ducking logic (lowering music volume during a big SFX).
-- No per-sound volume offsets (all SFX share the one SFX volume slider).
-- Method bodies are all stubs — implementation happens in a separate session after review.
 */
 
 import java.io.BufferedInputStream;
@@ -168,9 +164,25 @@ public final class GameSFX
    */
   public static void init()
   {
-    // STUB — implementation in next session.
-    // Each line will look like:
-    //   pools.put(SFX.SWORD_SWING, loadPool("sword-swing.wav", POOL_RAPID));
+    pools       = new EnumMap<>(SFX.class);
+    poolCursors = new EnumMap<>(SFX.class);
+
+    pools.put(SFX.SWORD_SWING,   loadPool("sword-swing.wav",   POOL_RAPID));
+    pools.put(SFX.PLAYER_HURT,   loadPool("player-hurt.wav",   POOL_SMALL));
+    pools.put(SFX.COIN_PICKUP,   loadPool("coin-pickup.wav",   POOL_MEDIUM));
+    pools.put(SFX.GRASS_CUT,     loadPool("grass-cut.wav",     POOL_RAPID));
+    pools.put(SFX.PAUSE_OPEN,    loadPool("pause-open.wav",    POOL_SMALL));
+    pools.put(SFX.DIALOGUE_TICK, loadPool("dialogue-tick.wav", POOL_TICK));
+    pools.put(SFX.ENEMY_ATTACK,  loadPool("enemy-attack.wav",  POOL_MEDIUM));
+    pools.put(SFX.ITEM_USE,      loadPool("item-use.wav",      POOL_SMALL));
+    pools.put(SFX.CHEST_OPEN,    loadPool("chest-open.wav",    POOL_SMALL));
+
+    // Each cursor starts at 0 — it advances each time that sound plays.
+    for (SFX sfx : SFX.values()) {
+      poolCursors.put(sfx, new int[]{ 0 });
+    }
+
+    initialized = true;
   }
 
   /**
@@ -182,7 +194,21 @@ public final class GameSFX
    */
   public static void play(SFX sfx)
   {
-    // STUB — implementation in next session.
+    if (!initialized || pools == null) return;
+
+    Clip[] pool = pools.get(sfx);
+    if (pool == null || pool.length == 0) return;
+
+    // Round-robin: pick the next clip slot, then advance the index.
+    int[] cursor = poolCursors.get(sfx);
+    int idx = cursor[0];
+    cursor[0] = (idx + 1) % pool.length;
+
+    Clip clip = pool[idx];
+    clip.stop();
+    clip.setFramePosition(0); // rewind to the beginning
+    applyVolume(clip);
+    clip.start();
   }
 
   /**
@@ -195,7 +221,13 @@ public final class GameSFX
    */
   public static void refreshVolume()
   {
-    // STUB — implementation in next session.
+    if (!initialized || pools == null) return;
+
+    for (Clip[] pool : pools.values()) {
+      for (Clip clip : pool) {
+        applyVolume(clip);
+      }
+    }
   }
 
   // =========================================================
@@ -213,8 +245,35 @@ public final class GameSFX
    */
   private static Clip[] loadPool(String fileName, int poolSize)
   {
-    // STUB — implementation in next session.
-    return new Clip[0];
+    Clip[] clips = new Clip[poolSize];
+    int loaded = 0;
+
+    for (int i = 0; i < poolSize; i++) {
+      InputStream raw = openSFXStream(fileName);
+      if (raw == null) {
+        // Only log once — if the first open fails, the file simply isn't there yet.
+        if (i == 0) {
+          System.err.println("GameSFX: could not find audio/sfx/" + fileName + " — skipped");
+        }
+        break;
+      }
+      try (InputStream in = new BufferedInputStream(raw)) {
+        AudioInputStream ais = AudioSystem.getAudioInputStream(in);
+        Clip clip = AudioSystem.getClip();
+        clip.open(ais); // loads the audio data into memory
+        applyVolume(clip);
+        clips[loaded++] = clip;
+      } catch (IOException | UnsupportedAudioFileException | LineUnavailableException e) {
+        System.err.println("GameSFX: failed to load copy " + i + " of " + fileName);
+        break;
+      }
+    }
+
+    // Return only the clips that actually loaded (may be fewer than poolSize).
+    if (loaded == poolSize) return clips;
+    Clip[] partial = new Clip[loaded];
+    System.arraycopy(clips, 0, partial, 0, loaded);
+    return partial;
   }
 
   /**
@@ -225,8 +284,39 @@ public final class GameSFX
    */
   private static void applyVolume(Clip clip)
   {
-    // STUB — implementation in next session.
-    // Will mirror GameMusic.applyVolume but read getSfxVolumePercent() instead of getMusicVolumePercent().
+    int p = GameSettings.getSfxVolumePercent(); // 0-100
+
+    // Try muting the clip directly (fastest path when volume is 0).
+    try {
+      BooleanControl mute = (BooleanControl) clip.getControl(BooleanControl.Type.MUTE);
+      if (p <= 0) { mute.setValue(true);  return; }
+      mute.setValue(false);
+    } catch (IllegalArgumentException ex) {
+      // this clip has no mute control — that's fine, keep going
+    }
+
+    float t = p / 100f; // convert percent to 0.0–1.0
+
+    // Try a simple linear volume control.
+    try {
+      FloatControl vol = (FloatControl) clip.getControl(FloatControl.Type.VOLUME);
+      vol.setValue(Math.max(0f, Math.min(1f, t)));
+      return;
+    } catch (IllegalArgumentException ex) {
+      // no VOLUME control on this system — fall through to MASTER_GAIN
+    }
+
+    // Fall back to decibel gain (most common on Java's audio layer).
+    try {
+      FloatControl gain = (FloatControl) clip.getControl(FloatControl.Type.MASTER_GAIN);
+      float min = gain.getMinimum();
+      float max = gain.getMaximum();
+      if (p <= 0) { gain.setValue(min); return; }
+      float db = max + 20f * (float) Math.log10(Math.max(t, 1e-4f));
+      gain.setValue(Math.max(min, Math.min(max, db)));
+    } catch (IllegalArgumentException ex) {
+      // no gain control either — audio system can't adjust volume; ignore
+    }
   }
 
   /**
@@ -239,8 +329,17 @@ public final class GameSFX
    */
   private static InputStream openSFXStream(String fileName)
   {
-    // STUB — implementation in next session.
-    // Will mirror GameMusic.openMusicStream but point at /audio/sfx/ instead of /audio/music/.
+    // Check the classpath first (works when the project is built/packaged as a jar).
+    InputStream fromClasspath = GameSFX.class.getResourceAsStream("/audio/sfx/" + fileName);
+    if (fromClasspath != null) return fromClasspath;
+
+    // Fall back to the local assets folder (useful during development).
+    Path p = Paths.get("assets", "audio", "sfx", fileName);
+    try {
+      if (Files.isRegularFile(p)) return Files.newInputStream(p);
+    } catch (IOException e) {
+      return null;
+    }
     return null;
   }
 }
