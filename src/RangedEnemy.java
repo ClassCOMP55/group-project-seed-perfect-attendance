@@ -139,6 +139,7 @@ public class RangedEnemy extends Enemy {
         if (projectiles == null) return;
 
         projectiles.add(new Projectile(x, y, target.getX(), target.getY(), tileMap, this));
+        // # rig — play GameSFX.SFX.RANGED_FIRE here once a projectile-fire sound is added to the catalog
         attackCooldownTicks = fireRate;
         setAnimState(AnimState.ATTACK);
         animTimer = attackAnimDuration;

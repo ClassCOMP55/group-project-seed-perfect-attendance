@@ -233,7 +233,7 @@ public class Boss extends Enemy {
             chaseSpeed = PHASE2_SPEED;
             fireRate   = PHASE2_FIRE_RATE;
             // TODO [GRAPHICS]: flash sprite to signal phase transition to the player
-            // TODO [AUDIO]: play phase-transition sound
+            // # rig — play GameSFX.SFX.BOSS_PHASE_FLIP here once a phase-transition sound is added to the catalog
         }
     }
 
@@ -257,6 +257,7 @@ public class Boss extends Enemy {
         // ── Melee contact (own cooldown, always checked) ───────
         if (meleeCooldownTicks <= 0 && hitbox.overlaps(target.getHitbox())) {
             target.takeDamage(contactDamage);
+            GameSFX.play(GameSFX.SFX.ENEMY_ATTACK);
             meleeCooldownTicks = MELEE_COOLDOWN;
         }
 
@@ -352,6 +353,7 @@ public class Boss extends Enemy {
         lungeWindupTimer  = LUNGE_WINDUP;
         lungeDurationTimer = LUNGE_DURATION;
         // TODO [GRAPHICS]: begin sprite flash here
+        // # rig — play GameSFX.SFX.BOSS_LUNGE_WINDUP here once a lunge-telegraph sound is added to the catalog
     }
 
     /**
@@ -411,6 +413,7 @@ public class Boss extends Enemy {
         // TODO [Task 19 — CutscenePlayer]: trigger ending cutscene here:
         //   CutscenePlayer.play(endingFrames);
         System.out.println("TODO: Boss defeated — trigger CutscenePlayer ending sequence");
+        // # rig — play GameSFX.SFX.BOSS_DEATH here once a boss-death sound is added to the catalog
         return false; // no coin drop
     }
 

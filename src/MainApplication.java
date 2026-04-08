@@ -87,6 +87,7 @@ public class MainApplication extends GraphicsProgram{
 		} catch (IOException e) {
 			System.err.println("Settings load: " + e.getMessage());
 		}
+		GameSFX.init();
 		SwingUtilities.invokeLater(() -> {
 			java.awt.Window w = SwingUtilities.getWindowAncestor(getGCanvas());
 			if (w instanceof JFrame) {
@@ -318,6 +319,7 @@ public class MainApplication extends GraphicsProgram{
 	/** Shows pause overlay. Driven by ESC in gameplay. */
 	public void showPauseModal() {
 		if (pauseModal != null) {
+			GameSFX.play(GameSFX.SFX.PAUSE_OPEN);
 			pauseModal.showPause();
 		}
 	}

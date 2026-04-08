@@ -144,6 +144,7 @@ public class Chest extends WorldObject {
         if (isOpen) return;
 
         isOpen = true;
+        GameSFX.play(GameSFX.SFX.CHEST_OPEN);
         placeholder.setFillColor(CHEST_OPEN_COLOR);
 
         if (givesRelic) {

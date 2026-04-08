@@ -118,6 +118,7 @@ public class ThicketGate {
      */
     public void open() {
         isOpen = true;
+        // # rig — play GameSFX.SFX.GATE_OPEN here once a gate-open sound is added to the catalog
         // Zero-out the hitbox so it no longer blocks movement
         hitbox.updatePosition(-9999, -9999);
     }

@@ -240,6 +240,7 @@ public class Projectile extends Entity {
         dirY = -dirY;
         direction = Direction.fromDelta(dirX, dirY);
         isReflected = true;
+        // # rig — play GameSFX.SFX.PROJECTILE_REFLECT here once a reflect sound is added to the catalog
         applyVisualState();
         recordTrailPoint(x, y);
     }

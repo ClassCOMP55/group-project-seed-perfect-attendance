@@ -1121,6 +1121,7 @@ public class PauseModal extends GraphicsPane
     GameSettings.setSfxVolumePercent(pauseSfxVolumePercent);
     SettingsIO.persist();
     GameMusic.refreshVolume();
+    GameSFX.refreshVolume();
   }
 
   private void updateMusicSliderThumbLayout()

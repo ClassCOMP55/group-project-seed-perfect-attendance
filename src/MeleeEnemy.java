@@ -145,6 +145,7 @@ public class MeleeEnemy extends Enemy {
 
         if (hitbox.overlaps(target.getHitbox())) {
             target.takeDamage(meleeDamage);
+            GameSFX.play(GameSFX.SFX.ENEMY_ATTACK);
             attackCooldownTicks = 180; // ~3s at 60fps
             if (animState != AnimState.DEATH) {
                 setAnimState(AnimState.ATTACK);

@@ -42,6 +42,7 @@ public class TutorialMonster extends Enemy {
 
         if (hitbox.overlaps(target.getHitbox())) {
             target.takeDamage(1);
+            GameSFX.play(GameSFX.SFX.ENEMY_ATTACK);
             attackCooldownTicks = 60;
         }
     }

@@ -358,6 +358,7 @@ public class Player extends Entity {
         if (activeSwing != null) return;
 
         activeSwing = new SwordSwing(x, y, facing);
+        GameSFX.play(GameSFX.SFX.SWORD_SWING);
         attackAnimDirection = (facing != null) ? facing : Direction.DOWN;
         String path = attackPathByDirection.get(attackAnimDirection);
         if (path == null) path = attackPathByDirection.get(Direction.DOWN);
@@ -400,6 +401,7 @@ public class Player extends Entity {
         isIntangibleActive = true;
         intangibleActiveTicks = INTANGIBLE_DURATION;
         intangibleCooldownTicks = INTANGIBLE_COOLDOWN;
+        // # rig — play GameSFX.SFX.INTANGIBLE_ACTIVATE here once a sound is added to the catalog
         return true;
     }
 
@@ -480,6 +482,7 @@ public class Player extends Entity {
 
         health = Math.max(0, health - amount);
         iframesTicks = IFRAMES_DURATION;
+        GameSFX.play(GameSFX.SFX.PLAYER_HURT);
     }
 
     // ==========================================================
@@ -531,6 +534,7 @@ public class Player extends Entity {
     public void collectItem(Item item) {
         if (item == null) return;
         item.inWorld = false;
+        // # rig — play GameSFX.SFX.ITEM_USE here when a consumable is picked up, once the catalog has a pickup sound
 
         if (item.isStackable()) {
             Item existing = findInventoryItem(item.getItemId());

@@ -327,6 +327,7 @@ public class Dialogue extends GraphicsPane
 
 		String current = lines[currentLine];
 		charIndex = Math.min(charIndex + CHARS_PER_TICK, current.length());
+		GameSFX.play(GameSFX.SFX.DIALOGUE_TICK);
 		rebuildTextRows(current.substring(0, charIndex));
 
 		if (charIndex >= current.length())

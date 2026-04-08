@@ -206,6 +206,7 @@ public class Grass extends WorldObject {
         if (isCut) return;
 
         isCut = true;
+        GameSFX.play(GameSFX.SFX.GRASS_CUT);
         regrowTimerSeconds = randomRegrowDurationSeconds();
         hitbox.updatePosition(-99999, -99999);
         placeholder.setVisible(false);

@@ -133,6 +133,7 @@ public class Coin extends Item {
         if (p != null) {
             p.addCoins(value);
         }
+        GameSFX.play(GameSFX.SFX.COIN_PICKUP);
         inWorld = false;
         // Room removes this from droppedItems and calls removeFrom(canvas) after onCollect returns
     }
