@@ -1,0 +1,111 @@
+import acm.graphics.GCanvas;
+import acm.graphics.GLabel;
+import acm.graphics.GRect;
+
+import java.awt.Color;
+
+/**
+ * Stationary NPC that opens the shop overlay.
+ */
+public class BreadMerchant extends WorldObject {
+    private static final double TITLE_BASELINE_Y = -10.0;
+    private static final double HINT_BASELINE_Y = 64.0;
+
+    private static final Color NPC_BODY_COLOR = new Color(174, 124, 78);
+    private static final Color NPC_BODY_EDGE = new Color(90, 58, 31);
+    private static final Color APRON_COLOR = new Color(238, 214, 171);
+    private static final Color TITLE_COLOR = new Color(251, 239, 204);
+    private static final Color HINT_COLOR = new Color(222, 241, 184);
+
+    private final String merchantName;
+    private final ShopMenu shopMenu;
+
+    private final GRect body;
+    private final GRect apron;
+    private final GLabel titleLabel;
+    private final GLabel hintLabel;
+
+    public BreadMerchant(double x, double y, String merchantName, ShopMenu shopMenu) {
+        super(x, y, 48, 48);
+        this.merchantName = (merchantName == null || merchantName.trim().isEmpty())
+            ? "Bread Merchant"
+            : merchantName.trim();
+        this.shopMenu = shopMenu;
+
+        body = new GRect(x, y, 48, 48);
+        body.setFilled(true);
+        body.setFillColor(NPC_BODY_COLOR);
+        body.setColor(NPC_BODY_EDGE);
+
+        apron = new GRect(x + 8, y + 24, 32, 18);
+        apron.setFilled(true);
+        apron.setFillColor(APRON_COLOR);
+        apron.setColor(APRON_COLOR.darker());
+
+        titleLabel = new GLabel(this.merchantName, x, y);
+        titleLabel.setFont("SansSerif-BOLD-12");
+        titleLabel.setColor(TITLE_COLOR);
+
+        hintLabel = new GLabel("e to shop", x, y);
+        hintLabel.setFont("SansSerif-PLAIN-12");
+        hintLabel.setColor(HINT_COLOR);
+
+        resetVisualPosition();
+    }
+
+    @Override
+    public void draw(GCanvas canvas) {
+        if (!visible) return;
+        resetVisualPosition();
+        canvas.add(body);
+        canvas.add(apron);
+        canvas.add(titleLabel);
+        canvas.add(hintLabel);
+        positionLabels();
+    }
+
+    @Override
+    public void removeFrom(GCanvas canvas) {
+        canvas.remove(body);
+        canvas.remove(apron);
+        canvas.remove(titleLabel);
+        canvas.remove(hintLabel);
+    }
+
+    @Override
+    public boolean isInteractable() {
+        return true;
+    }
+
+    @Override
+    public void onInteract(Player p) {
+        if (shopMenu == null || p == null) {
+            return;
+        }
+        if (shopMenu.isOpen()) {
+            return;
+        }
+        shopMenu.openFor(p, merchantName, null);
+    }
+
+    @Override
+    public void panVisual(double panX, double panY) {
+        body.move(panX, panY);
+        apron.move(panX, panY);
+        titleLabel.move(panX, panY);
+        hintLabel.move(panX, panY);
+    }
+
+    @Override
+    public void resetVisualPosition() {
+        body.setLocation(x, y);
+        apron.setLocation(x + 8, y + 24);
+        positionLabels();
+    }
+
+    private void positionLabels() {
+        double centerX = x + body.getWidth() / 2.0;
+        titleLabel.setLocation(centerX - titleLabel.getWidth() / 2.0, y + TITLE_BASELINE_Y);
+        hintLabel.setLocation(centerX - hintLabel.getWidth() / 2.0, y + HINT_BASELINE_Y);
+    }
+}
