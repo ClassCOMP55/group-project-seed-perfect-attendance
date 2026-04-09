@@ -12,13 +12,14 @@
  * It is a pure combat effect owned and managed by the Player.
  *
  * Coordinate convention: same as Entity — x,y = CENTER of the player.
- * The swing hitbox is placed flush against the player's hitbox edge in the facing direction.
+ * The swing hitbox is placed with partial overlap into the player's front edge so
+ * attacks read like a melee slash instead of a projectile.
  *
  * Hitbox placement (swing box is 48×48, player hitbox is 48×48 centered on playerX,playerY):
- *   RIGHT → top-left: (playerX + 24,  playerY - 24)  — right of player
- *   LEFT  → top-left: (playerX - 72,  playerY - 24)  — left of player
- *   DOWN  → top-left: (playerX - 24,  playerY + 24)  — below player
- *   UP    → top-left: (playerX - 24,  playerY - 72)  — above player
+ *   RIGHT → top-left: (playerX + 8,   playerY - 24)
+ *   LEFT  → top-left: (playerX - 56,  playerY - 24)
+ *   DOWN  → top-left: (playerX - 24,  playerY + 8)
+ *   UP    → top-left: (playerX - 24,  playerY - 56)
  *
  * Person 3 — Combat & Enemies
  */
@@ -41,6 +42,8 @@ public class SwordSwing {
 
     /** Size of the swing hitbox in pixels. Matches entity sprite/hitbox size. */
     private static final int SWING_SIZE = 48;
+    /** Amount (px) the swing reaches into the player's hitbox at the front edge. */
+    private static final int FORWARD_OVERLAP = 16;
 
     /**
      * Semi-transparent gold placeholder color for the swing visual.
@@ -84,10 +87,10 @@ public class SwordSwing {
     /**
      * Creates a SwordSwing in front of the player based on current facing direction.
      *
-     * The swing hitbox is placed flush against the outer edge of the player's own
-     * hitbox (which is 48×48 centered on playerX, playerY):
-     *   RIGHT → (playerX + 24, playerY - 24)   LEFT → (playerX - 72, playerY - 24)
-     *   DOWN  → (playerX - 24, playerY + 24)   UP   → (playerX - 24, playerY - 72)
+     * The swing hitbox is placed with partial overlap into the player's front side
+     * so it feels like a short-range melee slash:
+     *   RIGHT → (playerX + 8,  playerY - 24)   LEFT → (playerX - 56, playerY - 24)
+     *   DOWN  → (playerX - 24, playerY + 8)    UP   → (playerX - 24, playerY - 56)
      *
      * @param playerX  Player center X in world pixels
      * @param playerY  Player center Y in world pixels
@@ -101,11 +104,11 @@ public class SwordSwing {
         // Compute hitbox top-left corner based on facing
         double hx, hy;
         switch (facing) {
-            case RIGHT: hx = playerX + 24;  hy = playerY - 24;  break;
-            case LEFT:  hx = playerX - 72;  hy = playerY - 24;  break;
-            case DOWN:  hx = playerX - 24;  hy = playerY + 24;  break;
-            case UP:    hx = playerX - 24;  hy = playerY - 72;  break;
-            default:    hx = playerX + 24;  hy = playerY - 24;  break; // fallback to RIGHT
+            case RIGHT: hx = playerX + (24 - FORWARD_OVERLAP); hy = playerY - 24; break;
+            case LEFT:  hx = playerX - (SWING_SIZE + 24 - FORWARD_OVERLAP); hy = playerY - 24; break;
+            case DOWN:  hx = playerX - 24; hy = playerY + (24 - FORWARD_OVERLAP); break;
+            case UP:    hx = playerX - 24; hy = playerY - (SWING_SIZE + 24 - FORWARD_OVERLAP); break;
+            default:    hx = playerX + (24 - FORWARD_OVERLAP); hy = playerY - 24; break; // fallback to RIGHT
         }
 
         this.hitbox = new Hitbox(hx, hy, SWING_SIZE, SWING_SIZE);

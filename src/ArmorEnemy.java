@@ -7,8 +7,8 @@
  * Behavior:
  *   Patrol:  walks a 4-point square loop around spawn (inherited from Enemy).
  *   Chase:   moves directly toward player (inherited from Enemy).
- *   Facing:  always rotated toward the player — facing is overwritten each tick
- *            AFTER normal AI runs, so it never shows its back voluntarily.
+ *   Facing:  slowly rotates toward the player in discrete 90-degree steps.
+ *            Turn rate is intentionally limited so players can flank.
  *   Attack:  no swing animation — deals contactDamage when hitbox overlaps
  *            the player's hitbox, on a 30-tick (~0.5s) cooldown.
  *   Defense: immune to all damage EXCEPT a sword hit from behind.
@@ -20,11 +20,11 @@
  *     Player is to the LEFT, swings RIGHT → SwordSwing.facing = RIGHT.
  *     RIGHT == RIGHT → hit lands from behind → damage applied. ✓
  *
- * Stats (Zelda-feel):
+ * Stats (heavy creeping threat):
  *   Health  5 hearts — tank; requires positional play to defeat
- *   Patrol 40 px/s — slow, heavy patrol
- *   Chase  75 px/s — sluggish pursuit; player can outmaneuver
- *   Aggro 192 px — 3-tile detection radius (default)
+ *   Patrol 28 px/s — very slow patrol
+ *   Chase  46 px/s — slow pursuit (pressure, not chase-down)
+ *   Aggro 320 px — broad awareness ring
  *
  * Only appears in rooms B2 (Ore Location) and C2 (Forest).
  *
@@ -35,6 +35,11 @@ public class ArmorEnemy extends Enemy {
     private static final String SPRITE_DIR = "assets/visuals/skeley-mob-1/normalized/";
     private static final String SPRITE_PREFIX = "skeley-mob-1";
     private static final int MAX_HEALTH = 5 * Player.HALF_HEARTS_PER_HEART;
+    private static final double PATROL_SPEED = 28.0;
+    private static final double CHASE_SPEED = 46.0;
+    private static final double AGGRO_RANGE = 320.0;
+    /** How many ticks must pass before the armor can rotate one 90-degree step. */
+    private static final int TURN_INTERVAL_TICKS = 14;
 
     // ==========================================================
     // FIELDS
@@ -42,6 +47,8 @@ public class ArmorEnemy extends Enemy {
 
     /** Damage dealt to the player when hitboxes overlap. */
     private int contactDamage;
+    /** Countdown until this enemy is allowed to rotate again. */
+    private int turnCooldownTicks;
 
     // ==========================================================
     // CONSTRUCTOR
@@ -57,27 +64,28 @@ public class ArmorEnemy extends Enemy {
     public ArmorEnemy(double x, double y, TileMap tileMap) {
         super(x, y, SPRITE_DIR + SPRITE_PREFIX + "-idle-front.gif", tileMap,
               MAX_HEALTH, // maxHealth   — 5 full hearts in half-heart units
-              40.0,   // patrolSpeed (px/s) — slow, deliberate patrol
-              75.0,   // chaseSpeed  (px/s) — heavy, outmaneuverable
-              192.0); // aggroRange  (px)   — 3 tiles
+              PATROL_SPEED,
+              CHASE_SPEED,
+              AGGRO_RANGE);
         this.contactDamage = 1;
+        this.turnCooldownTicks = 0;
         loadSkeletonAnimations(SPRITE_DIR, SPRITE_PREFIX);
         setSpriteRenderSize(72, 72);
     }
 
     // ==========================================================
-    // UPDATE OVERRIDE — always face the player
+    // UPDATE OVERRIDE — slow-turn toward the player
     // ==========================================================
 
     /**
-     * Runs normal AI (patrol/chase/attack) then overwrites the facing direction
-     * to always point toward the player.
+     * Runs normal AI (patrol/chase/attack) then adjusts facing toward the player
+     * only when the turn cooldown allows.
      *
      * Ordering is critical:
      *   1. super.update() runs patrol/chase/tryAttack. Internally, move() sets
      *      facing from the movement direction.
-     *   2. AFTER super.update() returns, we overwrite facing to point at the
-     *      target — this is the "never shows its back" design requirement.
+     *   2. AFTER super.update() returns, we rotate one step toward the target
+     *      if the cooldown has elapsed.
      *
      * If target is null (no player reference yet), the enemy behaves exactly
      * like a base Enemy — patrol only, facing from movement direction.
@@ -89,14 +97,42 @@ public class ArmorEnemy extends Enemy {
     public void update(double dt, Entity target) {
         super.update(dt, target); // patrol / chase / tryAttack / hole check
 
-        // Overwrite the movement-derived facing to always look at the player
-        if (target != null && health > 0) {
+        if (turnCooldownTicks > 0) {
+            turnCooldownTicks--;
+        }
+
+        // Armored enemies should feel heavy: rotate only in discrete 90-degree
+        // steps with a cooldown so players can flank and punish the backside.
+        if (target != null && health > 0 && turnCooldownTicks <= 0) {
             double dx = target.getX() - x;
             double dy = target.getY() - y;
             Direction toward = Direction.fromDelta(dx, dy);
             if (toward != null) {
-                setFacing(toward);
+                setFacing(stepTurnToward(getFacing(), toward));
+                turnCooldownTicks = TURN_INTERVAL_TICKS;
             }
+        }
+    }
+
+    /**
+     * Rotates at most one 90-degree step toward the desired direction.
+     * This makes facing changes readable and prevents instant spin-locking.
+     */
+    private Direction stepTurnToward(Direction current, Direction desired) {
+        if (desired == null) return current;
+        if (current == null || current == desired) return desired;
+
+        switch (current) {
+            case UP:
+                return desired == Direction.LEFT ? Direction.LEFT : Direction.RIGHT;
+            case DOWN:
+                return desired == Direction.LEFT ? Direction.LEFT : Direction.RIGHT;
+            case LEFT:
+                return desired == Direction.UP ? Direction.UP : Direction.DOWN;
+            case RIGHT:
+                return desired == Direction.UP ? Direction.UP : Direction.DOWN;
+            default:
+                return desired;
         }
     }
 
