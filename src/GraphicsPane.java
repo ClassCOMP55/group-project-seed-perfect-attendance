@@ -294,6 +294,9 @@ public class GraphicsPane {
 	private HeartDisplay hudHeartDisplay;
 	private GRect[] hudBarTracks;
 	private GRect[] hudBarFills;
+	/** Top-right wallet total (persistent during gameplay). */
+	private GOval hudCoinIcon;
+	private GLabel hudCoinTotalLabel;
 
 	private static final double HUD_X = 18;
 	private static final double HUD_Y = 18;
@@ -315,6 +318,13 @@ public class GraphicsPane {
 	private static final double HUD_BAR_INSET = 1;
 	private static final double HUD_HEART_CELL_SIZE = 2.0;
 	private static final double HUD_HEART_LEFT_PAD = 6;
+
+	/** Logical px from layout right edge reserved for pause/settings button — coin cluster sits left of this. */
+	private static final double HUD_COIN_PAUSE_RESERVE = 56;
+	private static final double HUD_COIN_ICON_SIZE = 12;
+	private static final double HUD_COIN_ICON_LABEL_GAP = 6;
+	private static final double HUD_COIN_TOP = 18;
+	private static final int HUD_COIN_DISPLAY_MAX = 99999;
 
 	private static final Color HUD_FRAME_GOLD = new Color(177, 124, 55);
 	private static final Color HUD_FRAME_WOOD = new Color(116, 69, 28);
@@ -431,6 +441,8 @@ public class GraphicsPane {
 		applySharedHeartPalette(hudHeartDisplay);
 		hudHeartDisplay.show(this, heartX, heartY);
 
+		setupHudCoinCluster(player);
+
 		double attackBarY = barY + topBarH + barGap;
 		hudBarTracks = new GRect[2];
 		hudBarFills = new GRect[2];
@@ -512,6 +524,11 @@ public class GraphicsPane {
 		if (hudHeartDisplay != null) {
 			hudHeartDisplay.setFilledHalfHearts(player.getHP());
 		}
+		if (hudCoinTotalLabel != null) {
+			int c = Math.max(0, Math.min(HUD_COIN_DISPLAY_MAX, player.getCoins()));
+			hudCoinTotalLabel.setLabel(String.valueOf(c));
+			layoutHudCoinCluster();
+		}
 		if (hudBarTracks == null || hudBarFills == null) {
 			bringPlayerHudToFront();
 			return;
@@ -582,6 +599,75 @@ public class GraphicsPane {
 				if (fill != null) fill.sendToFront();
 			}
 		}
+		if (hudCoinIcon != null) hudCoinIcon.sendToFront();
+		if (hudCoinTotalLabel != null) hudCoinTotalLabel.sendToFront();
+	}
+
+	/**
+	 * Creates the top-right coin icon + total label. Call once from {@link #showPlayerHUD}.
+	 */
+	private void setupHudCoinCluster(Player player) {
+		removeHudCoinCluster();
+		hudCoinTotalLabel = new GLabel("0", 0, 0);
+		hudCoinTotalLabel.setFont("SansSerif-BOLD-14");
+		hudCoinTotalLabel.setColor(new Color(255, 230, 140));
+		int c = player == null ? 0 : Math.max(0, Math.min(HUD_COIN_DISPLAY_MAX, player.getCoins()));
+		hudCoinTotalLabel.setLabel(String.valueOf(c));
+
+		hudCoinIcon = new GOval(0, 0, HUD_COIN_ICON_SIZE, HUD_COIN_ICON_SIZE);
+		hudCoinIcon.setFilled(true);
+		hudCoinIcon.setFillColor(Color.YELLOW);
+		hudCoinIcon.setColor(Color.BLACK);
+
+		layoutHudCoinCluster();
+		place(hudCoinIcon);
+		place(hudCoinTotalLabel);
+	}
+
+	private void layoutHudCoinCluster() {
+		if (hudCoinTotalLabel == null || hudCoinIcon == null) {
+			return;
+		}
+		double ox = originX();
+		double lw = mainScreen.getLayoutWidth();
+		double clusterRight = ox + lw - scaleX(HUD_COIN_PAUSE_RESERVE);
+		double labelW = hudCoinTotalLabel.getWidth();
+		double labelX = clusterRight - labelW;
+		double baseline = scaleY(HUD_COIN_TOP) + hudCoinTotalLabel.getAscent();
+		hudCoinTotalLabel.setLocation(labelX, baseline);
+		double iconY =
+			scaleY(HUD_COIN_TOP) + (hudCoinTotalLabel.getAscent() + hudCoinTotalLabel.getDescent() - HUD_COIN_ICON_SIZE) / 2;
+		hudCoinIcon.setLocation(labelX - HUD_COIN_ICON_LABEL_GAP - HUD_COIN_ICON_SIZE, iconY);
+	}
+
+	private void removeHudCoinCluster() {
+		if (hudCoinIcon != null) {
+			mainScreen.remove(hudCoinIcon);
+			contents.remove(hudCoinIcon);
+			hudCoinIcon = null;
+		}
+		if (hudCoinTotalLabel != null) {
+			mainScreen.remove(hudCoinTotalLabel);
+			contents.remove(hudCoinTotalLabel);
+			hudCoinTotalLabel = null;
+		}
+	}
+
+	/**
+	 * Baseline Y for a short "+N" pickup popup above the coin total (gameplay HUD).
+	 */
+	protected double getCoinGainPopupBaselineY() {
+		if (hudCoinTotalLabel == null) {
+			return scaleY(HUD_COIN_TOP);
+		}
+		return hudCoinTotalLabel.getY() - hudCoinTotalLabel.getAscent() - 6;
+	}
+
+	/** Right edge X of the coin cluster area (for aligning popups). */
+	protected double getHudCoinClusterRightX() {
+		double ox = originX();
+		double lw = mainScreen.getLayoutWidth();
+		return ox + lw - scaleX(HUD_COIN_PAUSE_RESERVE);
 	}
 
 	/**
@@ -633,6 +719,7 @@ public class GraphicsPane {
 		hudHeartDisplay = null;
 		hudBarTracks = null;
 		hudBarFills = null;
+		removeHudCoinCluster();
 	}
 
 	protected double playerHudBottomY() {

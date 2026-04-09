@@ -932,19 +932,20 @@ public class GameplayPane extends GraphicsPane {
     private void showCoinGainPopup(int gainedCoins) {
         clearCoinGainPopup();
 
-        String popupText = gainedCoins == 1 ? "coin +1" : "coins +" + gainedCoins;
+        String popupText = "+" + gainedCoins;
         coinGainLabel = new acm.graphics.GLabel(popupText, 0, 0);
         coinGainLabel.setFont("SansSerif-BOLD-18");
         coinGainLabel.setColor(new java.awt.Color(255, 224, 122));
         place(coinGainLabel);
 
-        double jitterX = (Math.random() - 0.5) * 28.0;
-        double jitterY = Math.random() * 18.0;
+        double jitterX = (Math.random() - 0.5) * 16.0;
+        double jitterY = (Math.random() - 0.5) * 10.0;
+        double rightX = getHudCoinClusterRightX();
+        double labelX = rightX - coinGainLabel.getWidth() + jitterX;
         double minX = originX() + 18.0;
         double maxX = originX() + mainScreen.getLayoutWidth() - coinGainLabel.getWidth() - 18.0;
-        double labelX = originX() + mainScreen.getLayoutWidth() - coinGainLabel.getWidth() - 44.0 + jitterX;
-        double labelY = originY() + 84.0 + jitterY;
         labelX = Math.max(minX, Math.min(maxX, labelX));
+        double labelY = getCoinGainPopupBaselineY() + jitterY;
         coinGainLabel.setLocation(labelX, labelY);
 
         double padX = 10.0;

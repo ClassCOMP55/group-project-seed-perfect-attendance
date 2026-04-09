@@ -108,7 +108,7 @@ public class Coin extends Item {
         this.worldSprite.setFillColor(COIN_COLOR);
         this.worldSprite.setColor(Color.BLACK);
 
-        this.worldLabel = new GLabel("coin +" + this.value);
+        this.worldLabel = new GLabel(this.value == 1 ? "+1" : "+" + this.value);
         this.worldLabel.setFont("SansSerif-BOLD-10");
         this.worldLabel.setColor(new Color(255, 220, 120));
         this.worldLabel.setLocation(

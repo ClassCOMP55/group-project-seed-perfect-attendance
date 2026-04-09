@@ -11,14 +11,8 @@
  *            Turn rate is intentionally limited so players can flank.
  *   Attack:  no swing animation — deals contactDamage when hitbox overlaps
  *            the player's hitbox, on a 30-tick (~0.5s) cooldown.
- *   Defense: immune to all damage EXCEPT a sword hit from behind.
- *
- * "From behind" definition:
- *   A hit is from behind when the sword's facing direction equals this enemy's
- *   current facing direction. Example:
- *     Enemy faces RIGHT (back is on the LEFT side).
- *     Player is to the LEFT, swings RIGHT → SwordSwing.facing = RIGHT.
- *     RIGHT == RIGHT → hit lands from behind → damage applied. ✓
+ *   Defense: only frontal swings are blocked ({@code hitFrom == facing.opposite()}).
+ *            Back and side hits deal damage.
  *
  * Stats (heavy creeping threat):
  *   Health  5 hearts — tank; requires positional play to defeat
@@ -38,8 +32,8 @@ public class ArmorEnemy extends Enemy {
     private static final double PATROL_SPEED = 28.0;
     private static final double CHASE_SPEED = 46.0;
     private static final double AGGRO_RANGE = 320.0;
-    /** How many ticks must pass before the armor can rotate one 90-degree step. */
-    private static final int TURN_INTERVAL_TICKS = 14;
+    /** How many ticks must pass before the armor can rotate one 90-degree step. Larger = slower turns (easier to flank). */
+    private static final int TURN_INTERVAL_TICKS = 45;
 
     // ==========================================================
     // FIELDS
@@ -49,6 +43,8 @@ public class ArmorEnemy extends Enemy {
     private int contactDamage;
     /** Countdown until this enemy is allowed to rotate again. */
     private int turnCooldownTicks;
+    /** When true, the next {@link #setFacing} call is allowed through. */
+    private boolean facingUnlocked;
 
     // ==========================================================
     // CONSTRUCTOR
@@ -101,16 +97,27 @@ public class ArmorEnemy extends Enemy {
             turnCooldownTicks--;
         }
 
-        // Armored enemies should feel heavy: rotate only in discrete 90-degree
-        // steps with a cooldown so players can flank and punish the backside.
         if (target != null && health > 0 && turnCooldownTicks <= 0) {
             double dx = target.getX() - x;
             double dy = target.getY() - y;
             Direction toward = Direction.fromDelta(dx, dy);
             if (toward != null) {
+                facingUnlocked = true;
                 setFacing(stepTurnToward(getFacing(), toward));
+                facingUnlocked = false;
                 turnCooldownTicks = TURN_INTERVAL_TICKS;
             }
+        }
+    }
+
+    /**
+     * Gates facing changes so {@code Entity.move()} cannot snap facing every frame.
+     * Only the controlled step-turn above (which sets {@link #facingUnlocked}) can rotate.
+     */
+    @Override
+    public void setFacing(Direction d) {
+        if (facingUnlocked) {
+            super.setFacing(d);
         }
     }
 
@@ -186,33 +193,22 @@ public class ArmorEnemy extends Enemy {
     }
 
     /**
-     * Applies damage only when the hit arrives from behind the armor.
+     * Applies damage for any sword hit that is not purely frontal.
      *
-     * "From behind" = the attacker's facing direction equals this enemy's
-     * current facing direction at the moment of impact.
+     * Frontal = swing direction matches the direction the enemy is facing toward
+     * ({@code hitFrom == facing.opposite()}). Those hits clang off the shield.
+     * Back hits ({@code hitFrom == facing}) and side hits (perpendicular) deal damage.
      *
-     * Proof:
-     *   Enemy faces RIGHT → back is on the LEFT.
-     *   Player to the LEFT swings RIGHT → SwordSwing.facing = RIGHT.
-     *   hitFrom (RIGHT) == this.facing (RIGHT) → damage applied. ✓
-     *
-     *   Enemy faces RIGHT, player attacks from the RIGHT (front):
-     *   Player faces LEFT → SwordSwing.facing = LEFT.
-     *   hitFrom (LEFT) != this.facing (RIGHT) → armor blocks. ✓
-     *
-     * Behind hits intentionally route through Enemy.takeDamage(int) so the
-     * normal hurt/death animation flow still runs.
-     *
-     * @param amount  Damage to apply if the hit is from behind
-     * @param hitFrom Direction the hit arrived from (the attacker's facing direction)
+     * @param amount  damage to apply when not blocked
+     * @param hitFrom direction of the sword swing (player attack facing)
      */
     @Override
     public void takeDamage(int amount, Direction hitFrom) {
-        if (hitFrom == null) return; // defensive null guard
-        if (hitFrom == this.facing) {
-            // Hit landed from behind — apply normal enemy damage flow/animations.
-            super.takeDamage(amount);
+        if (hitFrom == null) return;
+        Direction front = facing == null ? null : facing.opposite();
+        if (hitFrom == front) {
+            return; // frontal — blocked
         }
-        // Otherwise: frontal or side hit — armor absorbs it
+        super.takeDamage(amount);
     }
 }
