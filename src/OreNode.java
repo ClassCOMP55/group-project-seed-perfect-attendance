@@ -114,19 +114,55 @@ public class OreNode extends WorldObject {
      * @param p the Player interacting
      */
     @Override
+    public boolean isInteractable() {
+        return !isMined;
+    }
+
+    @Override
     public void onInteract(Player p) {
         if (isMined) return;
 
-        // TODO: if !p.hasItemById(PICKAXE_ID):
-        //   dialogue.open(new String[]{"You'll need a pickaxe to mine this."})
-        //   return
+        if (p.findInventoryItem(PICKAXE_ID) == null) {
+            if (dialogue != null && !dialogue.isOpen()) {
+                GamePlayState.setCurrent(GamePlayState.DIALOGUE);
+                dialogue.open(
+                    new String[]{"This ore vein looks mineable, but you'll need a pickaxe."},
+                    "Ore Vein",
+                    false,
+                    () -> GamePlayState.setCurrent(GamePlayState.PLAYING)
+                );
+            }
+            return;
+        }
 
         isMined = true;
-        hide(); // removes hitbox and visual via WorldObject.hide()
+        hide();
 
-        // TODO: p.collectItem(new Item(ORE_ID, "Ore", false))
-        // TODO: p.collectItem(new Item(BROKEN_LEVER_ID, "Broken Lever", false))
-        // TODO: p.addCollectedId(SAVE_FLAG_ID) — so SaveData can persist that this was mined
+        p.collectItem(new Item(ORE_ID, "Ore", false));
+        p.collectItem(new Item(BROKEN_LEVER_ID, "Broken Lever", false));
+
+        if (dialogue != null && !dialogue.isOpen()) {
+            GamePlayState.setCurrent(GamePlayState.DIALOGUE);
+            dialogue.open(
+                new String[]{
+                    "You mined the ore vein!",
+                    "Obtained Ore and a Broken Lever embedded in the rock."
+                },
+                "Ore Vein",
+                false,
+                () -> GamePlayState.setCurrent(GamePlayState.PLAYING)
+            );
+        }
+    }
+
+    @Override
+    public void panVisual(double panX, double panY) {
+        placeholder.move(panX, panY);
+    }
+
+    @Override
+    public void resetVisualPosition() {
+        placeholder.setLocation(x, y);
     }
 
     // =========================================================

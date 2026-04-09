@@ -140,6 +140,11 @@ public class Chest extends WorldObject {
      * @param p the Player interacting
      */
     @Override
+    public boolean isInteractable() {
+        return !isOpen;
+    }
+
+    @Override
     public void onInteract(Player p) {
         if (isOpen) return;
 
@@ -147,14 +152,50 @@ public class Chest extends WorldObject {
         GameSFX.play(GameSFX.SFX.CHEST_OPEN);
         placeholder.setFillColor(CHEST_OPEN_COLOR);
 
+        String obtainedName;
         if (givesRelic) {
-            // TODO: switch on itemId → call the appropriate p.setHasXxx(true)
-            // TODO: add chestId to p's collectedItemIds (or however Player tracks this)
-            // TODO: dialogue.open(new String[]{"You obtained " + itemId + "!"})
+            switch (itemId) {
+                case RELIC_REFLECT:
+                    p.setHasReflect(true);
+                    obtainedName = "Reflect Relic";
+                    break;
+                case RELIC_HALF_DAMAGE:
+                    p.setHasHalfDamage(true);
+                    obtainedName = "Half-Damage Relic";
+                    break;
+                case RELIC_INTANGIBLE:
+                    p.setHasIntangible(true);
+                    obtainedName = "Intangible Relic";
+                    break;
+                default:
+                    obtainedName = itemId;
+                    break;
+            }
         } else {
-            // TODO: create Item of type itemId and call p.collectItem(item)
-            // TODO: add chestId to p's collectedItemIds
+            String displayName = formatDisplayName(itemId);
+            p.collectItem(new Item(itemId, displayName, false));
+            obtainedName = displayName;
         }
+
+        if (dialogue != null && !dialogue.isOpen()) {
+            GamePlayState.setCurrent(GamePlayState.DIALOGUE);
+            dialogue.open(
+                new String[]{"You obtained " + obtainedName + "!"},
+                "Chest",
+                false,
+                () -> GamePlayState.setCurrent(GamePlayState.PLAYING)
+            );
+        }
+    }
+
+    @Override
+    public void panVisual(double panX, double panY) {
+        placeholder.move(panX, panY);
+    }
+
+    @Override
+    public void resetVisualPosition() {
+        placeholder.setLocation(x, y);
     }
 
     // =========================================================
@@ -177,4 +218,17 @@ public class Chest extends WorldObject {
     public void    setDialogue(Dialogue d) { this.dialogue = d; }
     public String  getChestId()            { return chestId; }
     public boolean isOpen()                { return isOpen; }
+
+    /** Converts "broken_lever" → "Broken Lever", "pickaxe" → "Pickaxe", etc. */
+    private static String formatDisplayName(String id) {
+        if (id == null || id.isEmpty()) return id;
+        String[] words = id.split("_");
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < words.length; i++) {
+            if (i > 0) sb.append(' ');
+            sb.append(Character.toUpperCase(words[i].charAt(0)));
+            if (words[i].length() > 1) sb.append(words[i].substring(1));
+        }
+        return sb.toString();
+    }
 }

@@ -307,6 +307,22 @@ public class WorldMap {
     private static final double START_BREAD_MERCHANT_X = TileMap.MAP_OFFSET_X + 20 * 48;
     private static final double START_BREAD_MERCHANT_Y = 7 * 48;
 
+    /** Pickaxe chest in A1 — gives the player the tool needed for OreNode in B2. */
+    private static final double PICKAXE_CHEST_X = TileMap.MAP_OFFSET_X + 8 * 48;
+    private static final double PICKAXE_CHEST_Y = 5 * 48;
+
+    /** Blacksmith NPC position in B1 (Inn). */
+    private static final double BLACKSMITH_X = TileMap.MAP_OFFSET_X + 12 * 48;
+    private static final double BLACKSMITH_Y = 7 * 48;
+
+    /** OreNode position in B2 (Ore Location). */
+    private static final double ORE_NODE_X = TileMap.MAP_OFFSET_X + 13 * 48;
+    private static final double ORE_NODE_Y = 5 * 48;
+
+    /** DrawbridgeLever position in C1 (Bridge room). */
+    private static final double DRAWBRIDGE_LEVER_X = TileMap.MAP_OFFSET_X + 13 * 48;
+    private static final double DRAWBRIDGE_LEVER_Y = 3 * 48;
+
     private static final String[] START_SIGN_LINES = {
         "Spawn Island Test Sign",
         "Press E near a sign or NPC to interact.",
@@ -419,6 +435,10 @@ public class WorldMap {
         installStarterHolePit();
         installSpawnIslandDialogueTestObjects();
         installStarterBreadMerchant();
+        installPickaxeChest();
+        installBlacksmith();
+        installOreNode();
+        installDrawbridgeLever();
 
         // --- wire exit callbacks: each room calls triggerTransition() when the player exits ---
         for (int col = 0; col < COLS; col++) {
@@ -550,6 +570,49 @@ public class WorldMap {
         ));
     }
 
+    /** Places a chest in A1 containing the Pickaxe needed to mine OreNode in B2. */
+    private void installPickaxeChest() {
+        Room a1 = overworldGrid[0][0];
+        if (a1 == null) return;
+        Chest pickaxeChest = new Chest(
+            PICKAXE_CHEST_X, PICKAXE_CHEST_Y,
+            "chest_pickaxe_a1", OreNode.PICKAXE_ID, false
+        );
+        pickaxeChest.setDialogue(dialogue);
+        a1.addObject(pickaxeChest);
+    }
+
+    /** Places the Blacksmith NPC in B1 who crafts FixedLever from Ore + BrokenLever. */
+    private void installBlacksmith() {
+        Room b1 = overworldGrid[1][0];
+        if (b1 == null) return;
+        b1.addObject(new Blacksmith(BLACKSMITH_X, BLACKSMITH_Y, dialogue));
+    }
+
+    /** Places the OreNode in B2 that gives Ore + BrokenLever when mined with the Pickaxe. */
+    private void installOreNode() {
+        Room b2 = overworldGrid[1][1];
+        if (b2 == null) return;
+        OreNode oreNode = new OreNode(ORE_NODE_X, ORE_NODE_Y);
+        oreNode.setDialogue(dialogue);
+        if (hasCollectedItem(OreNode.SAVE_FLAG_ID)) {
+            oreNode.forceMined();
+        }
+        b2.addObject(oreNode);
+    }
+
+    /** Places the DrawbridgeLever in C1 that lowers the bridge when the player has FixedLever. */
+    private void installDrawbridgeLever() {
+        Room c1 = overworldGrid[2][0];
+        if (c1 == null) return;
+        DrawbridgeLever lever = new DrawbridgeLever(
+            DRAWBRIDGE_LEVER_X, DRAWBRIDGE_LEVER_Y,
+            c1.getTileMap(), this
+        );
+        lever.setDialogue(dialogue);
+        c1.addObject(lever);
+    }
+
     /** Seeds live overworld enemy encounters into the currently-walkable dummy rooms. */
     private void populateOverworldEnemyRooms() {
         populateB2();
@@ -621,10 +684,8 @@ public class WorldMap {
         overworldGrid[1][2].setExit(Direction.DOWN, true);
 
         // --- C1 → C2: CLOSED at start (bridge broken) ---
-        // TECH DEMO: forced open so the full overworld is walkable without the DrawbridgeLever.
-        // RIG POINT: Restore to false and let DrawbridgeLever.onInteract() call
-        //            openExit("C1", Direction.UP) once the lever interaction is implemented.
-        overworldGrid[2][0].setExit(Direction.UP,   true);  // TECH DEMO: open — normally locked until lever used
+        // DrawbridgeLever.onInteract() calls openExit("C1", Direction.UP) when repaired.
+        overworldGrid[2][0].setExit(Direction.UP,   false);
         overworldGrid[2][1].setExit(Direction.DOWN, true);  // C2 south is open from the other side
 
         // --- C2 ↔ C3 ---

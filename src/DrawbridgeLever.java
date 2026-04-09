@@ -73,6 +73,15 @@ public class DrawbridgeLever extends WorldObject {
     /** itemId that must be in the player's inventory to use this lever. */
     public static final String FIXED_LEVER_ID = "fixed_lever";
 
+    /** Bridge tile strip: top-left column in the C1 TileMap (centered horizontal span). */
+    private static final int BRIDGE_START_COL = 10;
+    /** Bridge tile strip: top row. */
+    private static final int BRIDGE_START_ROW = 0;
+    /** Bridge tile strip: width in tiles. */
+    private static final int BRIDGE_WIDTH = 6;
+    /** Bridge tile strip: height in tiles. */
+    private static final int BRIDGE_HEIGHT = 2;
+
     // =========================================================
     // FIELDS
     // =========================================================
@@ -134,19 +143,62 @@ public class DrawbridgeLever extends WorldObject {
      * @param p the Player interacting
      */
     @Override
+    public boolean isInteractable() {
+        return !isFixed;
+    }
+
+    @Override
     public void onInteract(Player p) {
         if (isFixed) return;
 
-        // TODO: check if p's inventory contains an item with itemId == FIXED_LEVER_ID
-        // TODO: if not found: dialogue.open(new String[]{"The lever is broken. A blacksmith might be able to fix it."})
-        //       return;
-        // TODO: p.removeFromInventory(FIXED_LEVER_ID)
-        // TODO: isFixed = true
-        // TODO: placeholder.setFillColor(LEVER_FIXED_COLOR) — visual confirmation
-        // TODO: play bridge-lowering animation (update tile colors or sprite)
-        // TODO: update bridge tiles in roomTileMap — exact positions TBD:
-        //       roomTileMap.setTileType(col, row, Tile.TileType.FLOOR, "assets/tile_floor.png")
-        // TODO: worldMap.openExit("C1", Direction.UP)
+        Item lever = p.findInventoryItem(FIXED_LEVER_ID);
+        if (lever == null) {
+            if (dialogue != null && !dialogue.isOpen()) {
+                GamePlayState.setCurrent(GamePlayState.DIALOGUE);
+                dialogue.open(
+                    new String[]{"The lever is broken. A blacksmith might be able to fix it."},
+                    "Drawbridge Lever",
+                    false,
+                    () -> GamePlayState.setCurrent(GamePlayState.PLAYING)
+                );
+            }
+            return;
+        }
+
+        p.consumeInventoryItem(lever);
+        isFixed = true;
+        placeholder.setFillColor(LEVER_FIXED_COLOR);
+
+        for (int col = BRIDGE_START_COL; col < BRIDGE_START_COL + BRIDGE_WIDTH; col++) {
+            for (int row = BRIDGE_START_ROW; row < BRIDGE_START_ROW + BRIDGE_HEIGHT; row++) {
+                roomTileMap.setTileType(col, row, Tile.TileType.BRIDGE, "assets/tile_floor.png");
+            }
+        }
+
+        worldMap.openExit("C1", Direction.UP);
+
+        if (dialogue != null && !dialogue.isOpen()) {
+            GamePlayState.setCurrent(GamePlayState.DIALOGUE);
+            dialogue.open(
+                new String[]{
+                    "You inserted the repaired lever and pulled it.",
+                    "The drawbridge lowers with a heavy groan. The path north is now open!"
+                },
+                "Drawbridge",
+                false,
+                () -> GamePlayState.setCurrent(GamePlayState.PLAYING)
+            );
+        }
+    }
+
+    @Override
+    public void panVisual(double panX, double panY) {
+        placeholder.move(panX, panY);
+    }
+
+    @Override
+    public void resetVisualPosition() {
+        placeholder.setLocation(x, y);
     }
 
     // =========================================================
