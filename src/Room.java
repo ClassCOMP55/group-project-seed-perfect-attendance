@@ -88,6 +88,7 @@ PLAN OF ACTION
 */
 
 import acm.graphics.GCanvas;
+import acm.graphics.GImage;
 import acm.graphics.GLabel;
 
 import java.awt.Color;
@@ -179,6 +180,11 @@ public class Room {
     /** Center label shown in dummy rooms for layout testing. Null in fully-built rooms. */
     private GLabel dummyLabel;
 
+    /** Background image drawn behind all tiles. Null for dummy rooms. */
+    private GImage backgroundImage;
+    /** Whether the TileMap visuals should be drawn for this room. */
+    private boolean drawTileMap = true;
+
     /** True once addTo(canvas) has been called. Prevents double-adding sprites. */
     private boolean initialized;
 
@@ -257,6 +263,8 @@ public class Room {
         // TECH DEMO: border walls are intentionally absent so the player can reach exit edges.
         // RIG POINT: swap to new TileMap(roomId) once real room layouts are designed.
         this.tileMap = TileMap.createDummyAllFloor();
+        this.drawTileMap = true;
+        this.backgroundImage = null;
 
         // --- room ID label centered in the room ---
         // TECH DEMO: visible debug label; remove when real room art is in place.
@@ -269,6 +277,32 @@ public class Room {
         double centerX = EXIT_LEFT_EDGE + (26 * 48) / 2.0 - approxLabelWidth / 2.0;
         double centerY = EXIT_BOTTOM_EDGE / 2.0 + 12; // +12 to account for label ascent
         dummyLabel.setLocation(centerX, centerY);
+    }
+
+    /**
+     * Builds the A1 (Market) room using its background art.
+     * Retains the all-floor dummy TileMap so exit detection and collision work unchanged.
+     */
+    public void buildA1() {
+        this.tileMap = TileMap.createDummyAllFloor();
+        this.drawTileMap = false;
+        backgroundImage = new GImage("assets/visuals/overworld rooms/A1.png");
+        backgroundImage.setSize(1280, 720);
+        backgroundImage.setLocation(0, 0);
+        dummyLabel = null; // no debug label for real rooms
+    }
+
+    /**
+     * Builds the B1 (Inn) room using its background art.
+     * Retains the all-floor dummy TileMap so exit detection and collision work unchanged.
+     */
+    public void buildB1() {
+        this.tileMap = TileMap.createDummyAllFloor();
+        this.drawTileMap = false;
+        backgroundImage = new GImage("assets/visuals/overworld rooms/B1.png");
+        backgroundImage.setSize(1280, 720);
+        backgroundImage.setLocation(0, 0);
+        dummyLabel = null;
     }
 
     // =========================================================
@@ -298,10 +332,18 @@ public class Room {
         // RIG POINT: When real room layouts replace buildDummy(), this reset is still required.
         //            Entity.panVisual() and WorldObject.panVisual() accumulate the same kind of
         //            offset — add parallel reset calls here once those lists are populated.
+        // --- background image (drawn first, behind tiles) ---
+        if (backgroundImage != null) {
+            backgroundImage.setLocation(0, 0); // reset after any panning
+            canvas.add(backgroundImage);
+        }
+
         tileMap.resetAllPositions();
 
-        // --- tiles (drawn first, at the back) ---
-        tileMap.draw(canvas);
+        // --- tiles (drawn above background when enabled) ---
+        if (drawTileMap) {
+            tileMap.draw(canvas);
+        }
 
         // --- dropped items (coins, loot) ---
         // RIG POINT: Item.draw() must be implemented before dropped items appear.
@@ -360,8 +402,15 @@ public class Room {
     public void removeFrom(GCanvas canvas) {
         if (!initialized) return; // nothing to remove
 
+        // --- background image ---
+        if (backgroundImage != null) {
+            canvas.remove(backgroundImage);
+        }
+
         // --- tiles ---
-        tileMap.removeFrom(canvas);
+        if (drawTileMap) {
+            tileMap.removeFrom(canvas);
+        }
 
         // --- dropped items ---
         for (Item item : droppedItems) {
@@ -831,8 +880,15 @@ public class Room {
      * @param panY vertical pixels to shift (negative = up, positive = down)
      */
     public void panAll(double panX, double panY) {
+        // --- background image ---
+        if (backgroundImage != null) {
+            backgroundImage.move(panX, panY);
+        }
+
         // --- tiles ---
-        tileMap.panAll(panX, panY);
+        if (drawTileMap) {
+            tileMap.panAll(panX, panY);
+        }
 
         // --- world objects ---
         for (WorldObject obj : objects) {

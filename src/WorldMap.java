@@ -403,8 +403,8 @@ public class WorldMap {
      */
     private void initRooms() {
         // --- overworld rooms ---
-        overworldGrid[0][0] = new Room("A1"); overworldGrid[0][0].buildDummy(); // Market (start)
-        overworldGrid[1][0] = new Room("B1"); overworldGrid[1][0].buildDummy(); // Inn
+        overworldGrid[0][0] = new Room("A1"); overworldGrid[0][0].buildA1(); // Market (start)
+        overworldGrid[1][0] = new Room("B1"); overworldGrid[1][0].buildB1(); // Inn
         overworldGrid[2][0] = new Room("C1"); overworldGrid[2][0].buildDummy(); // Bridge
         overworldGrid[0][1] = new Room("A2"); overworldGrid[0][1].buildDummy(); // Push Block puzzle
         overworldGrid[1][1] = new Room("B2"); overworldGrid[1][1].buildDummy(); // Ore Location
@@ -613,10 +613,17 @@ public class WorldMap {
         c1.addObject(lever);
     }
 
-    /** Seeds live overworld enemy encounters into the currently-walkable dummy rooms. */
+    /** Seeds live overworld enemy encounters into the currently-walkable rooms. */
     private void populateOverworldEnemyRooms() {
+        populateB1();
         populateB2();
         populateC2();
+    }
+
+    /** Places lizard enemies in the Inn (B1). */
+    private void populateB1() {
+        Room b1 = overworldGrid[1][0];
+        b1.addRespawningEntity(() -> new LizardEnemy(640, 360, b1.getTileMap()));
     }
 
     /** Places an armored bruiser in the ore route so that room now has a live encounter. */
