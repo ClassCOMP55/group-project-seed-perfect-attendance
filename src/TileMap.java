@@ -292,6 +292,177 @@ public class TileMap {
     }
 
     // =========================================================
+    // HELPERS — used by room-specific generate methods
+    // =========================================================
+
+    /** Fills an entire row with WALL tiles. */
+    private void wallRow(int row) {
+        for (int c = 0; c < cols; c++) {
+            tiles[row][c] = new Tile(Tile.TileType.WALL, c, row, null);
+        }
+    }
+
+    /**
+     * Fills a row with WALL tiles, leaving a floor gap from gapC1 to gapC2 (inclusive).
+     * Use this for a border row that has an exit passage through it.
+     */
+    private void wallRowGap(int row, int gapC1, int gapC2) {
+        for (int c = 0; c < cols; c++) {
+            if (c < gapC1 || c > gapC2) {
+                tiles[row][c] = new Tile(Tile.TileType.WALL, c, row, null);
+            }
+        }
+    }
+
+    /** Fills an entire column with WALL tiles. */
+    private void wallCol(int col) {
+        for (int r = 0; r < rows; r++) {
+            tiles[r][col] = new Tile(Tile.TileType.WALL, col, r, null);
+        }
+    }
+
+    /**
+     * Fills a column with WALL tiles, leaving a floor gap from gapR1 to gapR2 (inclusive).
+     * Use this for a border column that has an exit passage through it.
+     */
+    private void wallColGap(int col, int gapR1, int gapR2) {
+        for (int r = 0; r < rows; r++) {
+            if (r < gapR1 || r > gapR2) {
+                tiles[r][col] = new Tile(Tile.TileType.WALL, col, r, null);
+            }
+        }
+    }
+
+    /** Fills a rectangular region with WALL tiles. Used for solid obstacles (buildings, trees, rocks). */
+    private void wallRect(int rowStart, int rowEnd, int colStart, int colEnd) {
+        for (int r = rowStart; r <= rowEnd; r++) {
+            for (int c = colStart; c <= colEnd; c++) {
+                if (r >= 0 && r < rows && c >= 0 && c < cols) {
+                    tiles[r][c] = new Tile(Tile.TileType.WALL, c, r, null);
+                }
+            }
+        }
+    }
+
+    // =========================================================
+    // OVERWORLD ROOM LAYOUTS — one method per room
+    // Convention: start with generateAllFloor(), then apply border walls
+    // (full wall on closed sides, wallXxxGap on exit sides) and interior obstacles.
+    //
+    // Exit gap positions (kept consistent across all rooms so entry/exit align):
+    //   NORTH / SOUTH edges: cols 11–14  (4-tile gap, 192 px wide)
+    //   EAST  / WEST  edges: rows  6– 8  (3-tile gap, 144 px tall)
+    // =========================================================
+
+    private void generateA1() {
+        // Market — exits NORTH (top) and EAST (right)
+        // Gap convention: N/S = cols 9-17 (8 tiles wide), E/W = rows 4-10 (7 tiles tall)
+        generateAllFloor();
+        wallRow(14);                  // south: no exit
+        wallCol(0);                   // west:  no exit
+        wallRowGap(0, 9, 17);         // north: wide exit gap
+        wallColGap(25, 4, 10);        // east:  wide exit gap
+        // No interior walls — market stalls are purely decorative
+    }
+
+    private void generateB1() {
+        // Inn — exits NORTH (top), EAST (right), WEST (left)
+        generateAllFloor();
+        wallRow(14);                  // south: no exit
+        wallRowGap(0, 9, 17);         // north: wide exit gap
+        wallColGap(25, 4, 10);        // east:  wide exit gap
+        wallColGap(0, 4, 10);         // west:  wide exit gap
+        // No interior walls — furniture is decorative
+    }
+
+    private void generateC1() {
+        // Bridge / River — exits WEST (left) and NORTH (top)
+        // River runs rows 2-5; bridge passage open at cols 10-14
+        // West exit below the river (rows 5-11); north exit accessible via bridge
+        generateAllFloor();
+        wallRow(14);                  // south: no exit
+        wallCol(25);                  // east:  no exit
+        wallRowGap(0, 9, 17);         // north: wide exit gap (reachable via bridge)
+        wallColGap(0, 5, 11);         // west:  wide exit gap (rows 5-11, below river)
+        wallRect(2, 5, 3, 9);         // river left  of bridge (cols 3-9)
+        wallRect(2, 5, 15, 23);       // river right of bridge (cols 15-23)
+    }
+
+    private void generateA2() {
+        // Forest path — exits SOUTH (bottom), NORTH (top), EAST (right)
+        generateAllFloor();
+        wallCol(0);                   // west: no exit
+        wallRowGap(14, 9, 17);        // south: wide exit gap
+        wallRowGap(0, 9, 17);         // north: wide exit gap
+        wallColGap(25, 4, 10);        // east:  wide exit gap
+        // No interior walls
+    }
+
+    private void generateA3() {
+        // Timed Gauntlet — exits SOUTH (bottom), EAST (right)
+        generateAllFloor();
+        wallRow(0);                   // north: no exit
+        wallCol(0);                   // west:  no exit
+        wallRowGap(14, 9, 17);        // south: wide exit gap
+        wallColGap(25, 4, 10);        // east:  wide exit gap
+        // No interior walls
+    }
+
+    private void generateB2() {
+        // Ore location — exits SOUTH (bottom), NORTH (top), WEST (left)
+        generateAllFloor();
+        wallCol(25);                  // east: no exit
+        wallRowGap(14, 9, 17);        // south: wide exit gap
+        wallRowGap(0, 9, 17);         // north: wide exit gap
+        wallColGap(0, 4, 10);         // west:  wide exit gap
+        // No interior walls
+    }
+
+    private void generateB3() {
+        // Riddle forest — exits SOUTH (bottom), WEST (left)
+        generateAllFloor();
+        wallRow(0);                   // north: no exit
+        wallCol(25);                  // east:  no exit
+        wallRowGap(14, 9, 17);        // south: wide exit gap
+        wallColGap(0, 4, 10);         // west:  wide exit gap
+        // No interior walls
+    }
+
+    private void generateC2() {
+        // Forest corridor — exits SOUTH (bottom), NORTH (top)
+        generateAllFloor();
+        wallCol(0);                   // west: no exit
+        wallCol(25);                  // east: no exit
+        wallRowGap(14, 9, 17);        // south: wide exit gap
+        wallRowGap(0, 9, 17);         // north: wide exit gap
+        // No interior walls
+    }
+
+    private void generateC3() {
+        // Dungeon entrance — exits SOUTH (bottom) only
+        generateAllFloor();
+        wallRow(0);                   // north: no exit
+        wallCol(0);                   // west:  no exit
+        wallCol(25);                  // east:  no exit
+        wallRowGap(14, 9, 17);        // south: wide exit gap (back to C2)
+        // No interior walls
+    }
+
+    // =========================================================
+    // OVERWORLD ROOM FACTORIES — public static; one per room
+    // =========================================================
+
+    public static TileMap createA1() { TileMap m = new TileMap(); m.generateA1(); return m; }
+    public static TileMap createB1() { TileMap m = new TileMap(); m.generateB1(); return m; }
+    public static TileMap createC1() { TileMap m = new TileMap(); m.generateC1(); return m; }
+    public static TileMap createA2() { TileMap m = new TileMap(); m.generateA2(); return m; }
+    public static TileMap createB2() { TileMap m = new TileMap(); m.generateB2(); return m; }
+    public static TileMap createC2() { TileMap m = new TileMap(); m.generateC2(); return m; }
+    public static TileMap createA3() { TileMap m = new TileMap(); m.generateA3(); return m; }
+    public static TileMap createB3() { TileMap m = new TileMap(); m.generateB3(); return m; }
+    public static TileMap createC3() { TileMap m = new TileMap(); m.generateC3(); return m; }
+
+    // =========================================================
     // TECH-DEMO FACTORY — all-floor dummy layout
     // =========================================================
 
