@@ -1251,6 +1251,46 @@ public class GameplayPane extends GraphicsPane {
             itemLabel.setLocation(labelX, labelY);
             debugObjects.add(itemLabel);
         }
+
+        // --- tile grid overlay ---
+        int tileSize = 48;
+        int mapOffsetX = TileMap.MAP_OFFSET_X; // 16
+        int gridCols = 26;
+        int gridRows = 15;
+        java.awt.Color gridLineColor  = new java.awt.Color(255, 255, 255, 55);
+        java.awt.Color gridLabelColor = new java.awt.Color(255, 255, 100, 200);
+
+        // vertical lines (one per column boundary: col 0 … col 26)
+        for (int c = 0; c <= gridCols; c++) {
+            double lx = mapOffsetX + c * tileSize;
+            acm.graphics.GLine vLine = new acm.graphics.GLine(lx, 0, lx, gridRows * tileSize);
+            vLine.setColor(gridLineColor);
+            canvas.add(vLine);
+            debugObjects.add(vLine);
+        }
+
+        // horizontal lines (one per row boundary: row 0 … row 15)
+        for (int r = 0; r <= gridRows; r++) {
+            double ly = r * tileSize;
+            acm.graphics.GLine hLine = new acm.graphics.GLine(
+                mapOffsetX, ly, mapOffsetX + gridCols * tileSize, ly);
+            hLine.setColor(gridLineColor);
+            canvas.add(hLine);
+            debugObjects.add(hLine);
+        }
+
+        // (col,row) label at the top-left corner of every cell
+        for (int r = 0; r < gridRows; r++) {
+            for (int c = 0; c < gridCols; c++) {
+                double lx = mapOffsetX + c * tileSize + 2;
+                double ly = r * tileSize + 9;
+                acm.graphics.GLabel coordLabel = new acm.graphics.GLabel(c + "," + r, lx, ly);
+                coordLabel.setFont("SansSerif-PLAIN-8");
+                coordLabel.setColor(gridLabelColor);
+                canvas.add(coordLabel);
+                debugObjects.add(coordLabel);
+            }
+        }
     }
 
     /**
