@@ -305,6 +305,69 @@ public class Room {
         dummyLabel = null;
     }
 
+    public void buildA2() {
+        this.tileMap = TileMap.createDummyAllFloor();
+        this.drawTileMap = false;
+        backgroundImage = new GImage("assets/visuals/overworld rooms/A2.png");
+        backgroundImage.setSize(1280, 720);
+        backgroundImage.setLocation(0, 0);
+        dummyLabel = null;
+    }
+
+    public void buildA3() {
+        this.tileMap = TileMap.createDummyAllFloor();
+        this.drawTileMap = false;
+        backgroundImage = new GImage("assets/visuals/overworld rooms/A3.png");
+        backgroundImage.setSize(1280, 720);
+        backgroundImage.setLocation(0, 0);
+        dummyLabel = null;
+    }
+
+    public void buildB2() {
+        this.tileMap = TileMap.createDummyAllFloor();
+        this.drawTileMap = false;
+        backgroundImage = new GImage("assets/visuals/overworld rooms/B2.png");
+        backgroundImage.setSize(1280, 720);
+        backgroundImage.setLocation(0, 0);
+        dummyLabel = null;
+    }
+
+    public void buildB3() {
+        this.tileMap = TileMap.createDummyAllFloor();
+        this.drawTileMap = false;
+        backgroundImage = new GImage("assets/visuals/overworld rooms/B3.png");
+        backgroundImage.setSize(1280, 720);
+        backgroundImage.setLocation(0, 0);
+        dummyLabel = null;
+    }
+
+    public void buildC1() {
+        this.tileMap = TileMap.createDummyAllFloor();
+        this.drawTileMap = false;
+        backgroundImage = new GImage("assets/visuals/overworld rooms/C1.png");
+        backgroundImage.setSize(1280, 720);
+        backgroundImage.setLocation(0, 0);
+        dummyLabel = null;
+    }
+
+    public void buildC2() {
+        this.tileMap = TileMap.createDummyAllFloor();
+        this.drawTileMap = false;
+        backgroundImage = new GImage("assets/visuals/overworld rooms/C2.png");
+        backgroundImage.setSize(1280, 720);
+        backgroundImage.setLocation(0, 0);
+        dummyLabel = null;
+    }
+
+    public void buildC3() {
+        this.tileMap = TileMap.createDummyAllFloor();
+        this.drawTileMap = false;
+        backgroundImage = new GImage("assets/visuals/overworld rooms/C3.png");
+        backgroundImage.setSize(1280, 720);
+        backgroundImage.setLocation(0, 0);
+        dummyLabel = null;
+    }
+
     // =========================================================
     // LIFECYCLE — called by WorldMap / RoomTransition
     // =========================================================

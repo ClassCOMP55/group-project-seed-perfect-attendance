@@ -405,13 +405,13 @@ public class WorldMap {
         // --- overworld rooms ---
         overworldGrid[0][0] = new Room("A1"); overworldGrid[0][0].buildA1(); // Market (start)
         overworldGrid[1][0] = new Room("B1"); overworldGrid[1][0].buildB1(); // Inn
-        overworldGrid[2][0] = new Room("C1"); overworldGrid[2][0].buildDummy(); // Bridge
-        overworldGrid[0][1] = new Room("A2"); overworldGrid[0][1].buildDummy(); // Push Block puzzle
-        overworldGrid[1][1] = new Room("B2"); overworldGrid[1][1].buildDummy(); // Ore Location
-        overworldGrid[2][1] = new Room("C2"); overworldGrid[2][1].buildDummy(); // Forest
-        overworldGrid[0][2] = new Room("A3"); overworldGrid[0][2].buildDummy(); // Timed Gauntlet
-        overworldGrid[1][2] = new Room("B3"); overworldGrid[1][2].buildDummy(); // Riddle puzzle
-        overworldGrid[2][2] = new Room("C3"); overworldGrid[2][2].buildDummy(); // Dungeon Entrance
+        overworldGrid[2][0] = new Room("C1"); overworldGrid[2][0].buildC1(); // Bridge
+        overworldGrid[0][1] = new Room("A2"); overworldGrid[0][1].buildA2(); // Push Block puzzle
+        overworldGrid[1][1] = new Room("B2"); overworldGrid[1][1].buildB2(); // Ore Location
+        overworldGrid[2][1] = new Room("C2"); overworldGrid[2][1].buildC2(); // Forest
+        overworldGrid[0][2] = new Room("A3"); overworldGrid[0][2].buildA3(); // Timed Gauntlet
+        overworldGrid[1][2] = new Room("B3"); overworldGrid[1][2].buildB3(); // Riddle puzzle
+        overworldGrid[2][2] = new Room("C3"); overworldGrid[2][2].buildC3(); // Dungeon Entrance
 
         // --- dungeon rooms ---
         dungeonRooms[0] = new Room("D1"); dungeonRooms[0].buildDummy(); // Combat + RoomLock
