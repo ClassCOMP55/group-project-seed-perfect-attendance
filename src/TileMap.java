@@ -360,36 +360,18 @@ public class TileMap {
         // =====================================================================
         // Exits: NORTH at cols 19-20 (row 0 gap) | SOUTH at cols 19-20 (row 14 gap)
         //        EAST  at rows  4-5  (col 25 gap)
-        //
-        // HOW TO MODIFY:
-        //   Move north/south corridor → change the col args in wallRowGap(0, ...) and
-        //                               wallRowGap(14, ...). Keep them matching so
-        //                               the north/south transitions line up with A2.
-        //   Move east exit            → change the row args in wallColGap(25, ...).
-        //   Re-open west exit         → replace wallCol(0) with wallColGap(0, rowStart, rowEnd).
-        //   Add interior walls/pits   → call wallRect(rowStart, rowEnd, colStart, colEnd) or
-        //                               set tiles[row][col] = new Tile(TileType.HOLE, ...) directly.
         // =====================================================================
-        generateAllFloor(); // start with every cell walkable, then layer walls on top
+        generateAllFloor();
 
-        // --- left edge (col 0): fully blocked, no west exit ---
         wallCol(0);
-
-        // --- right edge (col 25): wall except rows 4-5 → east exit ---
-        wallColGap(25, 4, 5);
-
-        // --- north wall (row 0): blocked except cols 19-20 → 2-tile exit leading to A2 ---
+        wallColGap(25, 3, 13);
         wallRowGap(0, 19, 20);
 
-        // --- row 1 (just inside north wall): only cols 19-20 remain walkable ---
-        // cols 0-18 = wall (left of corridor), cols 21-25 = wall (right of corridor + corner)
-        wallRect(1, 1, 0, 18);   // left block of row 1
-        wallRect(1, 1, 21, 25);  // right of corridor through right edge at row 1
+        // Row 1: hedge strip — only cols 19-20 remain walkable (corridor to north exit)
+        wallRect(1, 1, 0, 18);
+        wallRect(1, 1, 21, 25);
 
-        // --- south wall (row 14): blocked except cols 19-20 → 2-tile exit ---
         wallRowGap(14, 19, 20);
-
-        // No interior walls — market stalls are purely decorative WorldObjects
     }
 
     private void generateB1() {
@@ -398,8 +380,7 @@ public class TileMap {
         wallRow(14);                  // south: no exit
         wallRowGap(0, 9, 17);         // north: wide exit gap
         wallColGap(25, 4, 10);        // east:  wide exit gap
-        wallColGap(0, 4, 10);         // west:  wide exit gap
-        // No interior walls — furniture is decorative
+        wallColGap(0, 3, 13);         // west:  exit gap rows 3-13 (aligns with A1 east)
     }
 
     private void generateC1() {
@@ -417,13 +398,23 @@ public class TileMap {
 
     private void generateA2() {
         // Forest path — exits SOUTH (bottom), NORTH (top), EAST (right)
-        // South exit aligns with A1's north exit: cols 19-20 (rows 3-14 walkable corridor)
+        // South exit aligns with A1's north exit: cols 19-20
+        // North exit also at cols 19-20 to align with A3's south exit
         generateAllFloor();
         wallCol(0);                   // west: no exit
         wallRowGap(14, 19, 20);       // south: exit gap cols 19-20 (aligns with A1 north)
-        wallRowGap(0, 9, 17);         // north: wide exit gap
-        wallColGap(25, 4, 10);        // east:  wide exit gap
-        // No interior walls
+        wallRowGap(0, 19, 20);        // north: exit gap cols 19-20 (aligns with A3 south)
+        wallColGap(25, 4, 5);         // east:  exit gap rows 4-5
+
+        // --- trees ---
+        wallRect(1, 9, 11, 13);       // cols 11-13, rows 1-9
+        wallRect(1, 8, 10, 10);       // col 10, rows 1-8
+        wallRect(2, 7, 9, 9);         // col 9, rows 2-7
+
+        // --- bushes ---
+        wallRect(11, 12, 13, 13);     // col 13, rows 11-12 (rows 10 and 13 walkable)
+        wallRect(11, 13, 11, 12);     // cols 11-12, rows 11-13
+        wallRect(12, 13, 10, 10);     // col 10, rows 12-13
     }
 
     private void generateA3() {
@@ -431,9 +422,8 @@ public class TileMap {
         generateAllFloor();
         wallRow(0);                   // north: no exit
         wallCol(0);                   // west:  no exit
-        wallRowGap(14, 9, 17);        // south: wide exit gap
-        wallColGap(25, 4, 10);        // east:  wide exit gap
-        // No interior walls
+        wallRowGap(14, 19, 20);       // south: exit gap cols 19-20 (aligns with A2 north)
+        wallColGap(25, 4, 5);         // east:  exit gap rows 4-5
     }
 
     private void generateB2() {

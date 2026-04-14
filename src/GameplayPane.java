@@ -1051,6 +1051,19 @@ public class GameplayPane extends GraphicsPane {
         canvas.add(pHp);
         debugObjects.add(pHp);
 
+        // --- player position readout (tile col,row + pixel x,y) ---
+        int playerTileCol = (int) Math.floor((player.getX() - TileMap.MAP_OFFSET_X) / 48.0);
+        int playerTileRow = (int) Math.floor(player.getY() / 48.0);
+        String posText = String.format("Tile: %d,%d  Px: %.0f,%.0f  Room: %s",
+            playerTileCol, playerTileRow,
+            player.getX(), player.getY(),
+            activeRoom.getRoomId());
+        acm.graphics.GLabel posLabel = new acm.graphics.GLabel(posText, 10, 14);
+        posLabel.setFont("SansSerif-BOLD-12");
+        posLabel.setColor(java.awt.Color.WHITE);
+        canvas.add(posLabel);
+        debugObjects.add(posLabel);
+
         // --- sword swing hitbox (magenta) ---
         SwordSwing swing = player.getActiveSwing();
         if (swing != null) {
@@ -1259,6 +1272,26 @@ public class GameplayPane extends GraphicsPane {
         int gridRows = 15;
         java.awt.Color gridLineColor  = new java.awt.Color(255, 255, 255, 55);
         java.awt.Color gridLabelColor = new java.awt.Color(255, 255, 100, 200);
+        java.awt.Color wallOverlay    = new java.awt.Color(255, 0, 0, 60);
+        java.awt.Color floorOverlay   = new java.awt.Color(0, 255, 0, 30);
+
+        TileMap debugTileMap = activeRoom.getTileMap();
+
+        // tile type shading: red tint = WALL (blocked), green tint = FLOOR (walkable)
+        for (int r = 0; r < gridRows; r++) {
+            for (int c = 0; c < gridCols; c++) {
+                Tile t = debugTileMap.getTileAt(c, r);
+                boolean passable = (t != null && t.isPassable());
+                double tx = mapOffsetX + c * tileSize;
+                double ty = r * tileSize;
+                acm.graphics.GRect tileShade = new acm.graphics.GRect(tx, ty, tileSize, tileSize);
+                tileShade.setFilled(true);
+                tileShade.setFillColor(passable ? floorOverlay : wallOverlay);
+                tileShade.setColor(passable ? floorOverlay : wallOverlay);
+                canvas.add(tileShade);
+                debugObjects.add(tileShade);
+            }
+        }
 
         // vertical lines (one per column boundary: col 0 … col 26)
         for (int c = 0; c <= gridCols; c++) {
