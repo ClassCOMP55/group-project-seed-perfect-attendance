@@ -144,16 +144,7 @@ public class WorldNpc extends WorldObject {
     }
 
     private GImage loadNpcSprite(String name) {
-        String lowerName = name == null ? "" : name.toLowerCase();
-        if (lowerName.contains("girl")) {
-            return loadSprite("assets/visuals/png's/little girl (puzzle helper).png");
-        }
-
-        GImage defaultSprite = loadSprite("assets/visuals/png's/the drunk.png");
-        if (defaultSprite != null) {
-            return defaultSprite;
-        }
-        return loadSprite("assets/visuals/png's/little girl (puzzle helper).png");
+        return loadSprite("assets/visuals/png's/the drunk.png");
     }
 
     private GImage loadSprite(String path) {

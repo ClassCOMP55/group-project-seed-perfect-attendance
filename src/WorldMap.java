@@ -553,7 +553,7 @@ public class WorldMap {
         startRoom.addObject(new WorldNpc(
             START_NPC_X,
             START_NPC_Y,
-            "Spawn Island Villager",
+            "The Drunk",
             START_NPC_LINES,
             dialogue
         ));
