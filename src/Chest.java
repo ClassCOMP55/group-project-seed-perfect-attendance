@@ -51,9 +51,14 @@ PLAN OF ACTION
 */
 
 import acm.graphics.GCanvas;
+import acm.graphics.GImage;
 import acm.graphics.GRect;
 
+import java.awt.image.BufferedImage;
 import java.awt.Color;
+import java.io.File;
+import java.io.IOException;
+import javax.imageio.ImageIO;
 
 /**
  * One-time interactable container. Opens once to give a PowerUp relic or item.
@@ -68,6 +73,7 @@ public class Chest extends WorldObject {
 
     private static final Color CHEST_CLOSED_COLOR = new Color(180, 140, 60);
     private static final Color CHEST_OPEN_COLOR   = new Color(200, 180, 120);
+    private static final double CHEST_SPRITE_TARGET_HEIGHT = 72.0;
 
     // Relic itemId constants — assignment to specific chests is TBD
     public static final String RELIC_REFLECT     = "relic_reflect";
@@ -93,8 +99,13 @@ public class Chest extends WorldObject {
     /** Optional Dialogue reference for the "You obtained X!" notification. */
     private Dialogue dialogue;
 
+    /** Optional sprite used when chest art is available. */
+    private final GImage chestSprite;
+    private double spriteRenderWidth = 48.0;
+    private double spriteRenderHeight = 48.0;
+
     /** Placeholder visual until real chest sprite is ready. */
-    private GRect placeholder;
+    private final GRect placeholder;
 
     // =========================================================
     // CONSTRUCTOR
@@ -113,6 +124,7 @@ public class Chest extends WorldObject {
         this.itemId     = itemId;
         this.givesRelic = givesRelic;
         this.isOpen     = false;
+        this.chestSprite = loadSprite("assets/visuals/png's/chest.png");
 
         this.placeholder = new GRect(x, y, 48, 48);
         this.placeholder.setFilled(true);
@@ -125,11 +137,20 @@ public class Chest extends WorldObject {
 
     @Override
     public void draw(GCanvas canvas) {
-        if (visible) canvas.add(placeholder);
+        if (!visible) return;
+        resetVisualPosition();
+        if (chestSprite != null) {
+            canvas.add(chestSprite);
+        } else {
+            canvas.add(placeholder);
+        }
     }
 
     @Override
     public void removeFrom(GCanvas canvas) {
+        if (chestSprite != null) {
+            canvas.remove(chestSprite);
+        }
         canvas.remove(placeholder);
     }
 
@@ -150,7 +171,9 @@ public class Chest extends WorldObject {
 
         isOpen = true;
         GameSFX.play(GameSFX.SFX.CHEST_OPEN);
-        placeholder.setFillColor(CHEST_OPEN_COLOR);
+        if (chestSprite == null) {
+            placeholder.setFillColor(CHEST_OPEN_COLOR);
+        }
 
         String obtainedName;
         if (givesRelic) {
@@ -190,11 +213,17 @@ public class Chest extends WorldObject {
 
     @Override
     public void panVisual(double panX, double panY) {
+        if (chestSprite != null) {
+            chestSprite.move(panX, panY);
+        }
         placeholder.move(panX, panY);
     }
 
     @Override
     public void resetVisualPosition() {
+        if (chestSprite != null) {
+            chestSprite.setLocation(x + (48.0 - spriteRenderWidth) / 2.0, y + (48.0 - spriteRenderHeight));
+        }
         placeholder.setLocation(x, y);
     }
 
@@ -230,5 +259,49 @@ public class Chest extends WorldObject {
             if (words[i].length() > 1) sb.append(words[i].substring(1));
         }
         return sb.toString();
+    }
+
+    private GImage loadSprite(String path) {
+        try {
+            BufferedImage source = ImageIO.read(new File(path));
+            if (source == null) return null;
+            BufferedImage trimmed = trimTransparentBounds(source);
+            GImage image = new GImage(trimmed);
+            double nativeWidth = Math.max(1.0, image.getWidth());
+            double nativeHeight = Math.max(1.0, image.getHeight());
+            double scale = CHEST_SPRITE_TARGET_HEIGHT / nativeHeight;
+            spriteRenderWidth = Math.max(48.0, nativeWidth * scale);
+            spriteRenderHeight = CHEST_SPRITE_TARGET_HEIGHT;
+            image.setSize(spriteRenderWidth, spriteRenderHeight);
+            image.setLocation(x + (48.0 - spriteRenderWidth) / 2.0, y + (48.0 - spriteRenderHeight));
+            return image;
+        } catch (IOException | RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    private BufferedImage trimTransparentBounds(BufferedImage source) {
+        int width = source.getWidth();
+        int height = source.getHeight();
+        int minX = width;
+        int minY = height;
+        int maxX = -1;
+        int maxY = -1;
+
+        for (int py = 0; py < height; py++) {
+            for (int px = 0; px < width; px++) {
+                int alpha = (source.getRGB(px, py) >>> 24) & 0xFF;
+                if (alpha == 0) continue;
+                if (px < minX) minX = px;
+                if (py < minY) minY = py;
+                if (px > maxX) maxX = px;
+                if (py > maxY) maxY = py;
+            }
+        }
+
+        if (maxX < minX || maxY < minY) {
+            return source;
+        }
+        return source.getSubimage(minX, minY, maxX - minX + 1, maxY - minY + 1);
     }
 }

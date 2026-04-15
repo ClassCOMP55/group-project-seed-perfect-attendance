@@ -305,19 +305,22 @@ public class WorldMap {
     private static final double START_NPC_X  = TileMap.MAP_OFFSET_X + 10 * 48;
     private static final double START_NPC_Y  = 7 * 48;
     private static final double START_BREAD_MERCHANT_X = TileMap.MAP_OFFSET_X + 20 * 48;
-    private static final double START_BREAD_MERCHANT_Y = 7 * 48;
+    private static final double START_BREAD_MERCHANT_Y = 9 * 48;
 
     /** Pickaxe chest in A1 — gives the player the tool needed for OreNode in B2. */
     private static final double PICKAXE_CHEST_X = TileMap.MAP_OFFSET_X + 8 * 48;
     private static final double PICKAXE_CHEST_Y = 5 * 48;
 
     /** Blacksmith NPC position in B1 (Inn). */
-    private static final double BLACKSMITH_X = TileMap.MAP_OFFSET_X + 12 * 48;
-    private static final double BLACKSMITH_Y = 7 * 48;
+    private static final double BLACKSMITH_X = TileMap.MAP_OFFSET_X + 6 * 48;
+    private static final double BLACKSMITH_Y = 5 * 48;
 
-    /** OreNode position in B2 (Ore Location). */
-    private static final double ORE_NODE_X = TileMap.MAP_OFFSET_X + 13 * 48;
-    private static final double ORE_NODE_Y = 5 * 48;
+    /** B2 ore-vein footprint (col,row) tiles: 9,4 10,4 11,4 9,5 10,5 11,5 9,6 10,6 11,6 */
+    private static final int[][] ORE_VEIN_TILES_B2 = {
+        {9, 4}, {10, 4}, {11, 4},
+        {9, 5}, {10, 5}, {11, 5},
+        {9, 6}, {10, 6}, {11, 6}
+    };
 
     /** DrawbridgeLever position in C1 (Bridge room). */
     private static final double DRAWBRIDGE_LEVER_X = TileMap.MAP_OFFSET_X + 13 * 48;
@@ -528,7 +531,7 @@ public class WorldMap {
                     STARTER_HOLE_START_COL + col,
                     STARTER_HOLE_START_ROW + row,
                     Tile.TileType.HOLE,
-                    "assets/tile_hole.png"
+                    "assets/visuals/png's/hole.png"
                 );
             }
         }
@@ -593,7 +596,7 @@ public class WorldMap {
     private void installOreNode() {
         Room b2 = overworldGrid[1][1];
         if (b2 == null) return;
-        OreNode oreNode = new OreNode(ORE_NODE_X, ORE_NODE_Y);
+        OreNode oreNode = new OreNode(b2.getTileMap(), ORE_VEIN_TILES_B2);
         oreNode.setDialogue(dialogue);
         if (hasCollectedItem(OreNode.SAVE_FLAG_ID)) {
             oreNode.forceMined();

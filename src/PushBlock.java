@@ -138,16 +138,41 @@ public class PushBlock extends WorldObject {
      * @return true if the block moved, false if it was blocked
      */
     public boolean tryPush(Direction dir, TileMap tileMap, List<PushBlock> allBlocks) {
-        // TODO: delta = dir.toDelta() → int dCol = (int)delta[0], int dRow = (int)delta[1]
-        // TODO: int destCol = tileCol + dCol, destRow = tileRow + dRow
-        // TODO: if tileMap.getTileAt(destCol, destRow) == null || !passable → return false
-        // TODO: for each block in allBlocks: if block != this && block.tileCol==destCol && block.tileRow==destRow → return false
-        // TODO: tileCol = destCol; tileRow = destRow
-        // TODO: x = tileCol*48 + MAP_OFFSET_X; y = tileRow*48
-        // TODO: placeholder.setLocation(x, y)
-        // TODO: hitbox.updatePosition(x, y)
-        // TODO: return true
-        return false;
+        if (dir == null || tileMap == null) return false;
+
+        int dCol = 0;
+        int dRow = 0;
+        switch (dir) {
+            case LEFT:  dCol = -1; break;
+            case RIGHT: dCol = 1;  break;
+            case UP:    dRow = -1; break;
+            case DOWN:  dRow = 1;  break;
+        }
+
+        int destCol = tileCol + dCol;
+        int destRow = tileRow + dRow;
+
+        Tile destination = tileMap.getTileAt(destCol, destRow);
+        if (destination == null || !destination.isPassable()) {
+            return false;
+        }
+
+        if (allBlocks != null) {
+            for (PushBlock block : allBlocks) {
+                if (block == null || block == this) continue;
+                if (block.tileCol == destCol && block.tileRow == destRow) {
+                    return false;
+                }
+            }
+        }
+
+        tileCol = destCol;
+        tileRow = destRow;
+        x = tileCol * 48 + TileMap.MAP_OFFSET_X;
+        y = tileRow * 48;
+        placeholder.setLocation(x, y);
+        hitbox.updatePosition(x, y);
+        return true;
     }
 
     /**
@@ -157,9 +182,12 @@ public class PushBlock extends WorldObject {
      * @param buttons all PressureButtons in this room
      */
     public void updateButtonOverlap(List<PressureButton> buttons) {
-        // TODO: for each button in buttons:
-        //   if button.getTileCol() == tileCol && button.getTileRow() == tileRow → button.setPressedByBlock(true)
-        //   else if button was pressed by THIS block previously → button.setPressedByBlock(false)
+        if (buttons == null) return;
+        for (PressureButton button : buttons) {
+            if (button == null) continue;
+            boolean overlappingTile = button.getTileCol() == tileCol && button.getTileRow() == tileRow;
+            button.setPressedByBlock(overlappingTile);
+        }
     }
 
     // =========================================================
@@ -172,8 +200,8 @@ public class PushBlock extends WorldObject {
         tileRow = startRow;
         x = tileCol * 48 + TileMap.MAP_OFFSET_X;
         y = tileRow * 48;
-        // TODO: placeholder.setLocation(x, y)
-        // TODO: hitbox.updatePosition(x, y)
+        placeholder.setLocation(x, y);
+        hitbox.updatePosition(x, y);
     }
 
     // =========================================================

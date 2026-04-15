@@ -41,9 +41,6 @@ PLAN OF ACTION
 */
 
 import acm.graphics.GCanvas;
-import acm.graphics.GRect;
-
-import java.awt.Color;
 
 /**
  * The ore deposit in B2. Requires Pickaxe to mine. Gives Ore + BrokenLever on success.
@@ -55,8 +52,6 @@ public class OreNode extends WorldObject {
     // =========================================================
     // CONSTANTS
     // =========================================================
-
-    private static final Color ORE_COLOR = new Color(100, 80, 140);
 
     public static final String PICKAXE_ID      = "pickaxe";
     public static final String ORE_ID          = "ore";
@@ -73,24 +68,22 @@ public class OreNode extends WorldObject {
     /** Optional Dialogue reference for "you need a pickaxe" hint. */
     private Dialogue dialogue;
 
-    /** Placeholder visual until real ore sprite is ready. */
-    private GRect placeholder;
+    /** B2 tile map used to block/unblock the ore vein tiles. */
+    private final TileMap tileMap;
+
+    /** Tile coordinates covered by this ore vein. Each row is {col, row}. */
+    private final int[][] oreTiles;
 
     // =========================================================
     // CONSTRUCTOR
     // =========================================================
 
-    /**
-     * @param x top-left world pixel X
-     * @param y top-left world pixel Y
-     */
-    public OreNode(double x, double y) {
-        super(x, y, 48, 48);
+    public OreNode(TileMap tileMap, int[][] oreTiles) {
+        super(computeWorldX(oreTiles), computeWorldY(oreTiles), computeWidth(oreTiles), computeHeight(oreTiles));
+        this.tileMap = tileMap;
+        this.oreTiles = copyTiles(oreTiles);
         this.isMined = false;
-
-        this.placeholder = new GRect(x, y, 48, 48);
-        this.placeholder.setFilled(true);
-        this.placeholder.setFillColor(ORE_COLOR);
+        applyBlockedTiles();
     }
 
     // =========================================================
@@ -99,12 +92,12 @@ public class OreNode extends WorldObject {
 
     @Override
     public void draw(GCanvas canvas) {
-        if (visible) canvas.add(placeholder);
+        // Ore art is baked into the B2 background image. No overlay sprite is needed.
     }
 
     @Override
     public void removeFrom(GCanvas canvas) {
-        canvas.remove(placeholder);
+        // No sprite to remove.
     }
 
     /**
@@ -136,6 +129,7 @@ public class OreNode extends WorldObject {
         }
 
         isMined = true;
+        applyMinedTiles();
         hide();
 
         p.collectItem(new Item(ORE_ID, "Ore", false));
@@ -157,12 +151,12 @@ public class OreNode extends WorldObject {
 
     @Override
     public void panVisual(double panX, double panY) {
-        placeholder.move(panX, panY);
+        // No sprite to pan.
     }
 
     @Override
     public void resetVisualPosition() {
-        placeholder.setLocation(x, y);
+        // No sprite to reset.
     }
 
     // =========================================================
@@ -172,6 +166,7 @@ public class OreNode extends WorldObject {
     /** Silently mines this node without giving items. Called during Room setup on save load. */
     public void forceMined() {
         isMined = true;
+        applyMinedTiles();
         hide();
     }
 
@@ -181,4 +176,66 @@ public class OreNode extends WorldObject {
 
     public void    setDialogue(Dialogue d) { this.dialogue = d; }
     public boolean isMined()               { return isMined; }
+
+    /** Applies the ore-vein blocking footprint so those tiles are not walkable before mining. */
+    private void applyBlockedTiles() {
+        if (tileMap == null) return;
+        for (int[] tile : oreTiles) {
+            tileMap.setTileType(tile[0], tile[1], Tile.TileType.WALL, "assets/tile_wall.png");
+        }
+    }
+
+    /** Clears the ore-vein footprint after mining so the path becomes walkable. */
+    private void applyMinedTiles() {
+        if (tileMap == null) return;
+        for (int[] tile : oreTiles) {
+            tileMap.setTileType(tile[0], tile[1], Tile.TileType.FLOOR, "assets/tile_floor.png");
+        }
+    }
+
+    private static int[][] copyTiles(int[][] source) {
+        if (source == null) return new int[0][0];
+        int[][] copy = new int[source.length][2];
+        for (int i = 0; i < source.length; i++) {
+            copy[i][0] = source[i][0];
+            copy[i][1] = source[i][1];
+        }
+        return copy;
+    }
+
+    private static double computeWorldX(int[][] tiles) {
+        int minCol = Integer.MAX_VALUE;
+        for (int[] tile : tiles) {
+            if (tile[0] < minCol) minCol = tile[0];
+        }
+        return TileMap.MAP_OFFSET_X + minCol * 48.0;
+    }
+
+    private static double computeWorldY(int[][] tiles) {
+        int minRow = Integer.MAX_VALUE;
+        for (int[] tile : tiles) {
+            if (tile[1] < minRow) minRow = tile[1];
+        }
+        return minRow * 48.0;
+    }
+
+    private static double computeWidth(int[][] tiles) {
+        int minCol = Integer.MAX_VALUE;
+        int maxCol = Integer.MIN_VALUE;
+        for (int[] tile : tiles) {
+            if (tile[0] < minCol) minCol = tile[0];
+            if (tile[0] > maxCol) maxCol = tile[0];
+        }
+        return (maxCol - minCol + 1) * 48.0;
+    }
+
+    private static double computeHeight(int[][] tiles) {
+        int minRow = Integer.MAX_VALUE;
+        int maxRow = Integer.MIN_VALUE;
+        for (int[] tile : tiles) {
+            if (tile[1] < minRow) minRow = tile[1];
+            if (tile[1] > maxRow) maxRow = tile[1];
+        }
+        return (maxRow - minRow + 1) * 48.0;
+    }
 }

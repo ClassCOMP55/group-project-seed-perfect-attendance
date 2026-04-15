@@ -283,9 +283,11 @@ public class Room {
     public void buildA1() {
         this.tileMap = TileMap.createA1();
         this.drawTileMap = false;
-        backgroundImage = new GImage("assets/visuals/overworld rooms/A1.png");
-        backgroundImage.setSize(1280, 720);
-        backgroundImage.setLocation(0, 0);
+        setBackgroundImage(
+            "assets/visuals/overworld rooms/A1.png",
+            "assets/visuals/overworld rooms/a1.png",
+            "assets/visuals/overworld rooms/a1_closed.png"
+        );
         dummyLabel = null;
     }
 
@@ -293,73 +295,107 @@ public class Room {
     public void buildB1() {
         this.tileMap = TileMap.createB1();
         this.drawTileMap = false;
-        backgroundImage = new GImage("assets/visuals/overworld rooms/B1.png");
-        backgroundImage.setSize(1280, 720);
-        backgroundImage.setLocation(0, 0);
+        setBackgroundImage(
+            "assets/visuals/overworld rooms/B1.png",
+            "assets/visuals/overworld rooms/b1.png"
+        );
         dummyLabel = null;
     }
 
     public void buildA2() {
         this.tileMap = TileMap.createA2();
         this.drawTileMap = false;
-        backgroundImage = new GImage("assets/visuals/overworld rooms/A2.png");
-        backgroundImage.setSize(1280, 720);
-        backgroundImage.setLocation(0, 0);
+        setBackgroundImage(
+            "assets/visuals/overworld rooms/A2.png",
+            "assets/visuals/overworld rooms/a2_open.png",
+            "assets/visuals/overworld rooms/a2_blocked.png"
+        );
         dummyLabel = null;
     }
 
     public void buildA3() {
         this.tileMap = TileMap.createA3();
         this.drawTileMap = false;
-        backgroundImage = new GImage("assets/visuals/overworld rooms/A3.png");
-        backgroundImage.setSize(1280, 720);
-        backgroundImage.setLocation(0, 0);
+        setBackgroundImage(
+            "assets/visuals/overworld rooms/A3.png",
+            "assets/visuals/overworld rooms/a3_open.png",
+            "assets/visuals/overworld rooms/a3_blocked.png"
+        );
         dummyLabel = null;
     }
 
     public void buildB2() {
         this.tileMap = TileMap.createB2();
         this.drawTileMap = false;
-        backgroundImage = new GImage("assets/visuals/overworld rooms/B2.png");
-        backgroundImage.setSize(1280, 720);
-        backgroundImage.setLocation(0, 0);
+        setBackgroundImage(
+            "assets/visuals/overworld rooms/B2.png",
+            "assets/visuals/overworld rooms/b2.png"
+        );
         dummyLabel = null;
     }
 
     public void buildB3() {
         this.tileMap = TileMap.createB3();
         this.drawTileMap = false;
-        backgroundImage = new GImage("assets/visuals/overworld rooms/B3.png");
-        backgroundImage.setSize(1280, 720);
-        backgroundImage.setLocation(0, 0);
+        setBackgroundImage(
+            "assets/visuals/overworld rooms/B3.png",
+            "assets/visuals/overworld rooms/b3_open.png",
+            "assets/visuals/overworld rooms/b3_blocked.png"
+        );
         dummyLabel = null;
     }
 
     public void buildC1() {
         this.tileMap = TileMap.createC1();
         this.drawTileMap = false;
-        backgroundImage = new GImage("assets/visuals/overworld rooms/C1.png");
-        backgroundImage.setSize(1280, 720);
-        backgroundImage.setLocation(0, 0);
+        setBackgroundImage(
+            "assets/visuals/overworld rooms/C1.png",
+            "assets/visuals/overworld rooms/c1.png",
+            "assets/visuals/overworld rooms/c1_bridge_down.png"
+        );
         dummyLabel = null;
     }
 
     public void buildC2() {
         this.tileMap = TileMap.createC2();
         this.drawTileMap = false;
-        backgroundImage = new GImage("assets/visuals/overworld rooms/C2.png");
-        backgroundImage.setSize(1280, 720);
-        backgroundImage.setLocation(0, 0);
+        setBackgroundImage(
+            "assets/visuals/overworld rooms/C2.png",
+            "assets/visuals/overworld rooms/c2.png"
+        );
         dummyLabel = null;
     }
 
     public void buildC3() {
         this.tileMap = TileMap.createC3();
         this.drawTileMap = false;
-        backgroundImage = new GImage("assets/visuals/overworld rooms/C3.png");
-        backgroundImage.setSize(1280, 720);
-        backgroundImage.setLocation(0, 0);
+        setBackgroundImage(
+            "assets/visuals/overworld rooms/C3.png",
+            "assets/visuals/overworld rooms/c3.png"
+        );
         dummyLabel = null;
+    }
+
+    /**
+     * Attempts to load the first existing room background from a candidate list.
+     * If none exist, keeps gameplay running by falling back to TileMap rendering.
+     */
+    private void setBackgroundImage(String... candidatePaths) {
+        backgroundImage = null;
+        for (String path : candidatePaths) {
+            try {
+                GImage candidate = new GImage(path);
+                candidate.setSize(1280, 720);
+                candidate.setLocation(0, 0);
+                backgroundImage = candidate;
+                return;
+            } catch (RuntimeException ignored) {
+                // Keep trying candidate paths until one loads.
+            }
+        }
+
+        // Avoid hard-crashing if assets are missing in this environment.
+        drawTileMap = true;
     }
 
     // =========================================================

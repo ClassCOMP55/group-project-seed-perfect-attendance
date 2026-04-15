@@ -1,13 +1,19 @@
 import acm.graphics.GCanvas;
+import acm.graphics.GImage;
 import acm.graphics.GLabel;
 import acm.graphics.GRect;
 
+import java.awt.image.BufferedImage;
 import java.awt.Color;
+import java.io.File;
+import java.io.IOException;
+import javax.imageio.ImageIO;
 
 /**
  * Stationary NPC that opens the shop overlay.
  */
 public class BreadMerchant extends WorldObject {
+    private static final double NPC_SPRITE_TARGET_HEIGHT = 32.0;
     private static final double TITLE_BASELINE_Y = -10.0;
     private static final double HINT_BASELINE_Y = 64.0;
 
@@ -20,10 +26,13 @@ public class BreadMerchant extends WorldObject {
     private final String merchantName;
     private final ShopMenu shopMenu;
 
+    private final GImage merchantSprite;
     private final GRect body;
     private final GRect apron;
     private final GLabel titleLabel;
     private final GLabel hintLabel;
+    private double spriteRenderWidth = 48.0;
+    private double spriteRenderHeight = 48.0;
 
     public BreadMerchant(double x, double y, String merchantName, ShopMenu shopMenu) {
         super(x, y, 48, 48);
@@ -31,6 +40,8 @@ public class BreadMerchant extends WorldObject {
             ? "Bread Merchant"
             : merchantName.trim();
         this.shopMenu = shopMenu;
+
+        merchantSprite = loadSprite("assets/visuals/png's/bread maker.png");
 
         body = new GRect(x, y, 48, 48);
         body.setFilled(true);
@@ -57,8 +68,12 @@ public class BreadMerchant extends WorldObject {
     public void draw(GCanvas canvas) {
         if (!visible) return;
         resetVisualPosition();
-        canvas.add(body);
-        canvas.add(apron);
+        if (merchantSprite != null) {
+            canvas.add(merchantSprite);
+        } else {
+            canvas.add(body);
+            canvas.add(apron);
+        }
         canvas.add(titleLabel);
         canvas.add(hintLabel);
         positionLabels();
@@ -66,6 +81,9 @@ public class BreadMerchant extends WorldObject {
 
     @Override
     public void removeFrom(GCanvas canvas) {
+        if (merchantSprite != null) {
+            canvas.remove(merchantSprite);
+        }
         canvas.remove(body);
         canvas.remove(apron);
         canvas.remove(titleLabel);
@@ -90,6 +108,9 @@ public class BreadMerchant extends WorldObject {
 
     @Override
     public void panVisual(double panX, double panY) {
+        if (merchantSprite != null) {
+            merchantSprite.move(panX, panY);
+        }
         body.move(panX, panY);
         apron.move(panX, panY);
         titleLabel.move(panX, panY);
@@ -98,14 +119,61 @@ public class BreadMerchant extends WorldObject {
 
     @Override
     public void resetVisualPosition() {
+        if (merchantSprite != null) {
+            merchantSprite.setLocation(x + (48.0 - spriteRenderWidth) / 2.0, y + (48.0 - spriteRenderHeight));
+        }
         body.setLocation(x, y);
         apron.setLocation(x + 8, y + 24);
         positionLabels();
+    }
+
+    private GImage loadSprite(String path) {
+        try {
+            BufferedImage source = ImageIO.read(new File(path));
+            if (source == null) return null;
+            BufferedImage trimmed = trimTransparentBounds(source);
+            GImage image = new GImage(trimmed);
+            double nativeWidth = Math.max(1.0, image.getWidth());
+            double nativeHeight = Math.max(1.0, image.getHeight());
+            double scale = NPC_SPRITE_TARGET_HEIGHT / nativeHeight;
+            spriteRenderWidth = Math.max(48.0, nativeWidth * scale);
+            spriteRenderHeight = NPC_SPRITE_TARGET_HEIGHT;
+            image.setSize(spriteRenderWidth, spriteRenderHeight);
+            image.setLocation(x + (48.0 - spriteRenderWidth) / 2.0, y + (48.0 - spriteRenderHeight));
+            return image;
+        } catch (IOException | RuntimeException ignored) {
+            return null;
+        }
     }
 
     private void positionLabels() {
         double centerX = x + body.getWidth() / 2.0;
         titleLabel.setLocation(centerX - titleLabel.getWidth() / 2.0, y + TITLE_BASELINE_Y);
         hintLabel.setLocation(centerX - hintLabel.getWidth() / 2.0, y + HINT_BASELINE_Y);
+    }
+
+    private BufferedImage trimTransparentBounds(BufferedImage source) {
+        int width = source.getWidth();
+        int height = source.getHeight();
+        int minX = width;
+        int minY = height;
+        int maxX = -1;
+        int maxY = -1;
+
+        for (int py = 0; py < height; py++) {
+            for (int px = 0; px < width; px++) {
+                int alpha = (source.getRGB(px, py) >>> 24) & 0xFF;
+                if (alpha == 0) continue;
+                if (px < minX) minX = px;
+                if (py < minY) minY = py;
+                if (px > maxX) maxX = px;
+                if (py > maxY) maxY = py;
+            }
+        }
+
+        if (maxX < minX || maxY < minY) {
+            return source;
+        }
+        return source.getSubimage(minX, minY, maxX - minX + 1, maxY - minY + 1);
     }
 }

@@ -52,6 +52,7 @@ PLAN OF ACTION
 */
 
 import acm.graphics.GCanvas;
+import acm.graphics.GImage;
 import acm.graphics.GRect;
 
 import java.awt.Color;
@@ -98,8 +99,11 @@ public class DrawbridgeLever extends WorldObject {
     /** Optional Dialogue reference for "broken lever" hint on failed interact. */
     private Dialogue dialogue;
 
+    /** Optional sprite used when lever art is available. */
+    private final GImage leverSprite;
+
     /** Placeholder visual until real lever sprite is ready. */
-    private GRect placeholder;
+    private final GRect placeholder;
 
     // =========================================================
     // CONSTRUCTOR
@@ -116,6 +120,7 @@ public class DrawbridgeLever extends WorldObject {
         this.roomTileMap = roomTileMap;
         this.worldMap    = worldMap;
         this.isFixed     = false;
+        this.leverSprite = loadSprite("assets/visuals/png's/button.png");
 
         this.placeholder = new GRect(x, y, 48, 48);
         this.placeholder.setFilled(true);
@@ -128,11 +133,19 @@ public class DrawbridgeLever extends WorldObject {
 
     @Override
     public void draw(GCanvas canvas) {
-        if (visible) canvas.add(placeholder);
+        if (!visible) return;
+        if (leverSprite != null) {
+            canvas.add(leverSprite);
+        } else {
+            canvas.add(placeholder);
+        }
     }
 
     @Override
     public void removeFrom(GCanvas canvas) {
+        if (leverSprite != null) {
+            canvas.remove(leverSprite);
+        }
         canvas.remove(placeholder);
     }
 
@@ -167,7 +180,9 @@ public class DrawbridgeLever extends WorldObject {
 
         p.consumeInventoryItem(lever);
         isFixed = true;
-        placeholder.setFillColor(LEVER_FIXED_COLOR);
+        if (leverSprite == null) {
+            placeholder.setFillColor(LEVER_FIXED_COLOR);
+        }
 
         for (int col = BRIDGE_START_COL; col < BRIDGE_START_COL + BRIDGE_WIDTH; col++) {
             for (int row = BRIDGE_START_ROW; row < BRIDGE_START_ROW + BRIDGE_HEIGHT; row++) {
@@ -193,11 +208,17 @@ public class DrawbridgeLever extends WorldObject {
 
     @Override
     public void panVisual(double panX, double panY) {
+        if (leverSprite != null) {
+            leverSprite.move(panX, panY);
+        }
         placeholder.move(panX, panY);
     }
 
     @Override
     public void resetVisualPosition() {
+        if (leverSprite != null) {
+            leverSprite.setLocation(x, y);
+        }
         placeholder.setLocation(x, y);
     }
 
@@ -212,4 +233,15 @@ public class DrawbridgeLever extends WorldObject {
     // =========================================================
 
     public boolean isFixed() { return isFixed; }
+
+    private GImage loadSprite(String path) {
+        try {
+            GImage image = new GImage(path);
+            image.setSize(48, 48);
+            image.setLocation(x, y);
+            return image;
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+    }
 }

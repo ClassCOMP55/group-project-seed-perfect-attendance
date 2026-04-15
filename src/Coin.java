@@ -41,6 +41,7 @@ PLAN OF ACTION
 */
 
 import acm.graphics.GCanvas;
+import acm.graphics.GImage;
 import acm.graphics.GLabel;
 import acm.graphics.GRect;
 
@@ -70,7 +71,10 @@ public class Coin extends Item {
     private final int value;
 
     /** Placeholder visual shown on the ground until a real coin sprite is wired. */
-    private GRect worldSprite;
+    private final GRect worldSprite;
+
+    /** Optional coin sprite loaded from assets. */
+    private final GImage worldSpriteImage;
 
     /** World label shown above the dropped coin (e.g., "coin +1"). */
     private GLabel worldLabel;
@@ -102,6 +106,7 @@ public class Coin extends Item {
         double topLeftX = worldX - 12;
         double topLeftY = worldY - 12;
         setWorldPosition(topLeftX, topLeftY);
+        this.worldSpriteImage = loadSprite("assets/visuals/png's/coin.png");
 
         this.worldSprite = new GRect(topLeftX, topLeftY, 24, 24); // smaller than a tile
         this.worldSprite.setFilled(true);
@@ -140,17 +145,21 @@ public class Coin extends Item {
 
     @Override
     public void draw(GCanvas canvas) {
-        if (inWorld && worldSprite != null) {
-            resetVisualPosition();
+        if (!inWorld) return;
+        resetVisualPosition();
+        if (worldSpriteImage != null) {
+            canvas.add(worldSpriteImage);
+        } else if (worldSprite != null) {
             canvas.add(worldSprite);
-            if (worldLabel != null) {
-                canvas.add(worldLabel);
-            }
+        }
+        if (worldLabel != null) {
+            canvas.add(worldLabel);
         }
     }
 
     @Override
     public void removeFrom(GCanvas canvas) {
+        if (worldSpriteImage != null) canvas.remove(worldSpriteImage);
         if (worldSprite != null) canvas.remove(worldSprite);
         if (worldLabel != null) canvas.remove(worldLabel);
     }
@@ -161,6 +170,9 @@ public class Coin extends Item {
 
     @Override
     public void panVisual(double panX, double panY) {
+        if (worldSpriteImage != null) {
+            worldSpriteImage.move(panX, panY);
+        }
         if (worldSprite != null) {
             worldSprite.move(panX, panY);
         }
@@ -171,6 +183,9 @@ public class Coin extends Item {
 
     @Override
     public void resetVisualPosition() {
+        if (worldSpriteImage != null) {
+            worldSpriteImage.setLocation(worldX, worldY);
+        }
         if (worldSprite != null) {
             worldSprite.setLocation(worldX, worldY);
         }
@@ -187,4 +202,15 @@ public class Coin extends Item {
     // =========================================================
 
     public int getValue() { return value; }
+
+    private GImage loadSprite(String path) {
+        try {
+            GImage image = new GImage(path);
+            image.setSize(24, 24);
+            image.setLocation(worldX, worldY);
+            return image;
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+    }
 }

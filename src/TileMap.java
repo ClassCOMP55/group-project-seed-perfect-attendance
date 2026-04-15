@@ -126,8 +126,8 @@ public class TileMap {
 
     private void generateMarket() {
         fillBorderWalls();
-        tiles[5][5] = new Tile(Tile.TileType.HOLE, 5, 5, "assets/tile_hole.png");
-        tiles[3][15] = new Tile(Tile.TileType.HOLE, 15, 3, "assets/tile_hole.png");
+        tiles[5][5] = new Tile(Tile.TileType.HOLE, 5, 5, "assets/visuals/png's/hole.png");
+        tiles[3][15] = new Tile(Tile.TileType.HOLE, 15, 3, "assets/visuals/png's/hole.png");
     }
 
     private void generateDungeon1() {
@@ -142,7 +142,7 @@ public class TileMap {
         fillBorderWalls();
         for (int r = 3; r <= 6; r++) {
             for (int c = 8; c <= 12; c++) {
-                tiles[r][c] = new Tile(Tile.TileType.HOLE, c, r, "assets/tile_hole.png");
+                tiles[r][c] = new Tile(Tile.TileType.HOLE, c, r, "assets/visuals/png's/hole.png");
             }
         }
         for (int c = 8; c <= 12; c++) {
@@ -158,7 +158,7 @@ public class TileMap {
         fillBorderWalls();
         int[][] pits = { {2, 3}, {2, 16}, {5, 7}, {5, 12}, {7, 2}, {7, 17} };
         for (int[] p : pits) {
-            tiles[p[0]][p[1]] = new Tile(Tile.TileType.HOLE, p[1], p[0], "assets/tile_hole.png");
+            tiles[p[0]][p[1]] = new Tile(Tile.TileType.HOLE, p[1], p[0], "assets/visuals/png's/hole.png");
         }
     }
 

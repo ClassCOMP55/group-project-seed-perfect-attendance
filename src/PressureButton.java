@@ -49,6 +49,7 @@ PLAN OF ACTION
 */
 
 import acm.graphics.GCanvas;
+import acm.graphics.GImage;
 import acm.graphics.GRect;
 
 import java.awt.Color;
@@ -93,7 +94,10 @@ public class PressureButton extends WorldObject {
     private boolean pressedByPlayer;
 
     /** Placeholder visual until real button sprite is ready. */
-    private GRect placeholder;
+    private final GRect placeholder;
+
+    /** Optional button sprite when art is available. */
+    private final GImage buttonSprite;
 
     // =========================================================
     // CONSTRUCTOR
@@ -116,6 +120,7 @@ public class PressureButton extends WorldObject {
         this.isPressed      = false;
         this.pressedByBlock  = false;
         this.pressedByPlayer = false;
+        this.buttonSprite = loadSprite("assets/visuals/png's/button.png");
 
         this.placeholder = new GRect(x, y, 48, 48);
         this.placeholder.setFilled(true);
@@ -128,11 +133,19 @@ public class PressureButton extends WorldObject {
 
     @Override
     public void draw(GCanvas canvas) {
-        if (visible) canvas.add(placeholder);
+        if (!visible) return;
+        if (buttonSprite != null) {
+            canvas.add(buttonSprite);
+        } else {
+            canvas.add(placeholder);
+        }
     }
 
     @Override
     public void removeFrom(GCanvas canvas) {
+        if (buttonSprite != null) {
+            canvas.remove(buttonSprite);
+        }
         canvas.remove(placeholder);
     }
 
@@ -148,10 +161,17 @@ public class PressureButton extends WorldObject {
      * @param player the active Player
      */
     public void update(Player player) {
-        // TODO: determine player's current tile: pCol = (player.getX() - MAP_OFFSET_X) / 48, pRow = player.getY() / 48
-        // TODO: pressedByPlayer = (pCol == tileCol && pRow == tileRow)
-        // TODO: isPressed = pressedByPlayer || (!requiresPlayer && pressedByBlock)
-        // TODO: placeholder.setFillColor(isPressed ? BUTTON_PRESSED : BUTTON_RAISED)
+        if (player == null) {
+            pressedByPlayer = false;
+            isPressed = !requiresPlayer && pressedByBlock;
+        } else {
+            int pCol = (int) ((player.getX() - TileMap.MAP_OFFSET_X) / 48.0);
+            int pRow = (int) (player.getY() / 48.0);
+            pressedByPlayer = (pCol == tileCol && pRow == tileRow);
+            isPressed = pressedByPlayer || (!requiresPlayer && pressedByBlock);
+        }
+
+        placeholder.setFillColor(isPressed ? BUTTON_PRESSED : BUTTON_RAISED);
     }
 
     // =========================================================
@@ -166,6 +186,22 @@ public class PressureButton extends WorldObject {
         if (placeholder != null) placeholder.setFillColor(BUTTON_RAISED);
     }
 
+    @Override
+    public void panVisual(double panX, double panY) {
+        if (buttonSprite != null) {
+            buttonSprite.move(panX, panY);
+        }
+        placeholder.move(panX, panY);
+    }
+
+    @Override
+    public void resetVisualPosition() {
+        if (buttonSprite != null) {
+            buttonSprite.setLocation(x, y);
+        }
+        placeholder.setLocation(x, y);
+    }
+
     // =========================================================
     // SETTERS / GETTERS
     // =========================================================
@@ -177,4 +213,15 @@ public class PressureButton extends WorldObject {
     public boolean requiresPlayer()   { return requiresPlayer; }
     public int     getTileCol()       { return tileCol; }
     public int     getTileRow()       { return tileRow; }
+
+    private GImage loadSprite(String path) {
+        try {
+            GImage image = new GImage(path);
+            image.setSize(48, 48);
+            image.setLocation(x, y);
+            return image;
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+    }
 }
