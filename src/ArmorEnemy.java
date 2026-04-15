@@ -28,9 +28,9 @@ public class ArmorEnemy extends Enemy {
 
     private static final String SPRITE_DIR = "assets/visuals/skeley-mob-1/normalized/";
     private static final String SPRITE_PREFIX = "skeley-mob-1";
-    private static final int MAX_HEALTH = 5 * Player.HALF_HEARTS_PER_HEART;
+    private static final int MAX_HEALTH = 3 * Player.HALF_HEARTS_PER_HEART;
     private static final double PATROL_SPEED = 28.0;
-    private static final double CHASE_SPEED = 46.0;
+    private static final double CHASE_SPEED = 30.0;
     private static final double AGGRO_RANGE = 320.0;
     /** How many ticks must pass before the armor can rotate one 90-degree step. Larger = slower turns (easier to flank). */
     private static final int TURN_INTERVAL_TICKS = 45;

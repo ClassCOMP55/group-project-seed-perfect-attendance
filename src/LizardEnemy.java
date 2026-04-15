@@ -36,7 +36,7 @@ public class LizardEnemy extends Enemy {
     private static final double CANVAS_HEIGHT = 256.0;
 
     /** 3 hearts in half-heart units, matching the player's default. */
-    private static final int MAX_HEALTH = Player.DEFAULT_HEART_COUNT * Player.HALF_HEARTS_PER_HEART;
+    private static final int MAX_HEALTH = (Player.DEFAULT_HEART_COUNT-1) * Player.HALF_HEARTS_PER_HEART;
 
     // ==========================================================
     // FIELDS
