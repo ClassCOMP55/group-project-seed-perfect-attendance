@@ -67,7 +67,8 @@ import javax.imageio.ImageIO;
  * See PLAN OF ACTION above before implementing.
  */
 public class DrawbridgeLever extends WorldObject {
-    private static final double LEVER_SPRITE_TARGET_HEIGHT = 42.0;
+    private static final double LEVER_SPRITE_TARGET_WIDTH = 30.0;
+    private static final double LEVER_SPRITE_TARGET_HEIGHT = 34.0;
 
     // =========================================================
     // CONSTANTS
@@ -251,10 +252,7 @@ public class DrawbridgeLever extends WorldObject {
             if (source == null) return null;
             BufferedImage trimmed = trimTransparentBounds(source);
             GImage image = new GImage(trimmed);
-            double nativeWidth = Math.max(1.0, image.getWidth());
-            double nativeHeight = Math.max(1.0, image.getHeight());
-            double scale = LEVER_SPRITE_TARGET_HEIGHT / nativeHeight;
-            spriteRenderWidth = Math.max(48.0, nativeWidth * scale);
+            spriteRenderWidth = Math.max(48.0, LEVER_SPRITE_TARGET_WIDTH);
             spriteRenderHeight = LEVER_SPRITE_TARGET_HEIGHT;
             image.setSize(spriteRenderWidth, spriteRenderHeight);
             image.setLocation(

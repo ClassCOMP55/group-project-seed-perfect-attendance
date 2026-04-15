@@ -45,7 +45,11 @@ import acm.graphics.GImage;
 import acm.graphics.GLabel;
 import acm.graphics.GRect;
 
+import java.awt.image.BufferedImage;
 import java.awt.Color;
+import java.io.File;
+import java.io.IOException;
+import javax.imageio.ImageIO;
 
 /**
  * A dropped coin that auto-collects when the player walks over it.
@@ -59,7 +63,7 @@ public class Coin extends Item {
     // =========================================================
 
     private static final Color COIN_COLOR = new Color(240, 200, 40);
-    private static final double DROP_SIZE = 40.0;
+    private static final double DROP_SIZE = 26.0;
 
     /** Default coin value. Economy amounts TBD per design doc. */
     private static final int DEFAULT_VALUE = 1;
@@ -206,12 +210,40 @@ public class Coin extends Item {
 
     private GImage loadSprite(String path) {
         try {
-            GImage image = new GImage(path);
+            BufferedImage source = ImageIO.read(new File(path));
+            if (source == null) return null;
+            BufferedImage trimmed = trimTransparentBounds(source);
+            GImage image = new GImage(trimmed);
             image.setSize(DROP_SIZE, DROP_SIZE);
             image.setLocation(worldX, worldY);
             return image;
-        } catch (RuntimeException ignored) {
+        } catch (IOException | RuntimeException ignored) {
             return null;
         }
+    }
+
+    private BufferedImage trimTransparentBounds(BufferedImage source) {
+        int width = source.getWidth();
+        int height = source.getHeight();
+        int minX = width;
+        int minY = height;
+        int maxX = -1;
+        int maxY = -1;
+
+        for (int py = 0; py < height; py++) {
+            for (int px = 0; px < width; px++) {
+                int alpha = (source.getRGB(px, py) >>> 24) & 0xFF;
+                if (alpha == 0) continue;
+                if (px < minX) minX = px;
+                if (py < minY) minY = py;
+                if (px > maxX) maxX = px;
+                if (py > maxY) maxY = py;
+            }
+        }
+
+        if (maxX < minX || maxY < minY) {
+            return source;
+        }
+        return source.getSubimage(minX, minY, maxX - minX + 1, maxY - minY + 1);
     }
 }

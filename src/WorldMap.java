@@ -302,10 +302,10 @@ public class WorldMap {
     /** Starter sign + NPC positions in A1 so room dialogue can be tested immediately from spawn. */
     private static final double START_SIGN_X = TileMap.MAP_OFFSET_X + 15 * 48;
     private static final double START_SIGN_Y = 7 * 48;
-    private static final double START_NPC_X  = TileMap.MAP_OFFSET_X + 10 * 48;
-    private static final double START_NPC_Y  = 7 * 48;
-    private static final double START_BREAD_MERCHANT_X = TileMap.MAP_OFFSET_X + 20 * 48;
-    private static final double START_BREAD_MERCHANT_Y = 9 * 48;
+    private static final double START_NPC_X  = TileMap.MAP_OFFSET_X + 7 * 48;
+    private static final double START_NPC_Y  = 10 * 48;
+    private static final double START_BREAD_MERCHANT_X = TileMap.MAP_OFFSET_X + 11 * 48;
+    private static final double START_BREAD_MERCHANT_Y = 4 * 48;
 
     /** Pickaxe chest in A1 — gives the player the tool needed for OreNode in B2. */
     private static final double PICKAXE_CHEST_X = TileMap.MAP_OFFSET_X + 8 * 48;
@@ -323,8 +323,8 @@ public class WorldMap {
     };
 
     /** DrawbridgeLever position in C1 (Bridge room). */
-    private static final double DRAWBRIDGE_LEVER_X = TileMap.MAP_OFFSET_X + 13 * 48;
-    private static final double DRAWBRIDGE_LEVER_Y = 3 * 48;
+    private static final double DRAWBRIDGE_LEVER_X = TileMap.MAP_OFFSET_X + 11 * 48;
+    private static final double DRAWBRIDGE_LEVER_Y = 7 * 48;
 
     private static final String[] START_SIGN_LINES = {
         "Spawn Island Test Sign",
