@@ -324,7 +324,7 @@ public class WorldMap {
 
     /** DrawbridgeLever position in C1 (Bridge room). */
     private static final double DRAWBRIDGE_LEVER_X = TileMap.MAP_OFFSET_X + 11 * 48;
-    private static final double DRAWBRIDGE_LEVER_Y = 7 * 48;
+    private static final double DRAWBRIDGE_LEVER_Y = 6 * 48;
 
     private static final String[] START_SIGN_LINES = {
         "Spawn Island Test Sign",
