@@ -55,7 +55,11 @@ import acm.graphics.GCanvas;
 import acm.graphics.GImage;
 import acm.graphics.GRect;
 
+import java.awt.image.BufferedImage;
 import java.awt.Color;
+import java.io.File;
+import java.io.IOException;
+import javax.imageio.ImageIO;
 
 /**
  * The broken lever fixture in C1. Lowers the bridge when the player has FixedLever.
@@ -63,6 +67,7 @@ import java.awt.Color;
  * See PLAN OF ACTION above before implementing.
  */
 public class DrawbridgeLever extends WorldObject {
+    private static final double LEVER_SPRITE_TARGET_HEIGHT = 42.0;
 
     // =========================================================
     // CONSTANTS
@@ -101,6 +106,8 @@ public class DrawbridgeLever extends WorldObject {
 
     /** Optional sprite used when lever art is available. */
     private final GImage leverSprite;
+    private double spriteRenderWidth = 48.0;
+    private double spriteRenderHeight = 48.0;
 
     /** Placeholder visual until real lever sprite is ready. */
     private final GRect placeholder;
@@ -134,6 +141,7 @@ public class DrawbridgeLever extends WorldObject {
     @Override
     public void draw(GCanvas canvas) {
         if (!visible) return;
+        resetVisualPosition();
         if (leverSprite != null) {
             canvas.add(leverSprite);
         } else {
@@ -217,7 +225,10 @@ public class DrawbridgeLever extends WorldObject {
     @Override
     public void resetVisualPosition() {
         if (leverSprite != null) {
-            leverSprite.setLocation(x, y);
+            leverSprite.setLocation(
+                x + (48.0 - spriteRenderWidth) / 2.0,
+                y + (48.0 - spriteRenderHeight)
+            );
         }
         placeholder.setLocation(x, y);
     }
@@ -236,12 +247,48 @@ public class DrawbridgeLever extends WorldObject {
 
     private GImage loadSprite(String path) {
         try {
-            GImage image = new GImage(path);
-            image.setSize(48, 48);
-            image.setLocation(x, y);
+            BufferedImage source = ImageIO.read(new File(path));
+            if (source == null) return null;
+            BufferedImage trimmed = trimTransparentBounds(source);
+            GImage image = new GImage(trimmed);
+            double nativeWidth = Math.max(1.0, image.getWidth());
+            double nativeHeight = Math.max(1.0, image.getHeight());
+            double scale = LEVER_SPRITE_TARGET_HEIGHT / nativeHeight;
+            spriteRenderWidth = Math.max(48.0, nativeWidth * scale);
+            spriteRenderHeight = LEVER_SPRITE_TARGET_HEIGHT;
+            image.setSize(spriteRenderWidth, spriteRenderHeight);
+            image.setLocation(
+                x + (48.0 - spriteRenderWidth) / 2.0,
+                y + (48.0 - spriteRenderHeight)
+            );
             return image;
-        } catch (RuntimeException ignored) {
+        } catch (IOException | RuntimeException ignored) {
             return null;
         }
+    }
+
+    private BufferedImage trimTransparentBounds(BufferedImage source) {
+        int width = source.getWidth();
+        int height = source.getHeight();
+        int minX = width;
+        int minY = height;
+        int maxX = -1;
+        int maxY = -1;
+
+        for (int py = 0; py < height; py++) {
+            for (int px = 0; px < width; px++) {
+                int alpha = (source.getRGB(px, py) >>> 24) & 0xFF;
+                if (alpha == 0) continue;
+                if (px < minX) minX = px;
+                if (py < minY) minY = py;
+                if (px > maxX) maxX = px;
+                if (py > maxY) maxY = py;
+            }
+        }
+
+        if (maxX < minX || maxY < minY) {
+            return source;
+        }
+        return source.getSubimage(minX, minY, maxX - minX + 1, maxY - minY + 1);
     }
 }

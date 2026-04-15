@@ -59,6 +59,7 @@ public class Coin extends Item {
     // =========================================================
 
     private static final Color COIN_COLOR = new Color(240, 200, 40);
+    private static final double DROP_SIZE = 40.0;
 
     /** Default coin value. Economy amounts TBD per design doc. */
     private static final int DEFAULT_VALUE = 1;
@@ -103,12 +104,12 @@ public class Coin extends Item {
     public Coin(double worldX, double worldY, int value) {
         super("coin", "Coin", true); // stackable = true but coins don't go into inventory
         this.value = value;
-        double topLeftX = worldX - 12;
-        double topLeftY = worldY - 12;
+        double topLeftX = worldX - DROP_SIZE / 2.0;
+        double topLeftY = worldY - DROP_SIZE / 2.0;
         setWorldPosition(topLeftX, topLeftY);
         this.worldSpriteImage = loadSprite("assets/visuals/png's/coin.png");
 
-        this.worldSprite = new GRect(topLeftX, topLeftY, 24, 24); // smaller than a tile
+        this.worldSprite = new GRect(topLeftX, topLeftY, DROP_SIZE, DROP_SIZE);
         this.worldSprite.setFilled(true);
         this.worldSprite.setFillColor(COIN_COLOR);
         this.worldSprite.setColor(Color.BLACK);
@@ -117,7 +118,7 @@ public class Coin extends Item {
         this.worldLabel.setFont("SansSerif-BOLD-10");
         this.worldLabel.setColor(new Color(255, 220, 120));
         this.worldLabel.setLocation(
-            topLeftX + (24.0 - worldLabel.getWidth()) / 2.0,
+            topLeftX + (DROP_SIZE - worldLabel.getWidth()) / 2.0,
             topLeftY - 4.0
         );
     }
@@ -191,7 +192,7 @@ public class Coin extends Item {
         }
         if (worldLabel != null) {
             worldLabel.setLocation(
-                worldX + (24.0 - worldLabel.getWidth()) / 2.0,
+                worldX + (DROP_SIZE - worldLabel.getWidth()) / 2.0,
                 worldY - 4.0
             );
         }
@@ -206,7 +207,7 @@ public class Coin extends Item {
     private GImage loadSprite(String path) {
         try {
             GImage image = new GImage(path);
-            image.setSize(24, 24);
+            image.setSize(DROP_SIZE, DROP_SIZE);
             image.setLocation(worldX, worldY);
             return image;
         } catch (RuntimeException ignored) {

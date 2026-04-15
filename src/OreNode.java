@@ -83,6 +83,10 @@ public class OreNode extends WorldObject {
         this.tileMap = tileMap;
         this.oreTiles = copyTiles(oreTiles);
         this.isMined = false;
+
+        // The ore vein itself is blocked tiles, so interaction must be reachable from nearby walkable tiles.
+        // Expand the interact hitbox outward by half a tile on all sides.
+        this.hitbox = new Hitbox(x - 24.0, y - 24.0, hitbox.width + 48.0, hitbox.height + 48.0);
         applyBlockedTiles();
     }
 
