@@ -72,16 +72,16 @@ public class GameplayPane extends GraphicsPane {
      */
 
     /**
-     * Player starting X position in screen pixels (horizontal center of the room).
-     * Room center X = MAP_OFFSET_X + 26 * 48 / 2 = 640.
+     * Player starting X position in screen pixels.
+     * Starts at the center of tile (10,7) in A1.
      */
-    private static final double PLAYER_START_X = TileMap.MAP_OFFSET_X + 26 * 48 / 2.0; // = 640
+    private static final double PLAYER_START_X = TileMap.MAP_OFFSET_X + 10 * 48 + 24; // = 520
 
     /**
-     * Player starting Y position in screen pixels (vertical center of the room).
-     * Room center Y = 15 * 48 / 2 = 360.
+     * Player starting Y position in screen pixels.
+     * Starts at the center of tile (10,7) in A1.
      */
-    private static final double PLAYER_START_Y = 15 * 48 / 2.0; // = 360
+    private static final double PLAYER_START_Y = 7 * 48 + 24; // = 360
     /** Opening room ID used by the debug spawn teleport. */
     private static final String PLAYER_START_ROOM_ID = "A1";
     /** First dungeon room: plays the dungeon theme while active. */

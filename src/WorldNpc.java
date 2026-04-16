@@ -8,6 +8,8 @@ import java.awt.Color;
 import java.io.File;
 import java.io.IOException;
 import javax.imageio.ImageIO;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /**
  * Lightweight stationary NPC placeholder for room-level dialogue testing.
@@ -26,8 +28,16 @@ public class WorldNpc extends WorldObject {
 
     private final String speakerName;
     private final String[] dialogueLines;
+    private String[] rewardDialogueLines = new String[0];
+    private String[] postRewardDialogueLines = new String[0];
 
     private Dialogue dialogue;
+    private Predicate<String> hasStoryFlag;
+    private Consumer<String> addStoryFlag;
+    private String introCompleteFlag;
+    private String rewardGrantedFlag;
+    private Predicate<Player> rewardOwnedCheck;
+    private Consumer<Player> rewardGrantAction;
 
     private final GImage npcSprite;
     private final GRect body;
@@ -128,19 +138,65 @@ public class WorldNpc extends WorldObject {
     @Override
     public void onInteract(Player p) {
         if (dialogue == null || dialogue.isOpen()) return;
-        if (dialogueLines.length == 0) return;
+
+        String[] linesToShow = dialogueLines;
+        Runnable onComplete = () -> GamePlayState.setCurrent(GamePlayState.PLAYING);
+
+        if (hasRewardSequenceCompleted(p)) {
+            if (postRewardDialogueLines.length > 0) {
+                linesToShow = postRewardDialogueLines;
+            }
+        } else if (shouldUseRewardDialogue()) {
+            if (rewardDialogueLines.length > 0) {
+                linesToShow = rewardDialogueLines;
+                onComplete = () -> {
+                    if (rewardGrantAction != null && !playerAlreadyOwnsReward(p)) {
+                        rewardGrantAction.accept(p);
+                    }
+                    markStoryFlag(rewardGrantedFlag);
+                    GamePlayState.setCurrent(GamePlayState.PLAYING);
+                };
+            }
+        } else if (dialogueLines.length > 0 && !hasStoryFlag(introCompleteFlag)) {
+            onComplete = () -> {
+                markStoryFlag(introCompleteFlag);
+                GamePlayState.setCurrent(GamePlayState.PLAYING);
+            };
+        }
+
+        if (linesToShow.length == 0) return;
 
         GamePlayState.setCurrent(GamePlayState.DIALOGUE);
         dialogue.open(
-            dialogueLines,
+            linesToShow,
             speakerName,
             true,
-            () -> GamePlayState.setCurrent(GamePlayState.PLAYING)
+            onComplete
         );
     }
 
     public void setDialogue(Dialogue dialogue) {
         this.dialogue = dialogue;
+    }
+
+    public void setStoryFlagHooks(Predicate<String> hasStoryFlag, Consumer<String> addStoryFlag) {
+        this.hasStoryFlag = hasStoryFlag;
+        this.addStoryFlag = addStoryFlag;
+    }
+
+    public void configureTwoStepReward(String introCompleteFlag,
+                                       String rewardGrantedFlag,
+                                       String[] rewardDialogueLines,
+                                       String[] postRewardDialogueLines,
+                                       Predicate<Player> rewardOwnedCheck,
+                                       Consumer<Player> rewardGrantAction) {
+        this.introCompleteFlag = normalizeFlag(introCompleteFlag);
+        this.rewardGrantedFlag = normalizeFlag(rewardGrantedFlag);
+        this.rewardDialogueLines = rewardDialogueLines == null ? new String[0] : rewardDialogueLines.clone();
+        this.postRewardDialogueLines =
+            postRewardDialogueLines == null ? new String[0] : postRewardDialogueLines.clone();
+        this.rewardOwnedCheck = rewardOwnedCheck;
+        this.rewardGrantAction = rewardGrantAction;
     }
 
     private GImage loadNpcSprite(String name) {
@@ -189,5 +245,33 @@ public class WorldNpc extends WorldObject {
             return source;
         }
         return source.getSubimage(minX, minY, maxX - minX + 1, maxY - minY + 1);
+    }
+
+    private boolean shouldUseRewardDialogue() {
+        return hasStoryFlag(introCompleteFlag) && !hasStoryFlag(rewardGrantedFlag);
+    }
+
+    private boolean hasRewardSequenceCompleted(Player player) {
+        return hasStoryFlag(rewardGrantedFlag) || playerAlreadyOwnsReward(player);
+    }
+
+    private boolean playerAlreadyOwnsReward(Player player) {
+        return player != null && rewardOwnedCheck != null && rewardOwnedCheck.test(player);
+    }
+
+    private boolean hasStoryFlag(String flag) {
+        return flag != null && hasStoryFlag != null && hasStoryFlag.test(flag);
+    }
+
+    private void markStoryFlag(String flag) {
+        if (flag != null && addStoryFlag != null) {
+            addStoryFlag.accept(flag);
+        }
+    }
+
+    private String normalizeFlag(String flag) {
+        if (flag == null) return null;
+        String normalized = flag.trim();
+        return normalized.isEmpty() ? null : normalized;
     }
 }

@@ -384,6 +384,39 @@ public class TileMap {
 
         wallRowGap(14, 19, 20);
         wallRect(13, 14, 19, 20);       // barrier tiles at the south exit
+
+        wallRect(2, 2, 1, 18);
+        wallRect(2, 2, 21, 24);
+        wallRect(2, 3, 10, 13);
+        wallRect(3, 3, 1, 2);
+        wallRect(4, 8, 20, 25);
+        wallRect(4, 4, 1, 4);
+        wallRect(5, 5, 1, 5);
+        wallRect(6, 6, 1, 1);
+        wallRect(6, 6, 6, 6);
+        wallRect(7, 7, 1, 6);
+        wallRect(8, 8, 1, 3);
+        wallRect(9, 9, 1, 2);
+        wallRect(11, 11, 2, 3);
+        wallRect(11, 11, 6, 6);
+        wallRect(11, 11, 22, 25);
+        wallRect(12, 12, 6, 7);
+        wallRect(12, 12, 22, 24);
+        wallRect(13, 13, 2, 7);
+
+        // --- requested A1 barrier adjustments ---
+        wallRect(3, 3, 3, 4);
+        wallRect(6, 6, 2, 5);
+        wallRect(12, 12, 2, 2);
+        wallRect(13, 13, 1, 1);
+
+        floorRect(8, 8, 3, 3);
+        floorRect(11, 11, 2, 3);
+        floorRect(11, 11, 6, 6);
+        floorRect(12, 12, 6, 7);
+        floorRect(4, 4, 20, 20);
+        floorRect(11, 11, 25, 25);
+        floorRect(12, 12, 2, 2);
     }
 
     private void generateB1() {
@@ -393,6 +426,39 @@ public class TileMap {
         wallRowGap(0, 9, 17);         // north: wide exit gap
         wallColGap(25, 4, 10);        // east:  wide exit gap
         wallColGap(0, 3, 13);         // west:  exit gap rows 3-13 (aligns with A1 east)
+
+        // --- inn walls / furniture footprint ---
+        wallRect(1, 1, 0, 13);
+        wallRect(2, 2, 1, 13);
+        wallRect(0, 0, 9, 13);
+        wallRect(0, 0, 17, 17);
+        wallRect(1, 2, 17, 24);
+        wallRect(3, 3, 16, 24);
+        wallRect(4, 6, 16, 25);
+        wallRect(7, 7, 16, 18);
+        wallRect(7, 7, 21, 25);
+        wallRect(11, 13, 21, 24);
+        wallRect(12, 12, 10, 12);
+        wallRect(13, 13, 10, 12);
+        wallRect(12, 13, 6, 6);
+        wallRect(11, 13, 0, 2);
+        wallRect(5, 6, 9, 10);        // user list included "10.5"; interpreted as (10,5)
+        wallRect(3, 3, 1, 5);
+        wallRect(4, 4, 1, 6);
+        wallRect(5, 6, 1, 5);
+        wallRect(7, 7, 3, 5);
+
+        floorRect(11, 13, 0, 0);
+        floorRect(11, 11, 2, 2);
+        floorRect(4, 4, 6, 6);
+        floorRect(5, 6, 5, 5);
+        floorRect(6, 6, 19, 20);
+        floorRect(12, 12, 6, 6);
+        floorRect(12, 12, 10, 12);
+        floorRect(5, 6, 10, 10);
+        floorRect(5, 5, 2, 4);
+        floorRect(6, 6, 2, 4);
+        floorRect(6, 6, 9, 9);
     }
 
     private void generateC1() {
@@ -404,7 +470,7 @@ public class TileMap {
         wallCol(25);                  // east:  no exit
         wallRowGap(0, 9, 17);         // north: wide exit gap (reachable via bridge)
         wallColGap(0, 5, 11);         // west:  wide exit gap (rows 5-11, below river)
-        floorRect(0, 0, 20, 21);      // reopen requested north-edge tiles
+        floorRect(0, 0, 19, 20);      // reopen requested north-edge tiles
 
         // --- river / broken bridge ---
         wallRect(1, 1, 1, 6);         // upper-left river mouth
@@ -424,6 +490,20 @@ public class TileMap {
         floorRect(6, 7, 12, 13);      // lower half of the broken bridge stays open
         floorRect(4, 4, 15, 18);      // narrow the right bank at row 4
         floorRect(5, 5, 16, 18);      // narrow the right bank at row 5
+        floorRect(6, 6, 23, 23);      // reopen requested east-side river tile
+        floorRect(7, 7, 18, 18);      // remove requested barrier at (18,7)
+        floorRect(7, 9, 21, 21);      // remove requested barriers at (21,7-9)
+        floorRect(8, 9, 22, 22);      // remove requested barriers at (22,8-9)
+        floorRect(9, 9, 23, 23);      // remove requested barrier at (23,9)
+
+        wallRect(0, 0, 9, 17);
+        wallRect(6, 6, 15, 17);
+        wallRect(5, 7, 0, 0);
+        wallRect(11, 11, 0, 0);
+
+        floorRect(0, 0, 18, 21);
+        floorRect(2, 2, 5, 6);
+        floorRect(6, 6, 11, 11);
     }
 
     private void generateA2() {
@@ -451,6 +531,10 @@ public class TileMap {
         floorRect(0, 0, 21, 25);      // reopen the rest of the top-right edge
         floorRect(0, 3, 25, 25);      // reopen the upper east edge
         floorRect(6, 13, 25, 25);     // reopen the lower east edge
+
+        wallRect(13, 13, 1, 9);
+        wallRect(13, 13, 14, 18);
+        wallRect(13, 13, 21, 25);
     }
 
     private void generateA3() {
@@ -502,6 +586,19 @@ public class TileMap {
         floorRect(0, 0, 0, 8);        // reopen the northwest top edge
         floorRect(0, 0, 18, 24);      // reopen the northeast top edge
         floorRect(11, 13, 0, 0);      // reopen the lower west edge
+
+        // --- ore-route barriers ---
+        wallRect(8, 8, 2, 3);
+        wallRect(9, 10, 1, 1);
+        wallRect(10, 10, 5, 6);
+        wallRect(1, 2, 22, 23);
+        wallRect(5, 6, 21, 22);
+        wallRect(8, 9, 23, 24);
+        wallRect(9, 10, 21, 21);
+        wallRect(13, 13, 0, 13);
+        wallRect(13, 13, 17, 24);
+        wallRect(14, 14, 9, 13);
+        wallRect(14, 14, 17, 17);
     }
 
     private void generateB3() {
@@ -523,6 +620,11 @@ public class TileMap {
         floorRect(11, 14, 0, 0);      // reopen the lower west edge
         floorRect(14, 14, 0, 8);      // reopen the southwest edge
         floorRect(14, 14, 18, 24);    // reopen the southeast edge
+
+        // --- extra hedge blockers ---
+        wallRect(1, 3, 10, 10);
+        wallRect(1, 1, 21, 21);
+        wallRect(7, 7, 21, 21);
     }
 
     private void generateC2() {
@@ -535,7 +637,35 @@ public class TileMap {
         floorRect(0, 0, 5, 6);        // reopen requested north-edge tiles
         floorRect(4, 4, 19, 19);      // explicit requested interior tile
         floorRect(14, 14, 19, 20);    // reopen requested south-edge tiles
-        // No interior walls
+
+        // --- trees ---
+        // Match the painted tree trunks / lower canopy so actors cannot walk through them.
+        wallRect(1, 3, 9, 10);        // upper-left pine by the north path
+        wallRect(1, 2, 12, 14);       // upper-middle pine tucked into the top edge
+        wallRect(1, 3, 15, 16);       // upper-right pine beside the rocks
+        wallRect(5, 8, 1, 3);         // west-side tree cluster
+        wallRect(9, 13, 9, 11);       // large lower-middle pine
+        wallRect(12, 14, 1, 2);       // southwest pine near the corner
+
+        wallRect(11, 11, 1, 3);
+        wallRect(12, 13, 3, 3);
+        wallRect(13, 13, 3, 8);
+        wallRect(14, 14, 9, 17);
+        wallRect(13, 13, 21, 21);
+        wallRect(4, 4, 16, 17);
+        wallRect(0, 3, 17, 17);
+        wallRect(0, 0, 9, 17);
+        wallRect(1, 3, 11, 11);
+        wallRect(2, 3, 8, 8);
+        wallRect(4, 4, 9, 9);
+        wallRect(5, 8, 4, 4);
+        wallRect(5, 7, 5, 5);
+        wallRect(9, 9, 2, 3);
+
+        floorRect(2, 2, 12, 14);
+        floorRect(2, 3, 17, 17);
+        floorRect(13, 13, 21, 21);
+        floorRect(14, 14, 18, 18);
     }
 
     private void generateC3() {
@@ -546,7 +676,32 @@ public class TileMap {
         wallCol(25);                  // east:  no exit
         wallRowGap(14, 9, 17);        // south: wide exit gap (back to C2)
         floorRect(14, 14, 5, 6);      // reopen extra south-edge tiles
-        // No interior walls
+
+        // --- trees / castle footprint ---
+        // Match the painted trunks and the castle facade so actors cannot walk through them.
+        wallRect(1, 4, 1, 2);         // west-edge pine at the top-left border
+        wallRect(1, 4, 3, 5);         // left-center pine cluster
+        wallRect(1, 4, 6, 7);         // right side of the top-left grove
+        wallRect(1, 2, 14, 15);       // lone pine along the north path
+        wallRect(2, 5, 16, 17);       // pine beside the castle
+        wallRect(13, 14, 1, 2);       // southwest corner pine
+
+        wallRect(0, 4, 17, 24);       // castle body / ruin facade
+        floorRect(3, 4, 20, 21);      // keep the dungeon doorway walkable
+
+        wallRect(1, 4, 8, 8);
+        wallRect(2, 3, 9, 9);
+        wallRect(1, 1, 12, 13);
+        wallRect(2, 2, 13, 13);
+        wallRect(3, 4, 15, 15);
+        wallRect(1, 1, 16, 16);
+        wallRect(14, 14, 9, 17);
+        wallRect(13, 13, 7, 24);
+        wallRect(12, 12, 1, 1);
+        wallRect(13, 13, 3, 4);
+
+        floorRect(4, 4, 3, 4);
+        floorRect(13, 13, 7, 24);
     }
 
     // =========================================================

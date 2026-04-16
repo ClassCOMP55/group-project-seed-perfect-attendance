@@ -149,19 +149,19 @@ public class WorldMap {
     /*
      * =====================
      * Dungeon entrance trigger bounds — adjust position/size here if the marker needs to move.
-     * The marker is centered near the north wall of C3.
+     * The marker sits on the C3 castle doorway.
      * // TECH DEMO: remove these constants when the real door WorldObject replaces the marker.
      * =====================
      */
 
     /** Left edge of the dungeon entrance trigger zone, in screen pixels. */
-    private static final double DUNGEON_ENTRANCE_X = TileMap.MAP_OFFSET_X + 11 * 48; // col 11 = 544
+    private static final double DUNGEON_ENTRANCE_X = TileMap.MAP_OFFSET_X + 20 * 48; // col 20 = 976
 
     /** Top edge of the dungeon entrance trigger zone, in screen pixels. */
-    private static final double DUNGEON_ENTRANCE_Y = 1 * 48; // row 1 = 48
+    private static final double DUNGEON_ENTRANCE_Y = 3 * 48; // row 3 = 144
 
-    /** Width of the trigger zone in pixels (4 tiles). */
-    private static final double DUNGEON_ENTRANCE_W = 4 * 48; // = 192
+    /** Width of the trigger zone in pixels (2 tiles). */
+    private static final double DUNGEON_ENTRANCE_W = 2 * 48; // = 96
 
     /** Height of the trigger zone in pixels (2 tiles). */
     private static final double DUNGEON_ENTRANCE_H = 2 * 48; // = 96
@@ -269,11 +269,17 @@ public class WorldMap {
     /** Height of the exit trigger zone (3 tiles). */
     private static final double DUNGEON_EXIT_H = 3 * 48; // = 144
 
-    /** X position where the player spawns on return to C3 — offset right of the entrance marker. */
-    private static final double OVERWORLD_RETURN_X = TileMap.MAP_OFFSET_X + 14 * 48; // col 14 = 688
+    /**
+     * X position where the player spawns on return to C3.
+     * Centered between cols 20 and 21 so the landing point lines up with the teleport pad.
+     */
+    private static final double OVERWORLD_RETURN_X = DUNGEON_ENTRANCE_X + DUNGEON_ENTRANCE_W / 2.0;
 
-    /** Y position where the player spawns on return to C3 — below the entrance marker. */
-    private static final double OVERWORLD_RETURN_Y = 4 * 48; // row 4 = 192
+    /**
+     * Y position where the player spawns on return to C3.
+     * Offset by half a tile so the player's center is safely below the entrance trigger.
+     */
+    private static final double OVERWORLD_RETURN_Y = DUNGEON_ENTRANCE_Y + DUNGEON_ENTRANCE_H + 24;
 
     /*
      * =====================
@@ -282,27 +288,13 @@ public class WorldMap {
      */
 
     /** Starter save crystal so save/load can be tested from the opening room immediately. */
-    private static final double START_SAVE_POINT_X = TileMap.MAP_OFFSET_X + 5 * 48;
+    private static final double START_SAVE_POINT_X = TileMap.MAP_OFFSET_X + 13 * 48;
     private static final double START_SAVE_POINT_Y = 7 * 48;
-
-    /** Debug grass patch in A1: placed in the upper-right test area near the marked sketch. */
-    private static final int STARTER_GRASS_PATCH_START_COL = 15;
-    private static final int STARTER_GRASS_PATCH_START_ROW = 2;
-    private static final int STARTER_GRASS_PATCH_COLS = 6;
-    private static final int STARTER_GRASS_PATCH_ROWS = 2;
-    private static final float STARTER_GRASS_PATCH_COIN_DROP_CHANCE = 0.5f;
-
-    /** Starter pit in A1 so live hole-fall death/respawn can be tested without leaving spawn island. */
-    private static final int STARTER_HOLE_START_COL = 4;
-    private static final int STARTER_HOLE_START_ROW = 3;
-    private static final int STARTER_HOLE_WIDTH_TILES = 2;
-    private static final int STARTER_HOLE_HEIGHT_TILES = 2;
-    private static final double STARTER_HOLE_LABEL_Y_OFFSET = 18.0;
 
     /** Starter sign + NPC positions in A1 so room dialogue can be tested immediately from spawn. */
     private static final double START_SIGN_X = TileMap.MAP_OFFSET_X + 15 * 48;
     private static final double START_SIGN_Y = 7 * 48;
-    private static final double START_NPC_X  = TileMap.MAP_OFFSET_X + 7 * 48;
+    private static final double START_NPC_X  = TileMap.MAP_OFFSET_X + 10 * 48;
     private static final double START_NPC_Y  = 10 * 48;
     private static final double START_BREAD_MERCHANT_X = TileMap.MAP_OFFSET_X + 11 * 48;
     private static final double START_BREAD_MERCHANT_Y = 4 * 48;
@@ -333,10 +325,23 @@ public class WorldMap {
         "This room is now wired through the live world map."
     };
 
+    private static final String START_NPC_FIRST_TALK_FLAG = "npc_drunk_intro_seen";
+    private static final String START_NPC_REWARD_FLAG = "npc_drunk_mark_given";
+
     private static final String[] START_NPC_LINES = {
-        "Welcome to the spawn island.",
-        "I am a placeholder NPC living in A1 so we can test room dialogue in real rooms.",
-        "If you can talk to me and read the sign, the live interaction path is working."
+        "Hic... you look like someone headed somewhere important.",
+        "I had something for a real hero, but my head's still spinning.",
+        "Talk to me again in a sec. Maybe I'll remember what it was."
+    };
+
+    private static final String[] START_NPC_REWARD_LINES = {
+        "Oh wait! I forgot to give you the Mark of the Hero.",
+        "Here, take it. The thicket gate should recognize you now."
+    };
+
+    private static final String[] START_NPC_POST_REWARD_LINES = {
+        "There we go. You've already got the Mark of the Hero.",
+        "Try not to lose it before the gate sees it."
     };
 
     /** Reserved story-flag prefix used to encode exact exit states in the save file. */
@@ -434,8 +439,6 @@ public class WorldMap {
         );
 
         installStarterSavePoint();
-        installStarterGrassPatch();
-        installStarterHolePit();
         installSpawnIslandDialogueTestObjects();
         installStarterBreadMerchant();
         installPickaxeChest();
@@ -490,58 +493,6 @@ public class WorldMap {
         ));
     }
 
-    /** Seeds a small 2×6 debug grass patch into A1 near the marked test area. */
-    private void installStarterGrassPatch() {
-        Room startRoom = overworldGrid[0][0];
-        if (startRoom == null) {
-            return;
-        }
-
-        int tileSize = startRoom.getTileMap().getTileSize();
-        for (int row = 0; row < STARTER_GRASS_PATCH_ROWS; row++) {
-            for (int col = 0; col < STARTER_GRASS_PATCH_COLS; col++) {
-                double worldX = TileMap.MAP_OFFSET_X + (STARTER_GRASS_PATCH_START_COL + col) * tileSize;
-                double worldY = (STARTER_GRASS_PATCH_START_ROW + row) * tileSize;
-
-                // Let the patch regrow for QA, but cap each tile at one successful coin drop per room visit
-                // so the opening room does not become a guaranteed infinite-money farm.
-                startRoom.addObject(new Grass(
-                    worldX,
-                    worldY,
-                    STARTER_GRASS_PATCH_COIN_DROP_CHANCE,
-                    startRoom::addDroppedItem,
-                    false
-                ));
-            }
-        }
-    }
-
-    /** Carves a small live hole pit into A1 so hole death/respawn can be tested from the opening room. */
-    private void installStarterHolePit() {
-        Room startRoom = overworldGrid[0][0];
-        if (startRoom == null || startRoom.getTileMap() == null) {
-            return;
-        }
-
-        TileMap tileMap = startRoom.getTileMap();
-        int tileSize = tileMap.getTileSize();
-        for (int row = 0; row < STARTER_HOLE_HEIGHT_TILES; row++) {
-            for (int col = 0; col < STARTER_HOLE_WIDTH_TILES; col++) {
-                tileMap.setTileType(
-                    STARTER_HOLE_START_COL + col,
-                    STARTER_HOLE_START_ROW + row,
-                    Tile.TileType.HOLE,
-                    "assets/visuals/png's/hole.png"
-                );
-            }
-        }
-
-        double holeCenterX = TileMap.MAP_OFFSET_X
-            + (STARTER_HOLE_START_COL + STARTER_HOLE_WIDTH_TILES / 2.0) * tileSize;
-        double holeTopY = STARTER_HOLE_START_ROW * tileSize;
-        startRoom.addObject(new WorldLabel(holeCenterX, holeTopY - STARTER_HOLE_LABEL_Y_OFFSET, "Hole"));
-    }
-
     /** Seeds a simple sign + NPC into A1 so room dialogue can be exercised from spawn. */
     private void installSpawnIslandDialogueTestObjects() {
         Room startRoom = overworldGrid[0][0];
@@ -550,13 +501,23 @@ public class WorldMap {
         }
 
         startRoom.addObject(new Sign(START_SIGN_X, START_SIGN_Y, START_SIGN_LINES, dialogue));
-        startRoom.addObject(new WorldNpc(
+        WorldNpc drunkNpc = new WorldNpc(
             START_NPC_X,
             START_NPC_Y,
             "The Drunk",
             START_NPC_LINES,
             dialogue
-        ));
+        );
+        drunkNpc.setStoryFlagHooks(this::hasStoryFlag, this::addStoryFlag);
+        drunkNpc.configureTwoStepReward(
+            START_NPC_FIRST_TALK_FLAG,
+            START_NPC_REWARD_FLAG,
+            START_NPC_REWARD_LINES,
+            START_NPC_POST_REWARD_LINES,
+            Player::hasMarkOfHero,
+            player -> player.setHasMarkOfHero(true)
+        );
+        startRoom.addObject(drunkNpc);
     }
 
     /** Adds an interactable bread merchant in A1 that opens the shop overlay. */
