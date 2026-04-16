@@ -4,7 +4,6 @@ RIG: [whoever] calls show / update / hide / etc.
 Does not own Player or combat
 */
 
-import java.awt.Color;
 import acm.graphics.*;
 
 
@@ -20,8 +19,8 @@ public class HUDoverlay
   private static final int UPGRADED_HEART_SEGMENTS = 12;
   //private static final int HEARTS_ON_SCREEN = 3; wasn't used lol
         //size of one half-segment
-  private static final double HEART_SEGMENT_WIDTH = 10;
-  private static final double HEART_SEGMENT_HEIGHT = 12;
+  private static final double HEART_SEGMENT_WIDTH = 14;
+  private static final double HEART_SEGMENT_HEIGHT = 28;
         //location of the start of the 3 hearts on screen
   private static final double HEART_ROW_X = 12;
   private static final double HEART_ROW_Y = 12;
@@ -30,7 +29,7 @@ public class HUDoverlay
   //(pixels; matches heart margin distance).
   private static final double COINS_MARGIN_RIGHT = 32;
   //Placeholder “coin” circle until a {@code GImage} is wired.
-  private static final double COINS_ICON_SIZE = 10;
+  private static final double COINS_ICON_SIZE = 24;
   private static final double COINS_ICON_LABEL_GAP = 4;
   //HUD shows at most this many coins (3 digits); higher values are capped for display purposes
   //need to apply the same cap to actual "wallet" wherever that will be kept
@@ -43,7 +42,7 @@ public class HUDoverlay
   private static final double RELIC_SLOT_GAP_X = 6;
 
   //Relic slot size is 16px; ability buttons use 3× that.
-  private static final double ABILITY_BUTTON_SIZE = 48;
+  private static final double ABILITY_BUTTON_SIZE = 42;
   private static final double ABILITY_BUTTON_GAP = 12;
   private static final double ABILITY_HUD_FROM_EDGE = 32;
   private static final double ABILITY_BUTTON_FROM_BOTTOM = 16;
@@ -94,33 +93,43 @@ public class HUDoverlay
   private static final String HEART_LAST_QUARTER = "assets/visuals/hearts/pixel heart last quarter.png";
   private static final String HEART_EMPTY        = "assets/visuals/hearts/pixel heart empty.png";
 
+  // Relic slot icon PNG paths
+  private static final String RELIC_INTANGIBLE_ICON  = "assets/visuals/png's/fade_relic_icon.png";
+  private static final String RELIC_HALF_DAMAGE_ICON = "assets/visuals/png's/health_relic_icon.png";
+  private static final String RELIC_REFLECT_ICON     = "assets/visuals/png's/reflect_attack_relic_icon.png";
+
+  // Coin icon PNG path
+  private static final String COIN_ICON_PATH = "assets/visuals/png's/coin.png";
+
+  // Ability button PNG paths
+  private static final String ATTACK_BUTTON_PATH          = "assets/visuals/png's/attack_button.png";
+  private static final String INTANGIBLE_BUTTON_PATH      = "assets/visuals/png's/fade_relic_button.png";
+  private static final String INTANGIBLE_BUTTON_COOLDOWN_PATH = "assets/visuals/png's/fade_relic_button_cooldown.png";
+
   private GImage[] hearts;
   private boolean upgradeMode = false;
 
   private GOval relicIntangibleBackground;
-  private GRect tempRelicIntangibleIcon;
-  //private GImage relicIntangibleIcon;
+  private GImage relicIntangibleIcon;
 
   private GOval relicHalfDamageBackground;
-  private GRect tempRelicHalfDamageIcon;
-  //private GImage relicHalfDamageIcon;
+  private GImage relicHalfDamageIcon;
 
   private GOval relicReflectBackground;
-  private GRect tempRelicReflectIcon;
-  //private GImage relicReflectIcon;
+  private GImage relicReflectIcon;
 
-  private GOval SWDbackground;
-  private GRect tempSWDicon;
-  //private GImage SWDicon;
-  private GLabel SWDbutton = new GLabel("J");
-  private GLabel intangibleAbilityButton = new GLabel("K");
+  // private GOval SWDbackground;      // replaced by GImage
+  // private GRect tempSWDicon;        // replaced by GImage
+  private GImage SWDicon;
+  // private GLabel SWDbutton;         // key label is baked into attack_button.png
 
-  private GOval intangibleAbilityBackground;
-  private GRect tempIntangibleAbilityIcon;
-  //private GImage intangibleAbilityIcon;
+  // private GOval intangibleAbilityBackground;   // replaced by GImage
+  // private GRect tempIntangibleAbilityIcon;     // replaced by GImage
+  private GImage intangibleAbilityIcon;
+  private GImage intangibleAbilityCooldownIcon;
 
-  private GOval coins;
-  //private GImage coinsicon;
+  // private GOval coins; // replaced by GImage
+  private GImage coinsicon;
   private GLabel coinslabel = new GLabel("0");
 
 
@@ -177,8 +186,8 @@ within this class
     int filled = Math.max(0, Math.min(DEFAULT_HEART_SEGMENTS, currentHeart));
     hearts = new GImage[numHearts];
 
-    double heartW = HEART_SEGMENT_WIDTH * 2;              // 20px per heart
-    double gapBetweenHearts = HEART_SEGMENT_WIDTH * 2;    // 20px gap
+    double heartW = HEART_SEGMENT_WIDTH * 2;
+    double gapBetweenHearts = HEART_SEGMENT_WIDTH * 0.4;
 
     for (int i = 0; i < numHearts; i++)
     {
@@ -188,8 +197,8 @@ within this class
                   :                  HEART_EMPTY;
       double x = HEART_ROW_X + i * (heartW + gapBetweenHearts);
       GImage img = new GImage(path, x, HEART_ROW_Y);
-      img.setSize(heartW, heartW);
       placeOnScreen(pane, img);
+      img.setSize(heartW, heartW);
       hearts[i] = img;
     }
   }
@@ -222,8 +231,8 @@ within this class
     int filled = Math.max(0, Math.min(UPGRADED_HEART_SEGMENTS, currentHeart));
     hearts = new GImage[numHearts];
 
-    double heartW = HEART_SEGMENT_WIDTH * 2;              // 20px per heart
-    double gapBetweenHearts = HEART_SEGMENT_WIDTH * 2;    // 20px gap
+    double heartW = HEART_SEGMENT_WIDTH * 2;
+    double gapBetweenHearts = HEART_SEGMENT_WIDTH * 0.4;
 
     for (int i = 0; i < numHearts; i++)
     {
@@ -236,8 +245,8 @@ within this class
       else                        path = HEART_EMPTY;
       double x = HEART_ROW_X + i * (heartW + gapBetweenHearts);
       GImage img = new GImage(path, x, HEART_ROW_Y);
-      img.setSize(heartW, heartW);
       placeOnScreen(pane, img);
+      img.setSize(heartW, heartW);
       hearts[i] = img;
     }
   }
@@ -279,7 +288,7 @@ within this class
   public void showCoins(GraphicsPane pane, int currentCoins)
   {
     removeFromScreen(pane, coinslabel);
-    removeFromScreen(pane, coins);
+    removeFromScreen(pane, coinsicon);
 
     int displayCoins = Math.max(0, Math.min(COINS_DISPLAY_MAX, currentCoins));
 
@@ -291,17 +300,14 @@ within this class
     double iconLeft = w - COINS_MARGIN_RIGHT - COINS_ICON_SIZE - COINS_ICON_LABEL_GAP - labelW;
     double iconTop = HEART_ROW_Y + (HEART_SEGMENT_HEIGHT - COINS_ICON_SIZE) / 2;
 
-    coins = new GOval(iconLeft, iconTop, COINS_ICON_SIZE, COINS_ICON_SIZE);
-    coins.setColor(Color.BLACK);
-    coins.setFilled(true);
-    coins.setFillColor(Color.YELLOW);
-    
+    coinsicon = new GImage(COIN_ICON_PATH, iconLeft, iconTop);
 
     double labelX = iconLeft + COINS_ICON_SIZE + COINS_ICON_LABEL_GAP;
     double labelBaseline = HEART_ROW_Y + HEART_SEGMENT_HEIGHT - 2;
     coinslabel.setLocation(labelX, labelBaseline);
 
-    placeOnScreen(pane, coins);
+    placeOnScreen(pane, coinsicon);
+    coinsicon.setSize(COINS_ICON_SIZE, COINS_ICON_SIZE);
     placeOnScreen(pane, coinslabel);
   }
   
@@ -327,35 +333,29 @@ within this class
   public void showRelicIntangible(GraphicsPane pane, boolean ownedIntangible)
   {
     removeFromScreen(pane, relicIntangibleBackground);
-    removeFromScreen(pane, tempRelicIntangibleIcon);
+    removeFromScreen(pane, relicIntangibleIcon);
     relicIntangibleBackground = null;
-    tempRelicIntangibleIcon = null;
+    relicIntangibleIcon = null;
 
     if (!ownedIntangible)
     {
       return;
     }
 
-    double slotSize = 16;
-    double rowY = HEART_ROW_Y + HEART_SEGMENT_HEIGHT + 6;
+    double slotSize = 24;
+    double rowY = HEART_ROW_Y + HEART_SEGMENT_HEIGHT + 4;
+    double heartW = HEART_SEGMENT_WIDTH * 2;
+    double heartGap = HEART_SEGMENT_WIDTH * 0.4;
+    double heartsRowW = 3 * heartW + 2 * heartGap;
+    double relicsTotalW = 3 * slotSize + 2 * RELIC_SLOT_GAP_X;
+    double relicStartX = HEART_ROW_X + (heartsRowW - relicsTotalW) / 2;
     int column = 0;
-    double x = HEART_ROW_X + column * (slotSize + RELIC_SLOT_GAP_X);
+    double x = relicStartX + column * (slotSize + RELIC_SLOT_GAP_X);
     double y = rowY;
 
-    relicIntangibleBackground = new GOval(x, y, slotSize, slotSize);
-    relicIntangibleBackground.setFilled(true);
-    relicIntangibleBackground.setColor(Color.BLACK);
-    relicIntangibleBackground.setFillColor(Color.LIGHT_GRAY);
-
-    double inset = 4;
-    tempRelicIntangibleIcon =
-        new GRect(x + inset, y + inset, slotSize - 2 * inset, slotSize - 2 * inset);
-    tempRelicIntangibleIcon.setColor(Color.BLACK);
-    tempRelicIntangibleIcon.setFilled(true);
-    tempRelicIntangibleIcon.setFillColor(Color.MAGENTA);
-
-    placeOnScreen(pane, relicIntangibleBackground);
-    placeOnScreen(pane, tempRelicIntangibleIcon);
+    relicIntangibleIcon = new GImage(RELIC_INTANGIBLE_ICON, x, y);
+    placeOnScreen(pane, relicIntangibleIcon);
+    scaleToFit(relicIntangibleIcon, slotSize);
   }
 
   /**
@@ -368,35 +368,30 @@ within this class
   public void showRelicHalfDamage(GraphicsPane pane, boolean ownedHalfDamage)
   {
     removeFromScreen(pane, relicHalfDamageBackground);
-    removeFromScreen(pane, tempRelicHalfDamageIcon);
+    removeFromScreen(pane, relicHalfDamageIcon);
     relicHalfDamageBackground = null;
-    tempRelicHalfDamageIcon = null;
+    relicHalfDamageIcon = null;
 
     if (!ownedHalfDamage)
     {
       return;
     }
 
-    double slotSize = 16;
-    double rowY = HEART_ROW_Y + HEART_SEGMENT_HEIGHT + 6;
+    double slotSize = 24;
+    double rowY = HEART_ROW_Y + HEART_SEGMENT_HEIGHT + 4;
+    double heartW = HEART_SEGMENT_WIDTH * 2;
+    double heartGap = HEART_SEGMENT_WIDTH * 0.4;
+    double heartsRowW = 3 * heartW + 2 * heartGap;
+    double relicsTotalW = 3 * slotSize + 2 * RELIC_SLOT_GAP_X;
+    double relicStartX = HEART_ROW_X + (heartsRowW - relicsTotalW) / 2;
     int column = 1;
-    double x = HEART_ROW_X + column * (slotSize + RELIC_SLOT_GAP_X);
+    double x = relicStartX + column * (slotSize + RELIC_SLOT_GAP_X);
     double y = rowY;
 
-    relicHalfDamageBackground = new GOval(x, y, slotSize, slotSize);
-    relicHalfDamageBackground.setFilled(true);
-    relicHalfDamageBackground.setColor(Color.BLACK);
-    relicHalfDamageBackground.setFillColor(Color.LIGHT_GRAY);
-
-    double inset = 4;
-    tempRelicHalfDamageIcon =
-        new GRect(x + inset, y + inset, slotSize - 2 * inset, slotSize - 2 * inset);
-    tempRelicHalfDamageIcon.setColor(Color.BLACK);
-    tempRelicHalfDamageIcon.setFilled(true);
-    tempRelicHalfDamageIcon.setFillColor(Color.ORANGE);
-
-    placeOnScreen(pane, relicHalfDamageBackground);
-    placeOnScreen(pane, tempRelicHalfDamageIcon);
+    // background circle not needed — icon PNG has it baked in
+    relicHalfDamageIcon = new GImage(RELIC_HALF_DAMAGE_ICON, x, y);
+    placeOnScreen(pane, relicHalfDamageIcon);
+    scaleToFit(relicHalfDamageIcon, slotSize);
   }
 
   /**
@@ -409,35 +404,30 @@ within this class
   public void showRelicReflect(GraphicsPane pane, boolean ownedReflect)
   {
     removeFromScreen(pane, relicReflectBackground);
-    removeFromScreen(pane, tempRelicReflectIcon);
+    removeFromScreen(pane, relicReflectIcon);
     relicReflectBackground = null;
-    tempRelicReflectIcon = null;
+    relicReflectIcon = null;
 
     if (!ownedReflect)
     {
       return;
     }
 
-    double slotSize = 16;
-    double rowY = HEART_ROW_Y + HEART_SEGMENT_HEIGHT + 6;
+    double slotSize = 24;
+    double rowY = HEART_ROW_Y + HEART_SEGMENT_HEIGHT + 4;
+    double heartW = HEART_SEGMENT_WIDTH * 2;
+    double heartGap = HEART_SEGMENT_WIDTH * 0.4;
+    double heartsRowW = 3 * heartW + 2 * heartGap;
+    double relicsTotalW = 3 * slotSize + 2 * RELIC_SLOT_GAP_X;
+    double relicStartX = HEART_ROW_X + (heartsRowW - relicsTotalW) / 2;
     int column = 2;
-    double x = HEART_ROW_X + column * (slotSize + RELIC_SLOT_GAP_X);
+    double x = relicStartX + column * (slotSize + RELIC_SLOT_GAP_X);
     double y = rowY;
 
-    relicReflectBackground = new GOval(x, y, slotSize, slotSize);
-    relicReflectBackground.setFilled(true);
-    relicReflectBackground.setColor(Color.BLACK);
-    relicReflectBackground.setFillColor(Color.LIGHT_GRAY);
-
-    double inset = 4;
-    tempRelicReflectIcon =
-        new GRect(x + inset, y + inset, slotSize - 2 * inset, slotSize - 2 * inset);
-    tempRelicReflectIcon.setColor(Color.BLACK);
-    tempRelicReflectIcon.setFilled(true);
-    tempRelicReflectIcon.setFillColor(Color.CYAN);
-
-    placeOnScreen(pane, relicReflectBackground);
-    placeOnScreen(pane, tempRelicReflectIcon);
+    // background circle not needed — icon PNG has it baked in
+    relicReflectIcon = new GImage(RELIC_REFLECT_ICON, x, y);
+    placeOnScreen(pane, relicReflectIcon);
+    scaleToFit(relicReflectIcon, slotSize);
   }
 
   /**
@@ -445,11 +435,8 @@ within this class
    */
   public void showSwordButton(GraphicsPane pane)
   {
-    removeFromScreen(pane, SWDbackground);
-    removeFromScreen(pane, tempSWDicon);
-    removeFromScreen(pane, SWDbutton);
-    SWDbackground = null;
-    tempSWDicon = null;
+    removeFromScreen(pane, SWDicon);
+    SWDicon = null;
 
     double w = pane.mainScreen.getWidth();
     double h = pane.mainScreen.getHeight();
@@ -457,30 +444,9 @@ within this class
     double x = intangibleX - ABILITY_BUTTON_GAP - ABILITY_BUTTON_SIZE;
     double y = h - ABILITY_HUD_FROM_EDGE - ABILITY_BUTTON_SIZE - ABILITY_BUTTON_FROM_BOTTOM;
 
-    SWDbackground = new GOval(x, y, ABILITY_BUTTON_SIZE, ABILITY_BUTTON_SIZE);
-    SWDbackground.setFilled(true);
-    SWDbackground.setColor(Color.BLACK);
-    SWDbackground.setFillColor(Color.LIGHT_GRAY);
-
-    double inset = 12;
-    tempSWDicon =
-        new GRect(
-            x + inset,
-            y + inset,
-            ABILITY_BUTTON_SIZE - 2 * inset,
-            ABILITY_BUTTON_SIZE - 2 * inset);
-    tempSWDicon.setFilled(true);
-    tempSWDicon.setColor(Color.BLACK);
-    tempSWDicon.setFillColor(Color.GREEN);
-
-    SWDbutton.setFont("SansSerif-BOLD-18");
-    double lx = x + 8;
-    double ly = y + ABILITY_BUTTON_SIZE - 10;
-    SWDbutton.setLocation(lx, ly);
-
-    placeOnScreen(pane, SWDbackground);
-    placeOnScreen(pane, tempSWDicon);
-    placeOnScreen(pane, SWDbutton);
+    SWDicon = new GImage(ATTACK_BUTTON_PATH, x, y);
+    placeOnScreen(pane, SWDicon);
+    scaleToFit(SWDicon, ABILITY_BUTTON_SIZE);
   }
 
   /**
@@ -489,41 +455,24 @@ within this class
    */
   public void showIntangibleAbilityButton(GraphicsPane pane)
   {
-    removeFromScreen(pane, intangibleAbilityBackground);
-    removeFromScreen(pane, tempIntangibleAbilityIcon);
-    removeFromScreen(pane, intangibleAbilityButton);
-    intangibleAbilityBackground = null;
-    tempIntangibleAbilityIcon = null;
+    removeFromScreen(pane, intangibleAbilityIcon);
+    removeFromScreen(pane, intangibleAbilityCooldownIcon);
+    intangibleAbilityIcon = null;
+    intangibleAbilityCooldownIcon = null;
 
     double w = pane.mainScreen.getWidth();
     double h = pane.mainScreen.getHeight();
     double x = w - ABILITY_HUD_FROM_EDGE - ABILITY_BUTTON_SIZE;
     double y = h - ABILITY_HUD_FROM_EDGE - ABILITY_BUTTON_SIZE - ABILITY_BUTTON_FROM_BOTTOM;
 
-    intangibleAbilityBackground = new GOval(x, y, ABILITY_BUTTON_SIZE, ABILITY_BUTTON_SIZE);
-    intangibleAbilityBackground.setFilled(true);
-    intangibleAbilityBackground.setColor(Color.BLACK);
-    intangibleAbilityBackground.setFillColor(Color.LIGHT_GRAY);
+    intangibleAbilityIcon = new GImage(INTANGIBLE_BUTTON_PATH, x, y);
+    placeOnScreen(pane, intangibleAbilityIcon);
+    scaleToFit(intangibleAbilityIcon, ABILITY_BUTTON_SIZE);
 
-    double inset = 12;
-    tempIntangibleAbilityIcon =
-        new GRect(
-            x + inset,
-            y + inset,
-            ABILITY_BUTTON_SIZE - 2 * inset,
-            ABILITY_BUTTON_SIZE - 2 * inset);
-    tempIntangibleAbilityIcon.setFilled(true);
-    tempIntangibleAbilityIcon.setColor(Color.BLACK);
-    tempIntangibleAbilityIcon.setFillColor(Color.GREEN);
-
-    intangibleAbilityButton.setFont("SansSerif-BOLD-18");
-    double lx = x + 8;
-    double ly = y + ABILITY_BUTTON_SIZE - 10;
-    intangibleAbilityButton.setLocation(lx, ly);
-
-    placeOnScreen(pane, intangibleAbilityBackground);
-    placeOnScreen(pane, tempIntangibleAbilityIcon);
-    placeOnScreen(pane, intangibleAbilityButton);
+    intangibleAbilityCooldownIcon = new GImage(INTANGIBLE_BUTTON_COOLDOWN_PATH, x, y);
+    placeOnScreen(pane, intangibleAbilityCooldownIcon);
+    scaleToFit(intangibleAbilityCooldownIcon, ABILITY_BUTTON_SIZE);
+    intangibleAbilityCooldownIcon.setVisible(false);
   }
 
   /**
@@ -534,21 +483,13 @@ within this class
    */
   public void updateIntangibleAbilityButton(GraphicsPane pane, boolean onCooldown)
   {
-    if (intangibleAbilityBackground == null || tempIntangibleAbilityIcon == null)
+    if (intangibleAbilityIcon == null || intangibleAbilityCooldownIcon == null)
     {
       return;
     }
 
-    if (onCooldown)
-    {
-      intangibleAbilityBackground.setFillColor(Color.GRAY);
-      tempIntangibleAbilityIcon.setFillColor(Color.DARK_GRAY);
-    }
-    else
-    {
-      intangibleAbilityBackground.setFillColor(Color.LIGHT_GRAY);
-      tempIntangibleAbilityIcon.setFillColor(Color.GREEN);
-    }
+    intangibleAbilityIcon.setVisible(!onCooldown);
+    intangibleAbilityCooldownIcon.setVisible(onCooldown);
   }
 
   /**
@@ -560,6 +501,19 @@ within this class
 		pane.contents.add(obj);
 		pane.mainScreen.add(obj);
 	}
+
+  /**
+   * Scales a GImage to fit inside a box of {@code maxSide} pixels, keeping the original
+   * aspect ratio so the image never looks squished.
+   */
+  private static void scaleToFit(GImage img, double maxSide)
+  {
+    double w = img.getWidth();
+    double h = img.getHeight();
+    if (w <= 0 || h <= 0) return;
+    double scale = Math.min(maxSide / w, maxSide / h);
+    img.setSize(w * scale, h * scale);
+  }
 
   /** Opposite of {@link #placeOnScreen}
    *  use when rebuilding a piece of the HUD. 
@@ -592,8 +546,11 @@ within this class
     showRelicHalfDamage(pane, data.ownedHalfDamage);
     showRelicReflect(pane, data.ownedReflect);
     showSwordButton(pane);
-    showIntangibleAbilityButton(pane);
-    updateIntangibleAbilityButton(pane, data.intangibleAbilityOnCooldown);
+    if (data.ownedIntangible)
+    {
+      showIntangibleAbilityButton(pane);
+      updateIntangibleAbilityButton(pane, data.intangibleAbilityOnCooldown);
+    }
   }
 
   /**
@@ -616,35 +573,31 @@ within this class
     }
 
     removeFromScreen(pane, coinslabel);
-    removeFromScreen(pane, coins);
-    coins = null;
+    removeFromScreen(pane, coinsicon);
+    coinsicon = null;
 
     removeFromScreen(pane, relicIntangibleBackground);
-    removeFromScreen(pane, tempRelicIntangibleIcon);
+    removeFromScreen(pane, relicIntangibleIcon);
     relicIntangibleBackground = null;
-    tempRelicIntangibleIcon = null;
+    relicIntangibleIcon = null;
 
     removeFromScreen(pane, relicHalfDamageBackground);
-    removeFromScreen(pane, tempRelicHalfDamageIcon);
+    removeFromScreen(pane, relicHalfDamageIcon);
     relicHalfDamageBackground = null;
-    tempRelicHalfDamageIcon = null;
+    relicHalfDamageIcon = null;
 
     removeFromScreen(pane, relicReflectBackground);
-    removeFromScreen(pane, tempRelicReflectIcon);
+    removeFromScreen(pane, relicReflectIcon);
     relicReflectBackground = null;
-    tempRelicReflectIcon = null;
+    relicReflectIcon = null;
 
-    removeFromScreen(pane, SWDbackground);
-    removeFromScreen(pane, tempSWDicon);
-    removeFromScreen(pane, SWDbutton);
-    SWDbackground = null;
-    tempSWDicon = null;
+    removeFromScreen(pane, SWDicon);
+    SWDicon = null;
 
-    removeFromScreen(pane, intangibleAbilityBackground);
-    removeFromScreen(pane, tempIntangibleAbilityIcon);
-    removeFromScreen(pane, intangibleAbilityButton);
-    intangibleAbilityBackground = null;
-    tempIntangibleAbilityIcon = null;
+    removeFromScreen(pane, intangibleAbilityIcon);
+    removeFromScreen(pane, intangibleAbilityCooldownIcon);
+    intangibleAbilityIcon = null;
+    intangibleAbilityCooldownIcon = null;
   }
 
 	/**
