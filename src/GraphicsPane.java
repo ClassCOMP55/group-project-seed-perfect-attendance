@@ -312,11 +312,13 @@ public class GraphicsPane {
 	private static final double HUD_BAR_X = 70;
 	private static final double HUD_BAR_Y = 14;
 	private static final double HUD_BAR_W = 182;
-	private static final double HUD_BAR_TOP_H = 10;
+	private static final double HUD_BAR_TOP_H = 46;
 	private static final double HUD_BAR_H = 7;
 	private static final double HUD_BAR_GAP = 6;
 	private static final double HUD_BAR_INSET = 1;
-	private static final double HUD_HEART_CELL_SIZE = 2.0;
+	private static final double HUD_HEART_CELL_SIZE = 2.0;  // only used for pixel-art fallback
+	private static final double HUD_HEART_IMAGE_SIZE = 44.0;  // px per heart in image mode
+	private static final double HUD_HEART_IMAGE_GAP  = 6.0;   // px between hearts in image mode
 	private static final double HUD_HEART_LEFT_PAD = 6;
 
 	/** Logical px from layout right edge reserved for pause/settings button — coin cluster sits left of this. */
@@ -433,12 +435,20 @@ public class GraphicsPane {
 		double barInsetY = HUD_BAR_INSET * sy;
 
 		double heartCellSize = Math.max(2.0, Math.ceil(HUD_HEART_CELL_SIZE * scale));
-		double heartHeight = HeartDisplay.heightFor(heartCellSize);
 		double heartX = barX + HUD_HEART_LEFT_PAD * sx;
-		double heartY = barY + Math.max(0.0, (topBarH - heartHeight) / 2.0);
 
+		// Configure the display fully before asking for its height,
+		// so image-mode overrides are in place for the Y centering calculation.
 		hudHeartDisplay = new HeartDisplay(Player.DEFAULT_HEART_COUNT, heartCellSize);
-		applySharedHeartPalette(hudHeartDisplay);
+		hudHeartDisplay.setImages(
+			"assets/visuals/hearts/pixel heart full single.png",
+			"assets/visuals/hearts/pixel heart half.png",
+			"assets/visuals/hearts/pixel heart empty.png"
+		);
+		hudHeartDisplay.setImageSize(HUD_HEART_IMAGE_SIZE * scale, HUD_HEART_IMAGE_SIZE * scale);
+		hudHeartDisplay.setImageGap(HUD_HEART_IMAGE_GAP * scale);
+		double heartHeight = hudHeartDisplay.getHeight();  // actual image height, not pixel-art estimate
+		double heartY = barY + Math.max(0.0, (topBarH - heartHeight) / 2.0);
 		hudHeartDisplay.show(this, heartX, heartY);
 
 		setupHudCoinCluster(player);

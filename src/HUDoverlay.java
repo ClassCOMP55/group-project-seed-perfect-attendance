@@ -87,8 +87,15 @@ public class HUDoverlay
     }
   }
 
-  private GRect[] hearts;
-  //private GImage[] heartIcons;
+  // Heart PNG asset paths
+  private static final String HEART_FULL         = "assets/visuals/hearts/pixel heart full single.png";
+  private static final String HEART_HALF         = "assets/visuals/hearts/pixel heart half.png";
+  private static final String HEART_QUARTER      = "assets/visuals/hearts/pixel heart quarter.png";
+  private static final String HEART_LAST_QUARTER = "assets/visuals/hearts/pixel heart last quarter.png";
+  private static final String HEART_EMPTY        = "assets/visuals/hearts/pixel heart empty.png";
+
+  private GImage[] hearts;
+  private boolean upgradeMode = false;
 
   private GOval relicIntangibleBackground;
   private GRect tempRelicIntangibleIcon;
@@ -153,12 +160,11 @@ within this class
    */
   public void showHearts(GraphicsPane pane, int currentHeart, boolean relicBool)
   {
-    //remove old rects so calling showHearts again does not leave orphans on the screen behind the new hearts
-    if (hearts != null) 
+    if (hearts != null)
     {
-      for (GRect h : hearts) 
+      for (GImage h : hearts)
       {
-        if (h != null) 
+        if (h != null)
         {
           removeFromScreen(pane, h);
         }
@@ -166,40 +172,26 @@ within this class
       hearts = null;
     }
 
-    //How many segments should look “filled” (red). 
-    //clamped 0 to 6 so a bad caller cannot break the HUD.
+    upgradeMode = false;
+    int numHearts = DEFAULT_HEART_SEGMENTS / 2;  // 3 hearts
     int filled = Math.max(0, Math.min(DEFAULT_HEART_SEGMENTS, currentHeart));
+    hearts = new GImage[numHearts];
 
-    hearts = new GRect[DEFAULT_HEART_SEGMENTS];
+    double heartW = HEART_SEGMENT_WIDTH * 2;              // 20px per heart
+    double gapBetweenHearts = HEART_SEGMENT_WIDTH * 2;    // 20px gap
 
-    double gapBetweenHearts = HEART_SEGMENT_WIDTH * 2;
-    double x = HEART_ROW_X;
-
-    for (int i = 0; i < DEFAULT_HEART_SEGMENTS; i++) 
+    for (int i = 0; i < numHearts; i++)
     {
-      double px = x;
-      double py = HEART_ROW_Y;
-      double pw = HEART_SEGMENT_WIDTH;
-      double ph = HEART_SEGMENT_HEIGHT;
-
-      //draws the heart segments
-      GRect heartsegment = new GRect(px, py, pw, ph);
-      heartsegment.setColor(Color.BLACK);
-      heartsegment.setFilled(true);
-      heartsegment.setFillColor(i < filled ? Color.RED : Color.LIGHT_GRAY);
-
-      placeOnScreen(pane, heartsegment);
-      hearts[i] = heartsegment;
-
-      //offset and gap between the heart segments
-      x += HEART_SEGMENT_WIDTH;
-
-      if (i % 2 == 1 && i < DEFAULT_HEART_SEGMENTS - 1) 
-      {
-        x += gapBetweenHearts;
-      }
+      int halfUnits = Math.max(0, Math.min(2, filled - i * 2));
+      String path = halfUnits == 2 ? HEART_FULL
+                  : halfUnits == 1 ? HEART_HALF
+                  :                  HEART_EMPTY;
+      double x = HEART_ROW_X + i * (heartW + gapBetweenHearts);
+      GImage img = new GImage(path, x, HEART_ROW_Y);
+      img.setSize(heartW, heartW);
+      placeOnScreen(pane, img);
+      hearts[i] = img;
     }
-
   }
 
 
@@ -215,7 +207,7 @@ within this class
   {
     if (hearts != null)
     {
-      for (GRect h : hearts)
+      for (GImage h : hearts)
       {
         if (h != null)
         {
@@ -225,37 +217,28 @@ within this class
       hearts = null;
     }
 
+    upgradeMode = true;
+    int numHearts = UPGRADED_HEART_SEGMENTS / 4;  // 3 hearts
     int filled = Math.max(0, Math.min(UPGRADED_HEART_SEGMENTS, currentHeart));
+    hearts = new GImage[numHearts];
 
-    hearts = new GRect[UPGRADED_HEART_SEGMENTS];
+    double heartW = HEART_SEGMENT_WIDTH * 2;              // 20px per heart
+    double gapBetweenHearts = HEART_SEGMENT_WIDTH * 2;    // 20px gap
 
-    double quarterW = HEART_SEGMENT_WIDTH / 2.0;
-    double gapBetweenHearts = HEART_SEGMENT_WIDTH * 2;
-
-    double x = HEART_ROW_X;
-
-    for (int i = 0; i < UPGRADED_HEART_SEGMENTS; i++)
+    for (int i = 0; i < numHearts; i++)
     {
-      double px = x;
-      double py = HEART_ROW_Y;
-      double pw = quarterW;
-      double ph = HEART_SEGMENT_HEIGHT;
-
-      GRect heartsegment = new GRect(px, py, pw, ph);
-      heartsegment.setColor(Color.BLACK);
-      heartsegment.setFilled(true);
-      heartsegment.setFillColor(i < filled ? Color.RED : Color.LIGHT_GRAY);
-
-      placeOnScreen(pane, heartsegment);
-      hearts[i] = heartsegment;
-
-      //offset and gap between the heart segments
-      x += quarterW;
-
-      if (i % 4 == 3 && i < UPGRADED_HEART_SEGMENTS - 1)
-      {
-        x += gapBetweenHearts;
-      }
+      int quarterUnits = Math.max(0, Math.min(4, filled - i * 4));
+      String path;
+      if      (quarterUnits == 4) path = HEART_FULL;
+      else if (quarterUnits == 3) path = HEART_LAST_QUARTER;
+      else if (quarterUnits == 2) path = HEART_HALF;
+      else if (quarterUnits == 1) path = HEART_QUARTER;
+      else                        path = HEART_EMPTY;
+      double x = HEART_ROW_X + i * (heartW + gapBetweenHearts);
+      GImage img = new GImage(path, x, HEART_ROW_Y);
+      img.setSize(heartW, heartW);
+      placeOnScreen(pane, img);
+      hearts[i] = img;
     }
   }
 
@@ -276,19 +259,14 @@ within this class
     {
       return;
     }
-
-    int filled = Math.max(0, Math.min(hearts.length, currentHeart));
-
-    
-    for (int i = 0; i < hearts.length; i++)
+    if (upgradeMode)
     {
-      if (hearts[i] != null)
-      {
-        hearts[i].setFillColor(i < filled ? Color.RED : Color.LIGHT_GRAY);
-      }
+      showUpgradedHearts(pane, currentHeart, false);
     }
-
-
+    else
+    {
+      showHearts(pane, currentHeart, false);
+    }
   }
   
   /**
@@ -627,7 +605,7 @@ within this class
   {
     if (hearts != null)
     {
-      for (GRect h : hearts)
+      for (GImage h : hearts)
       {
         if (h != null)
         {
