@@ -398,6 +398,28 @@ public class Room {
         drawTileMap = true;
     }
 
+    /**
+     * Swaps the room background to a new asset set.
+     * Used by one-time world progression such as clearing a thicket.
+     */
+    public void replaceBackgroundImage(String... candidatePaths) {
+        GImage previous = backgroundImage;
+        setBackgroundImage(candidatePaths);
+
+        if (!initialized || canvas == null) {
+            return;
+        }
+
+        if (previous != null) {
+            canvas.remove(previous);
+        }
+        if (backgroundImage != null) {
+            backgroundImage.setLocation(0, 0);
+            canvas.add(backgroundImage);
+            backgroundImage.sendToBack();
+        }
+    }
+
     // =========================================================
     // LIFECYCLE — called by WorldMap / RoomTransition
     // =========================================================

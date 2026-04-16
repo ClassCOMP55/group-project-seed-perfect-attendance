@@ -417,6 +417,11 @@ public class TileMap {
         floorRect(4, 4, 20, 20);
         floorRect(11, 11, 25, 25);
         floorRect(12, 12, 2, 2);
+
+        // --- requested A1 barrier removals ---
+        floorRect(12, 12, 2, 2);
+        floorRect(11, 11, 25, 25);
+        floorRect(4, 4, 20, 20);
     }
 
     private void generateB1() {
@@ -459,6 +464,14 @@ public class TileMap {
         floorRect(5, 5, 2, 4);
         floorRect(6, 6, 2, 4);
         floorRect(6, 6, 9, 9);
+
+        // --- requested B1 barrier removals ---
+        floorRect(6, 6, 9, 9);
+        floorRect(6, 6, 1, 4);
+        floorRect(5, 5, 2, 4);
+        floorRect(6, 6, 2, 4);
+        floorRect(5, 5, 9, 9);
+        floorRect(6, 6, 1, 1);
     }
 
     private void generateC1() {

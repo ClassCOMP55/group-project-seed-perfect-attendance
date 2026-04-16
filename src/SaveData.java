@@ -27,6 +27,7 @@ PLAN OF ACTION
 - boolean hasReflect              — relic flag (from Player.java)
 - boolean hasIntangible           — relic flag (from Player.java)
 - boolean hasMarkOfHero           — relic flag (from Player.java)
+- List<String> inventoryItemIds   — persistent quest/tool inventory entries such as Pickaxe
 - List<String> collectedItemIds   — items already picked up (won't re-spawn on load)
 - List<String> storyFlags         — NPC / story progression flags
 
@@ -83,6 +84,9 @@ public class SaveData {
 	private final boolean hasIntangible;
 	private final boolean hasMarkOfHero;
 
+	/** Non-consumable inventory item IDs that should be restored on load. */
+	private final List<String> inventoryItemIds;
+
 	/** Item IDs already collected (so they do not re-spawn on load). */
 	private final List<String> collectedItemIds;
 
@@ -100,7 +104,7 @@ public class SaveData {
 	                String roomId, double spawnX, double spawnY,
 	                boolean hasHalfDamage, boolean hasReflect,
 	                boolean hasIntangible, boolean hasMarkOfHero,
-	                List<String> collectedItemIds, List<String> storyFlags,
+	                List<String> inventoryItemIds, List<String> collectedItemIds, List<String> storyFlags,
 	                long lastSavedAtMillis) {
 		this.slot          = slot;
 		this.hp            = hp;
@@ -114,6 +118,8 @@ public class SaveData {
 		this.hasReflect    = hasReflect;
 		this.hasIntangible = hasIntangible;
 		this.hasMarkOfHero = hasMarkOfHero;
+		this.inventoryItemIds = inventoryItemIds != null
+			? new ArrayList<>(inventoryItemIds) : new ArrayList<>();
 		this.collectedItemIds = collectedItemIds != null
 			? new ArrayList<>(collectedItemIds) : new ArrayList<>();
 		this.storyFlags       = storyFlags != null
@@ -142,6 +148,12 @@ public class SaveData {
 	                             List<String> collectedItemIds, List<String> storyFlags) {
 		int coins = player.getCoins();
 		int healingBreadCount = player.getItemCount(HealingBread.ITEM_ID);
+		List<String> inventoryItems = new ArrayList<>();
+		for (Item item : player.getInventory()) {
+			if (item == null || item.getItemId() == null) continue;
+			if (HealingBread.ITEM_ID.equals(item.getItemId())) continue;
+			inventoryItems.add(item.getItemId());
+		}
 		List<String> collectedItems = collectedItemIds != null
 			? new ArrayList<>(collectedItemIds) : new ArrayList<>();
 		List<String> flags = storyFlags != null
@@ -160,6 +172,7 @@ public class SaveData {
 			player.hasReflect(),
 			player.hasIntangible(),
 			player.hasMarkOfHero(),
+			inventoryItems,
 			collectedItems,
 			flags,
 			System.currentTimeMillis()
@@ -183,6 +196,11 @@ public class SaveData {
 	public boolean isHasIntangible()   { return hasIntangible; }
 	public boolean isHasMarkOfHero()   { return hasMarkOfHero; }
 	public long    getLastSavedAtMillis() { return lastSavedAtMillis; }
+
+	/** Returns an unmodifiable view of saved non-consumable inventory item IDs. */
+	public List<String> getInventoryItemIds() {
+		return Collections.unmodifiableList(inventoryItemIds);
+	}
 
 	/** Returns an unmodifiable view of collected item IDs. */
 	public List<String> getCollectedItemIds() {

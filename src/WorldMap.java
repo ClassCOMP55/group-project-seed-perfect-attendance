@@ -226,6 +226,11 @@ public class WorldMap {
     /** Persistent story / world progression flags unrelated to the player snapshot. */
     private final Set<String> storyFlags = new LinkedHashSet<>();
 
+    /** Persistent one-time interactables that need save-state reapplication. */
+    private Chest pickaxeChest;
+    private OreNode oreNode;
+    private final List<HeroThicket> heroThickets = new ArrayList<>();
+
     // =========================================================
     // DUNGEON ENTRANCE MARKER (tech-demo placeholder)
     // =========================================================
@@ -287,8 +292,8 @@ public class WorldMap {
      * =====================
      */
 
-    /** Starter save crystal so save/load can be tested from the opening room immediately. */
-    private static final double START_SAVE_POINT_X = TileMap.MAP_OFFSET_X + 13 * 48;
+    /** Starter save crystal placed in B1 across tiles 19,6 | 20,6 | 19,7 | 20,7. */
+    private static final double START_SAVE_POINT_X = TileMap.MAP_OFFSET_X + 20 * 48;
     private static final double START_SAVE_POINT_Y = 7 * 48;
 
     /** Starter sign + NPC positions in A1 so room dialogue can be tested immediately from spawn. */
@@ -342,6 +347,28 @@ public class WorldMap {
     private static final String[] START_NPC_POST_REWARD_LINES = {
         "There we go. You've already got the Mark of the Hero.",
         "Try not to lose it before the gate sees it."
+    };
+
+    private static final String A2_HERO_THICKET_FLAG = "hero_thicket_a2_cleared";
+    private static final String A3_HERO_THICKET_FLAG = "hero_thicket_a3_cleared";
+    private static final String B3_HERO_THICKET_FLAG = "hero_thicket_b3_cleared";
+
+    private static final int[][] A2_HERO_THICKET_TILES = {
+        {11, 9}, {12, 9}, {13, 9},
+        {11, 10}, {12, 10}, {13, 10},
+        {11, 11}, {12, 11}, {13, 11}
+    };
+
+    private static final int[][] A3_HERO_THICKET_TILES = {
+        {10, 9}, {11, 9}, {12, 9},
+        {10, 10}, {11, 10}, {12, 10},
+        {10, 11}, {11, 11}, {12, 11}
+    };
+
+    private static final int[][] B3_HERO_THICKET_TILES = {
+        {13, 5}, {14, 5},
+        {13, 6}, {14, 6},
+        {13, 7}, {14, 7}
     };
 
     /** Reserved story-flag prefix used to encode exact exit states in the save file. */
@@ -444,7 +471,9 @@ public class WorldMap {
         installPickaxeChest();
         installBlacksmith();
         installOreNode();
+        installHeroThickets();
         installDrawbridgeLever();
+        syncPersistentWorldObjects();
 
         // --- wire exit callbacks: each room calls triggerTransition() when the player exits ---
         for (int col = 0; col < COLS; col++) {
@@ -480,9 +509,9 @@ public class WorldMap {
         );
     }
 
-    /** Places an always-available save crystal in A1 for early save/load testing. */
+    /** Places an always-available save crystal in B1 for early save/load testing. */
     private void installStarterSavePoint() {
-        Room startRoom = overworldGrid[0][0];
+        Room startRoom = overworldGrid[1][0];
         startRoom.setSavePoint(new SavePoint(
             START_SAVE_POINT_X,
             START_SAVE_POINT_Y,
@@ -538,11 +567,12 @@ public class WorldMap {
     private void installPickaxeChest() {
         Room a1 = overworldGrid[0][0];
         if (a1 == null) return;
-        Chest pickaxeChest = new Chest(
+        pickaxeChest = new Chest(
             PICKAXE_CHEST_X, PICKAXE_CHEST_Y,
             "chest_pickaxe_a1", OreNode.PICKAXE_ID, false
         );
         pickaxeChest.setDialogue(dialogue);
+        pickaxeChest.setCollectedItemRecorder(this::markCollectedItem);
         a1.addObject(pickaxeChest);
     }
 
@@ -557,12 +587,42 @@ public class WorldMap {
     private void installOreNode() {
         Room b2 = overworldGrid[1][1];
         if (b2 == null) return;
-        OreNode oreNode = new OreNode(b2.getTileMap(), ORE_VEIN_TILES_B2);
+        oreNode = new OreNode(b2.getTileMap(), ORE_VEIN_TILES_B2);
         oreNode.setDialogue(dialogue);
-        if (hasCollectedItem(OreNode.SAVE_FLAG_ID)) {
-            oreNode.forceMined();
-        }
+        oreNode.setCollectedItemRecorder(this::markCollectedItem);
         b2.addObject(oreNode);
+    }
+
+    /** Places the Mark-of-the-Hero tree barriers in A2, A3, and B3. */
+    private void installHeroThickets() {
+        heroThickets.clear();
+        installHeroThicket(overworldGrid[0][1], A2_HERO_THICKET_FLAG, A2_HERO_THICKET_TILES,
+            "assets/visuals/overworld rooms/a2_open.png");
+        installHeroThicket(overworldGrid[0][2], A3_HERO_THICKET_FLAG, A3_HERO_THICKET_TILES,
+            "assets/visuals/overworld rooms/a3_open.png");
+        installHeroThicket(overworldGrid[1][2], B3_HERO_THICKET_FLAG, B3_HERO_THICKET_TILES,
+            "assets/visuals/overworld rooms/b3_open.png");
+    }
+
+    private void installHeroThicket(Room room, String storyFlag, int[][] tiles, String... openBackgroundPaths) {
+        if (room == null) return;
+
+        HeroThicket thicket = new HeroThicket(
+            computeTileWorldX(tiles),
+            computeTileWorldY(tiles),
+            computeTileWorldWidth(tiles),
+            computeTileWorldHeight(tiles),
+            "Thicket",
+            storyFlag,
+            tiles,
+            room.getTileMap(),
+            room,
+            dialogue,
+            openBackgroundPaths
+        );
+        thicket.setStoryFlagHooks(this::hasStoryFlag, this::addStoryFlag);
+        room.addObject(thicket);
+        heroThickets.add(thicket);
     }
 
     /** Places the DrawbridgeLever in C1 that lowers the bridge when the player has FixedLever. */
@@ -1041,6 +1101,8 @@ public class WorldMap {
                 }
             }
         }
+
+        syncPersistentWorldObjects();
     }
 
     /** Registers a one-time world object / pickup ID as collected for future saves. */
@@ -1061,6 +1123,56 @@ public class WorldMap {
     /** Returns true if the given non-exit story flag is currently set. */
     public boolean hasStoryFlag(String flag) {
         return flag != null && storyFlags.contains(flag.trim());
+    }
+
+    private void syncPersistentWorldObjects() {
+        if (pickaxeChest != null && hasCollectedItem(pickaxeChest.getChestId())) {
+            pickaxeChest.forceOpen();
+        }
+        if (oreNode != null && hasCollectedItem(OreNode.SAVE_FLAG_ID)) {
+            oreNode.forceMined();
+        }
+        for (HeroThicket thicket : heroThickets) {
+            if (thicket != null) {
+                thicket.syncPersistentState();
+            }
+        }
+    }
+
+    private static double computeTileWorldX(int[][] tiles) {
+        int minCol = Integer.MAX_VALUE;
+        for (int[] tile : tiles) {
+            if (tile[0] < minCol) minCol = tile[0];
+        }
+        return TileMap.MAP_OFFSET_X + minCol * 48.0;
+    }
+
+    private static double computeTileWorldY(int[][] tiles) {
+        int minRow = Integer.MAX_VALUE;
+        for (int[] tile : tiles) {
+            if (tile[1] < minRow) minRow = tile[1];
+        }
+        return minRow * 48.0;
+    }
+
+    private static double computeTileWorldWidth(int[][] tiles) {
+        int minCol = Integer.MAX_VALUE;
+        int maxCol = Integer.MIN_VALUE;
+        for (int[] tile : tiles) {
+            if (tile[0] < minCol) minCol = tile[0];
+            if (tile[0] > maxCol) maxCol = tile[0];
+        }
+        return (maxCol - minCol + 1) * 48.0;
+    }
+
+    private static double computeTileWorldHeight(int[][] tiles) {
+        int minRow = Integer.MAX_VALUE;
+        int maxRow = Integer.MIN_VALUE;
+        for (int[] tile : tiles) {
+            if (tile[1] < minRow) minRow = tile[1];
+            if (tile[1] > maxRow) maxRow = tile[1];
+        }
+        return (maxRow - minRow + 1) * 48.0;
     }
 
     private void addExitFlags(Set<String> snapshot, Room[][] rooms) {

@@ -229,10 +229,31 @@ public class GameSavesPane extends NightScenePane {
             breadStack.incrementStackBy(loadedBreadCount - 1);
             player.collectItem(breadStack);
         }
+        for (String itemId : loaded.getInventoryItemIds()) {
+            if (itemId == null || itemId.trim().isEmpty()) continue;
+            if (HealingBread.ITEM_ID.equals(itemId)) continue;
+            if (player.findInventoryItem(itemId) != null) continue;
+            player.collectItem(new Item(itemId, formatInventoryDisplayName(itemId), false));
+        }
         return player;
     }
 
     private int clampInt(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
+    }
+
+    private String formatInventoryDisplayName(String itemId) {
+        if (itemId == null || itemId.isEmpty()) return "";
+        String[] words = itemId.split("_");
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < words.length; i++) {
+            if (words[i].isEmpty()) continue;
+            if (sb.length() > 0) sb.append(' ');
+            sb.append(Character.toUpperCase(words[i].charAt(0)));
+            if (words[i].length() > 1) {
+                sb.append(words[i].substring(1));
+            }
+        }
+        return sb.length() == 0 ? itemId : sb.toString();
     }
 }

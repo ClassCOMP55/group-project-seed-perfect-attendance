@@ -59,6 +59,7 @@ import java.awt.Color;
 import java.io.File;
 import java.io.IOException;
 import javax.imageio.ImageIO;
+import java.util.function.Consumer;
 
 /**
  * One-time interactable container. Opens once to give a PowerUp relic or item.
@@ -101,6 +102,9 @@ public class Chest extends WorldObject {
 
     /** Optional sprite used when chest art is available. */
     private final GImage chestSprite;
+
+    /** Optional save hook used to remember that this chest has already been opened. */
+    private Consumer<String> collectedItemRecorder;
     private double spriteRenderWidth = 48.0;
     private double spriteRenderHeight = 48.0;
 
@@ -200,6 +204,10 @@ public class Chest extends WorldObject {
             obtainedName = displayName;
         }
 
+        if (collectedItemRecorder != null) {
+            collectedItemRecorder.accept(chestId);
+        }
+
         if (dialogue != null && !dialogue.isOpen()) {
             GamePlayState.setCurrent(GamePlayState.DIALOGUE);
             dialogue.open(
@@ -245,6 +253,7 @@ public class Chest extends WorldObject {
     // =========================================================
 
     public void    setDialogue(Dialogue d) { this.dialogue = d; }
+    public void    setCollectedItemRecorder(Consumer<String> recorder) { this.collectedItemRecorder = recorder; }
     public String  getChestId()            { return chestId; }
     public boolean isOpen()                { return isOpen; }
 

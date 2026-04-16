@@ -42,6 +42,8 @@ PLAN OF ACTION
 
 import acm.graphics.GCanvas;
 
+import java.util.function.Consumer;
+
 /**
  * The ore deposit in B2. Requires Pickaxe to mine. Gives Ore + BrokenLever on success.
  * One-time use — permanently removed after mining.
@@ -73,6 +75,9 @@ public class OreNode extends WorldObject {
 
     /** Tile coordinates covered by this ore vein. Each row is {col, row}. */
     private final int[][] oreTiles;
+
+    /** Optional save hook used to remember that this ore node has already been mined. */
+    private Consumer<String> collectedItemRecorder;
 
     // =========================================================
     // CONSTRUCTOR
@@ -136,6 +141,10 @@ public class OreNode extends WorldObject {
         applyMinedTiles();
         hide();
 
+        if (collectedItemRecorder != null) {
+            collectedItemRecorder.accept(SAVE_FLAG_ID);
+        }
+
         p.collectItem(new Item(ORE_ID, "Ore", false));
         p.collectItem(new Item(BROKEN_LEVER_ID, "Broken Lever", false));
 
@@ -179,6 +188,7 @@ public class OreNode extends WorldObject {
     // =========================================================
 
     public void    setDialogue(Dialogue d) { this.dialogue = d; }
+    public void    setCollectedItemRecorder(Consumer<String> recorder) { this.collectedItemRecorder = recorder; }
     public boolean isMined()               { return isMined; }
 
     /** Applies the ore-vein blocking footprint so those tiles are not walkable before mining. */

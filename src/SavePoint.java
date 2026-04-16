@@ -42,10 +42,15 @@ PLAN OF ACTION
 */
 
 import acm.graphics.GCanvas;
+import acm.graphics.GImage;
 import acm.graphics.GLabel;
 import acm.graphics.GRect;
 
 import java.awt.Color;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import javax.imageio.ImageIO;
 /**
  * A static interactive world object that lets the player save the game.
  * Place one in a room, register its interact key, and call update() + draw() each tick.
@@ -72,8 +77,17 @@ public class SavePoint {
 	// CONSTANTS
 	// =========================================================
 
-	/** Visual placeholder size in pixels (centered on x, y). */
-	private static final int VISUAL_SIZE = 48;
+	/** Placeholder save-object size in pixels (centered on x, y). */
+	private static final double PLACEHOLDER_VISUAL_SIZE = 48.0;
+
+	/** Save crystal occupies a 2x2 tile footprint. */
+	private static final double CRYSTAL_VISUAL_SIZE = 96.0;
+
+	/** Crystal art used for overworld save points. */
+	private static final String SAVE_CRYSTAL_SPRITE_PATH = "assets/visuals/png's/save_crystal.png";
+
+	/** Temporary art toggle: keep the save prompt text visible without drawing the crystal PNG. */
+	private static final boolean SHOW_SAVE_CRYSTAL_SPRITE = false;
 
 	/** Interaction zone is larger than the visual so the player doesn't need pixel-perfect positioning. */
 	private static final int INTERACT_SIZE = 80;
@@ -114,10 +128,13 @@ public class SavePoint {
 	private final Hitbox interactZone;
 
 	// Visual elements
-	private final GRect  visual;
+	private final GRect  visualPlaceholder;
+	private final GImage crystalSprite;
 	private final GRect  markerPlate;
 	private final GLabel markerLabel;
 	private final GLabel savedLabel;
+	private double visualWidth;
+	private double visualHeight;
 
 	/** Counts down from SAVED_DISPLAY_TICKS to 0 after a confirmed save. */
 	private int savedFeedbackTicks;
@@ -148,30 +165,33 @@ public class SavePoint {
 		this.spawnX = spawnX;
 		this.spawnY = spawnY;
 
-		double half = VISUAL_SIZE / 2.0;
 		double iHalf = INTERACT_SIZE / 2.0;
 
 		// Interaction zone: centered on (x, y), slightly larger than visual
 		this.interactZone = new Hitbox(x - iHalf, y - iHalf, INTERACT_SIZE, INTERACT_SIZE);
 
-		// Visual placeholder rectangle
-		Color fill = (type == SavePointType.INN_DOOR) ? INN_COLOR : CRYSTAL_COLOR;
-		this.visual = new GRect(x - half, y - half, VISUAL_SIZE, VISUAL_SIZE);
-		this.visual.setFilled(true);
-		this.visual.setFillColor(fill);
-		this.visual.setColor(fill.darker());
+		double targetVisualSize =
+			(type == SavePointType.SAVE_CRYSTAL) ? CRYSTAL_VISUAL_SIZE : PLACEHOLDER_VISUAL_SIZE;
+		this.crystalSprite =
+			(type == SavePointType.SAVE_CRYSTAL) ? loadCrystalSprite(targetVisualSize) : null;
+		this.visualWidth = (crystalSprite != null) ? crystalSprite.getWidth() : targetVisualSize;
+		this.visualHeight = (crystalSprite != null) ? crystalSprite.getHeight() : targetVisualSize;
 
-		this.markerPlate = new GRect(x - 43, y + half + 8, 86, 20);
+		Color fill = (type == SavePointType.INN_DOOR) ? INN_COLOR : CRYSTAL_COLOR;
+		this.visualPlaceholder =
+			(crystalSprite == null) ? createPlaceholderVisual(fill, targetVisualSize) : null;
+
+		this.markerPlate = new GRect(x - 43, y + visualHeight / 2.0 + 8, 86, 20);
 		this.markerPlate.setFilled(true);
 		this.markerPlate.setFillColor(MARKER_BG);
 		this.markerPlate.setColor(MARKER_BORDER);
 
-		this.markerLabel = new GLabel("[E] SAVE", x - 24, y + half + 23);
+		this.markerLabel = new GLabel("[E] SAVE", x - 24, y + visualHeight / 2.0 + 23);
 		this.markerLabel.setFont("SansSerif-BOLD-11");
 		this.markerLabel.setColor(MARKER_TEXT);
 
 		// "Game Saved!" label — shown above the object after a confirmed save
-		this.savedLabel = new GLabel("Game Saved!", x - 36, y - half - 12);
+		this.savedLabel = new GLabel("Game Saved!", x - 36, y - visualHeight / 2.0 - 12);
 		this.savedLabel.setFont("Monospaced-BOLD-14");
 		this.savedLabel.setColor(SAVED_COLOR);
 		this.savedLabel.setVisible(false);
@@ -189,11 +209,17 @@ public class SavePoint {
 	 */
 	public void addTo(GCanvas canvas) {
 		resetVisualPosition();
-		canvas.add(visual);
+		if (SHOW_SAVE_CRYSTAL_SPRITE && crystalSprite != null) {
+			canvas.add(crystalSprite);
+		}
+		if (visualPlaceholder != null) {
+			canvas.add(visualPlaceholder);
+		}
 		canvas.add(markerPlate);
 		canvas.add(markerLabel);
 		centerMarkerLabel();
 		canvas.add(savedLabel);
+		centerSavedLabel();
 	}
 
 	/**
@@ -203,7 +229,12 @@ public class SavePoint {
 	 * @param canvas the game canvas
 	 */
 	public void removeFrom(GCanvas canvas) {
-		canvas.remove(visual);
+		if (crystalSprite != null) {
+			canvas.remove(crystalSprite);
+		}
+		if (visualPlaceholder != null) {
+			canvas.remove(visualPlaceholder);
+		}
 		canvas.remove(markerPlate);
 		canvas.remove(markerLabel);
 		canvas.remove(savedLabel);
@@ -271,24 +302,95 @@ public class SavePoint {
 
 	/** Resets the placeholder rectangle + saved label to this SavePoint's canonical room position. */
 	private void resetVisualPosition() {
-		double half = VISUAL_SIZE / 2.0;
-		visual.setLocation(x - half, y - half);
-		markerPlate.setLocation(x - markerPlate.getWidth() / 2.0, y + half + 8);
-		markerLabel.setLocation(x - 32, y + half + 23);
-		savedLabel.setLocation(x - 36, y - half - 12);
+		double halfWidth = visualWidth / 2.0;
+		double halfHeight = visualHeight / 2.0;
+		if (crystalSprite != null) {
+			crystalSprite.setLocation(x - halfWidth, y - halfHeight);
+		}
+		if (visualPlaceholder != null) {
+			visualPlaceholder.setLocation(x - halfWidth, y - halfHeight);
+		}
+		markerPlate.setLocation(x - markerPlate.getWidth() / 2.0, y + halfHeight + 8);
+		centerMarkerLabel();
+		centerSavedLabel();
 	}
 
 	/** Centers the static SAVE label over its plate once ACM knows the rendered label width. */
 	private void centerMarkerLabel() {
-		markerLabel.setLocation(x - markerLabel.getWidth() / 2.0, y + VISUAL_SIZE / 2.0 + 23);
+		markerLabel.setLocation(x - markerLabel.getWidth() / 2.0, y + visualHeight / 2.0 + 23);
+	}
+
+	/** Keeps the save-confirm label centered above the save point. */
+	private void centerSavedLabel() {
+		savedLabel.setLocation(x - savedLabel.getWidth() / 2.0, y - visualHeight / 2.0 - 12);
 	}
 
 	/** Pans both placeholder visuals during a room transition. */
 	public void panVisual(double panX, double panY) {
-		visual.move(panX, panY);
+		if (crystalSprite != null) {
+			crystalSprite.move(panX, panY);
+		}
+		if (visualPlaceholder != null) {
+			visualPlaceholder.move(panX, panY);
+		}
 		markerPlate.move(panX, panY);
 		markerLabel.move(panX, panY);
 		savedLabel.move(panX, panY);
+	}
+
+	private GRect createPlaceholderVisual(Color fill, double size) {
+		double half = size / 2.0;
+		GRect placeholder = new GRect(x - half, y - half, size, size);
+		placeholder.setFilled(true);
+		placeholder.setFillColor(fill);
+		placeholder.setColor(fill.darker());
+		return placeholder;
+	}
+
+	private GImage loadCrystalSprite(double targetSize) {
+		try {
+			BufferedImage source = ImageIO.read(new File(SAVE_CRYSTAL_SPRITE_PATH));
+			if (source == null) {
+				return null;
+			}
+			BufferedImage trimmed = trimTransparentBounds(source);
+			GImage image = new GImage(trimmed);
+			double nativeWidth = Math.max(1.0, image.getWidth());
+			double nativeHeight = Math.max(1.0, image.getHeight());
+			double scale = Math.min(targetSize / nativeWidth, targetSize / nativeHeight);
+			image.setSize(nativeWidth * scale, nativeHeight * scale);
+			image.setLocation(x - image.getWidth() / 2.0, y - image.getHeight() / 2.0);
+			return image;
+		} catch (IOException | RuntimeException ignored) {
+			return null;
+		}
+	}
+
+	private BufferedImage trimTransparentBounds(BufferedImage source) {
+		int width = source.getWidth();
+		int height = source.getHeight();
+		int minX = width;
+		int minY = height;
+		int maxX = -1;
+		int maxY = -1;
+
+		for (int py = 0; py < height; py++) {
+			for (int px = 0; px < width; px++) {
+				int alpha = (source.getRGB(px, py) >>> 24) & 0xFF;
+				if (alpha == 0) {
+					continue;
+				}
+				if (px < minX) minX = px;
+				if (py < minY) minY = py;
+				if (px > maxX) maxX = px;
+				if (py > maxY) maxY = py;
+			}
+		}
+
+		if (maxX < minX || maxY < minY) {
+			return source;
+		}
+		return source.getSubimage(minX, minY, maxX - minX + 1, maxY - minY + 1);
 	}
 
 	// =========================================================

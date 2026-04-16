@@ -176,6 +176,14 @@ public final class SaveManager {
 		json.append("  \"hasMarkOfHero\": ").append(data.isHasMarkOfHero()).append(",\n");
 		json.append("  \"lastSavedAtMillis\": ").append(data.getLastSavedAtMillis()).append(",\n");
 
+		json.append("  \"inventoryItems\": [");
+		List<String> inventoryItems = data.getInventoryItemIds();
+		for (int i = 0; i < inventoryItems.size(); i++) {
+			json.append("\"").append(escape(inventoryItems.get(i))).append("\"");
+			if (i < inventoryItems.size() - 1) json.append(", ");
+		}
+		json.append("],\n");
+
 		json.append("  \"collectedItems\": [");
 		List<String> items = data.getCollectedItemIds();
 		for (int i = 0; i < items.size(); i++) {
@@ -236,6 +244,7 @@ public final class SaveManager {
 		boolean intangible  = readBoolField(raw, "hasIntangible", false);
 		boolean mark        = readBoolField(raw, "hasMarkOfHero", false);
 		long lastSavedAtMillis = Math.max(0L, readLongField(raw, "lastSavedAtMillis", 0L));
+		List<String> inventoryItems = readStringArrayField(raw, "inventoryItems");
 		List<String> items  = readStringArrayField(raw, "collectedItems");
 		List<String> flags  = readStringArrayField(raw, "storyFlags");
 
@@ -243,7 +252,8 @@ public final class SaveManager {
 			+ " version=" + version + " room=" + roomId + " hp=" + hp);
 
 		return new SaveData(savedSlot, hp, maxHp, coins, healingBread, roomId, spawnX, spawnY,
-		                    halfDmg, reflect, intangible, mark, items, flags, lastSavedAtMillis);
+		                    halfDmg, reflect, intangible, mark,
+		                    inventoryItems, items, flags, lastSavedAtMillis);
 	}
 
 	private static String readSaveText(Path path) throws IOException {
