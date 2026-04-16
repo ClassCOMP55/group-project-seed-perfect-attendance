@@ -508,11 +508,15 @@ public class TileMap {
         floorRect(7, 9, 21, 21);      // remove requested barriers at (21,7-9)
         floorRect(8, 9, 22, 22);      // remove requested barriers at (22,8-9)
         floorRect(9, 9, 23, 23);      // remove requested barrier at (23,9)
+        floorRect(4, 4, 14, 14);      // remove requested barrier at (14,4)
 
         wallRect(0, 0, 9, 17);
         wallRect(6, 6, 15, 17);
         wallRect(5, 7, 0, 0);
         wallRect(11, 11, 0, 0);
+        wallRect(1, 1, 7, 7);         // add requested barrier at (7,1)
+        wallRect(3, 3, 9, 9);         // add requested barrier at (9,3)
+        wallRect(0, 0, 21, 21);       // add requested barrier at (21,0)
 
         floorRect(0, 0, 18, 21);
         floorRect(2, 2, 5, 6);

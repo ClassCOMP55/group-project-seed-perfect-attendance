@@ -229,6 +229,7 @@ public class WorldMap {
     /** Persistent one-time interactables that need save-state reapplication. */
     private Chest pickaxeChest;
     private OreNode oreNode;
+    private DrawbridgeLever drawbridgeLever;
     private final List<HeroThicket> heroThickets = new ArrayList<>();
 
     // =========================================================
@@ -352,6 +353,7 @@ public class WorldMap {
     private static final String A2_HERO_THICKET_FLAG = "hero_thicket_a2_cleared";
     private static final String A3_HERO_THICKET_FLAG = "hero_thicket_a3_cleared";
     private static final String B3_HERO_THICKET_FLAG = "hero_thicket_b3_cleared";
+    private static final String DRAWBRIDGE_REPAIRED_FLAG = "drawbridge_c1_repaired";
 
     private static final int[][] A2_HERO_THICKET_TILES = {
         {11, 9}, {12, 9}, {13, 9},
@@ -629,12 +631,12 @@ public class WorldMap {
     private void installDrawbridgeLever() {
         Room c1 = overworldGrid[2][0];
         if (c1 == null) return;
-        DrawbridgeLever lever = new DrawbridgeLever(
+        drawbridgeLever = new DrawbridgeLever(
             DRAWBRIDGE_LEVER_X, DRAWBRIDGE_LEVER_Y,
             c1.getTileMap(), this
         );
-        lever.setDialogue(dialogue);
-        c1.addObject(lever);
+        drawbridgeLever.setDialogue(dialogue);
+        c1.addObject(drawbridgeLever);
     }
 
     /** Seeds live overworld enemy encounters into the currently-walkable rooms. */
@@ -1125,6 +1127,19 @@ public class WorldMap {
         return flag != null && storyFlags.contains(flag.trim());
     }
 
+    /** Marks the C1 drawbridge as repaired and swaps the room to its completed art/state. */
+    public void markDrawbridgeRepaired() {
+        addStoryFlag(DRAWBRIDGE_REPAIRED_FLAG);
+        openExit("C1", Direction.UP);
+        Room c1 = overworldGrid[2][0];
+        if (c1 != null) {
+            c1.replaceBackgroundImage(
+                "assets/visuals/overworld rooms/c1.png",
+                "assets/visuals/overworld rooms/C1.png"
+            );
+        }
+    }
+
     private void syncPersistentWorldObjects() {
         if (pickaxeChest != null && hasCollectedItem(pickaxeChest.getChestId())) {
             pickaxeChest.forceOpen();
@@ -1136,6 +1151,16 @@ public class WorldMap {
             if (thicket != null) {
                 thicket.syncPersistentState();
             }
+        }
+        Room c1 = overworldGrid[2][0];
+        boolean bridgeRepaired = hasStoryFlag(DRAWBRIDGE_REPAIRED_FLAG)
+            || (c1 != null && c1.getExitAt(Direction.UP));
+        if (bridgeRepaired) {
+            addStoryFlag(DRAWBRIDGE_REPAIRED_FLAG);
+            if (drawbridgeLever != null) {
+                drawbridgeLever.forceFixed();
+            }
+            markDrawbridgeRepaired();
         }
     }
 

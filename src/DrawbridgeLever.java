@@ -188,18 +188,8 @@ public class DrawbridgeLever extends WorldObject {
         }
 
         p.consumeInventoryItem(lever);
-        isFixed = true;
-        if (leverSprite == null) {
-            placeholder.setFillColor(LEVER_FIXED_COLOR);
-        }
-
-        for (int col = BRIDGE_START_COL; col < BRIDGE_START_COL + BRIDGE_WIDTH; col++) {
-            for (int row = BRIDGE_START_ROW; row < BRIDGE_START_ROW + BRIDGE_HEIGHT; row++) {
-                roomTileMap.setTileType(col, row, Tile.TileType.BRIDGE, "assets/tile_floor.png");
-            }
-        }
-
-        worldMap.openExit("C1", Direction.UP);
+        forceFixed();
+        worldMap.markDrawbridgeRepaired();
 
         if (dialogue != null && !dialogue.isOpen()) {
             GamePlayState.setCurrent(GamePlayState.DIALOGUE);
@@ -240,11 +230,29 @@ public class DrawbridgeLever extends WorldObject {
 
     public void setDialogue(Dialogue d) { this.dialogue = d; }
 
+    /** Applies the permanent repaired state without consuming inventory or opening dialogue. */
+    public void forceFixed() {
+        if (isFixed) return;
+        isFixed = true;
+        if (leverSprite == null) {
+            placeholder.setFillColor(LEVER_FIXED_COLOR);
+        }
+        applyBridgeTiles();
+    }
+
     // =========================================================
     // GETTERS
     // =========================================================
 
     public boolean isFixed() { return isFixed; }
+
+    private void applyBridgeTiles() {
+        for (int col = BRIDGE_START_COL; col < BRIDGE_START_COL + BRIDGE_WIDTH; col++) {
+            for (int row = BRIDGE_START_ROW; row < BRIDGE_START_ROW + BRIDGE_HEIGHT; row++) {
+                roomTileMap.setTileType(col, row, Tile.TileType.BRIDGE, "assets/tile_floor.png");
+            }
+        }
+    }
 
     private GImage loadSprite(String path) {
         try {
