@@ -165,7 +165,7 @@ public class ArmorEnemy extends Enemy {
         if (target == null) return;
         if (attackCooldownTicks > 0) return;
 
-        if (hitbox.overlaps(target.getHitbox())) {
+        if (hurtbox.overlapsHurtbox(target.getHurtbox())) {
             target.takeDamage(contactDamage);
             GameSFX.play(GameSFX.SFX.ENEMY_ATTACK);
             attackCooldownTicks = 30;

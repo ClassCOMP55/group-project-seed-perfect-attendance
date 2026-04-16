@@ -156,7 +156,7 @@ public class SwordSwing {
                 // Dying enemies stay "alive" until their death animation finishes so the
                 // room can clean them up, but they should not keep taking sword hits.
                 if (e.getHealth() > 0
-                        && hitbox.overlaps(e.getHitbox())
+                        && hitbox.overlapsHurtbox(e.getHurtbox())
                         && !alreadyHit.contains(e)) {
                     e.takeDamage(1, this.facing);
                     alreadyHit.add(e);

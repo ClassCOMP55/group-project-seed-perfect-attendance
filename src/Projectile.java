@@ -100,6 +100,10 @@ public class Projectile extends Entity {
             PROJ_HITBOX_SIZE
         );
 
+        // Projectile hurtbox is a small circle (radius 7) matching the visual ball size.
+        // Overrides the default 20×22 ellipse set by Entity's constructor.
+        this.hurtbox = new Hurtbox(x, y, 7.0, 7.0);
+
         this.ballVisual = new GOval(
             x - PROJ_VISUAL_HALF,
             y - PROJ_VISUAL_HALF,
@@ -129,6 +133,7 @@ public class Projectile extends Entity {
         moveWithCollision(dx, dy);
 
         hitbox.updatePosition(x - PROJ_HITBOX_HALF, y - PROJ_HITBOX_HALF);
+        hurtbox.updatePosition(x, y);
         syncBallVisual();
         recordTrailPoint(x, y);
     }
@@ -224,7 +229,7 @@ public class Projectile extends Entity {
             return false;
         }
 
-        if (hitbox.overlaps(target.getHitbox())) {
+        if (hitbox.overlapsHurtbox(target.getHurtbox())) {
             target.takeDamage(1);
             takeDamage(health);
             return true;

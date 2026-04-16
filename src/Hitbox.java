@@ -88,4 +88,15 @@ public class Hitbox {
     public double[] getCenter() {
         return new double[]{ x + width / 2.0, y + height / 2.0 };
     }
+
+    /**
+     * Returns true if this hitbox (rectangle) overlaps the given hurtbox (ellipse).
+     * Delegates to Hurtbox.overlapsHitbox() so the ellipse math stays in one place.
+     *
+     * @param h The hurtbox to test against
+     * @return true if they overlap
+     */
+    public boolean overlapsHurtbox(Hurtbox h) {
+        return h.overlapsHitbox(this);
+    }
 }

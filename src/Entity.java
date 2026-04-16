@@ -42,6 +42,14 @@ public abstract class Entity {
     private static final int HITBOX_SIZE = 48;
     private static final int HITBOX_HALF = HITBOX_SIZE / 2;  // 24
 
+    /**
+     * Default hurtbox radii for damage detection.
+     * Slightly smaller than the 48×48 hitbox so the oval fits humanoid
+     * sprite bodies — dead corner pixels no longer count as hittable area.
+     */
+    private static final double HURTBOX_RX = 20.0;
+    private static final double HURTBOX_RY = 22.0;
+
     // ==========================================================
     // FIELDS
     // ==========================================================
@@ -61,6 +69,13 @@ public abstract class Entity {
 
     /** Axis-aligned bounding box. Top-left = (x - HITBOX_HALF, y - HITBOX_HALF). */
     protected Hitbox hitbox;
+
+    /**
+     * Ellipse-shaped damage zone centered on (x, y).
+     * Used for all damage detection (sword swings, projectiles, contact damage).
+     * Separate from hitbox so solid collision and damage detection are independent.
+     */
+    protected Hurtbox hurtbox;
 
     /** Sprite animator for directional walk cycles. */
     protected SpriteAnimator animator;
@@ -127,6 +142,9 @@ public abstract class Entity {
             HITBOX_SIZE,
             HITBOX_SIZE
         );
+
+        // Hurtbox: ellipse centered on (x, y), used for all damage detection
+        this.hurtbox = new Hurtbox(x, y, HURTBOX_RX, HURTBOX_RY);
     }
 
     /**
@@ -297,6 +315,7 @@ public abstract class Entity {
             x += dx;
             y += dy;
             hitbox.updatePosition(x - HITBOX_HALF, y - HITBOX_HALF);
+            hurtbox.updatePosition(x, y);
             syncVisualPosition();
             if (dx != 0 || dy != 0) {
                 setFacing(Direction.fromDelta(dx, dy));
@@ -353,8 +372,9 @@ public abstract class Entity {
 
         clampToTileBoundsIfNeeded();
 
-        // Sync hitbox top-left corner to new center
+        // Sync hitbox and hurtbox to new center
         hitbox.updatePosition(x - HITBOX_HALF, y - HITBOX_HALF);
+        hurtbox.updatePosition(x, y);
 
         // Sync sprite and animator position to new center
         syncVisualPosition();
@@ -464,6 +484,7 @@ public abstract class Entity {
         y += dy;
         clampToTileBoundsIfNeeded();
         hitbox.updatePosition(x - HITBOX_HALF, y - HITBOX_HALF);
+        hurtbox.updatePosition(x, y);
         syncVisualPosition();
     }
 
@@ -482,8 +503,11 @@ public abstract class Entity {
     /** @return direction this entity is currently facing */
     public Direction getFacing()    { return facing; }
 
-    /** @return this entity's axis-aligned bounding hitbox */
+    /** @return this entity's axis-aligned bounding hitbox (used for solid collision) */
     public Hitbox getHitbox()       { return hitbox; }
+
+    /** @return this entity's ellipse-shaped hurtbox (used for damage detection) */
+    public Hurtbox getHurtbox()     { return hurtbox; }
 
     /** @return movement speed in pixels per second */
     public double getSpeed()        { return speed; }
