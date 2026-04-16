@@ -344,6 +344,17 @@ public class TileMap {
         }
     }
 
+    /** Fills a rectangular region with FLOOR tiles. Used to reopen selected tiles after bulk wall placement. */
+    private void floorRect(int rowStart, int rowEnd, int colStart, int colEnd) {
+        for (int r = rowStart; r <= rowEnd; r++) {
+            for (int c = colStart; c <= colEnd; c++) {
+                if (r >= 0 && r < rows && c >= 0 && c < cols) {
+                    tiles[r][c] = new Tile(Tile.TileType.FLOOR, c, r, "assets/tile_floor.png");
+                }
+            }
+        }
+    }
+
     // =========================================================
     // OVERWORLD ROOM LAYOUTS — one method per room
     // Convention: start with generateAllFloor(), then apply border walls
@@ -358,7 +369,7 @@ public class TileMap {
         // =====================================================================
         // MARKET ROOM — wall/floor layout
         // =====================================================================
-        // Exits: NORTH at cols 19-20 (row 0 gap) | SOUTH at cols 19-20 (row 14 gap)
+        // Exits: NORTH at cols 19-20 (row 0 gap) | SOUTH visuals align at cols 19-20, but blocked here
         //        EAST  at rows  4-5  (col 25 gap)
         // =====================================================================
         generateAllFloor();
@@ -372,6 +383,7 @@ public class TileMap {
         wallRect(1, 1, 21, 25);
 
         wallRowGap(14, 19, 20);
+        wallRect(13, 14, 19, 20);       // barrier tiles at the south exit
     }
 
     private void generateB1() {
@@ -385,15 +397,33 @@ public class TileMap {
 
     private void generateC1() {
         // Bridge / River — exits WEST (left) and NORTH (top)
-        // River runs rows 2-5; bridge passage open at cols 10-14
-        // West exit below the river (rows 5-11); north exit accessible via bridge
+        // River cuts diagonally from upper-left to lower-right.
+        // The center bridge is broken until the lever repairs the blocked bridge strip.
         generateAllFloor();
         wallRow(14);                  // south: no exit
         wallCol(25);                  // east:  no exit
         wallRowGap(0, 9, 17);         // north: wide exit gap (reachable via bridge)
         wallColGap(0, 5, 11);         // west:  wide exit gap (rows 5-11, below river)
-        wallRect(2, 5, 3, 9);         // river left  of bridge (cols 3-9)
-        wallRect(2, 5, 15, 23);       // river right of bridge (cols 15-23)
+        floorRect(0, 0, 20, 21);      // reopen requested north-edge tiles
+
+        // --- river / broken bridge ---
+        wallRect(1, 1, 1, 6);         // upper-left river mouth
+        wallRect(2, 3, 2, 8);         // upper-left diagonal run
+        wallRect(4, 4, 5, 10);        // channel approaching the bridge
+        wallRect(5, 6, 9, 11);        // left bank beside the bridge
+        wallRect(4, 7, 12, 13);       // broken bridge gap (repaired by DrawbridgeLever)
+        wallRect(4, 5, 14, 18);       // right bank beside the bridge
+        wallRect(6, 7, 18, 23);       // right-hand river channel
+        wallRect(8, 9, 21, 24);       // lower-right bend toward the east wall
+
+        floorRect(2, 3, 1, 4);        // reopen the upper-left approach
+        floorRect(3, 3, 2, 7);        // narrow row-3 river coverage
+        floorRect(4, 4, 5, 8);        // narrow the left bank near the bridge
+        floorRect(5, 6, 9, 9);        // remove extra left-bank tiles
+        floorRect(6, 6, 10, 10);      // remove the single extra river tile
+        floorRect(6, 7, 12, 13);      // lower half of the broken bridge stays open
+        floorRect(4, 4, 15, 18);      // narrow the right bank at row 4
+        floorRect(5, 5, 16, 18);      // narrow the right bank at row 5
     }
 
     private void generateA2() {
@@ -410,11 +440,17 @@ public class TileMap {
         wallRect(1, 9, 11, 13);       // cols 11-13, rows 1-9
         wallRect(1, 8, 10, 10);       // col 10, rows 1-8
         wallRect(2, 7, 9, 9);         // col 9, rows 2-7
+        wallRect(10, 10, 11, 13);     // barrier row beneath the central tree cluster
 
         // --- bushes ---
-        wallRect(11, 12, 13, 13);     // col 13, rows 11-12 (rows 10 and 13 walkable)
+        wallRect(11, 13, 13, 13);     // col 13, rows 11-13 (row 10 walkable)
         wallRect(11, 13, 11, 12);     // cols 11-12, rows 11-13
         wallRect(12, 13, 10, 10);     // col 10, rows 12-13
+
+        floorRect(0, 0, 15, 18);      // reopen the top edge near the northeast path
+        floorRect(0, 0, 21, 25);      // reopen the rest of the top-right edge
+        floorRect(0, 3, 25, 25);      // reopen the upper east edge
+        floorRect(6, 13, 25, 25);     // reopen the lower east edge
     }
 
     private void generateA3() {
@@ -424,6 +460,30 @@ public class TileMap {
         wallCol(0);                   // west:  no exit
         wallRowGap(14, 19, 20);       // south: exit gap cols 19-20 (aligns with A2 north)
         wallColGap(25, 4, 5);         // east:  exit gap rows 4-5
+
+        // --- trees / foliage ---
+        // Approximate the diagonal tree line without sealing the east or south approach lanes.
+        wallRect(1, 2, 18, 21);       // top-right treetops
+        wallRect(3, 4, 14, 21);       // upper canopy band
+        wallRect(5, 6, 11, 19);       // middle canopy band
+        wallRect(7, 9, 10, 16);       // lower-left canopy band
+        wallRect(10, 13, 10, 13);     // lower-left shrubs / trees near the south wall
+
+        floorRect(9, 12, 13, 13);     // remove the vertical barrier column
+        floorRect(9, 9, 13, 16);      // remove the horizontal row-9 barrier run
+        floorRect(1, 3, 25, 25);      // reopen the upper east edge
+        floorRect(6, 14, 25, 25);     // reopen the lower east edge
+        floorRect(14, 14, 15, 18);    // reopen the left side of the south edge
+        floorRect(14, 14, 21, 25);    // reopen the right side of the south edge
+
+        wallRect(13, 13, 14, 14);     // add the lower-right tree barrier
+        wallRect(7, 7, 17, 17);       // extend the mid tree line
+        wallRect(5, 5, 20, 20);       // extend the east-side canopy downward
+        wallRect(1, 2, 17, 17);       // extend the top canopy leftward
+        wallRect(4, 4, 12, 13);       // fill the row-4 canopy gap
+        wallRect(5, 6, 10, 10);       // add the far-left canopy edge
+        wallRect(7, 7, 9, 9);         // add the lower-left edge tile
+        wallRect(8, 8, 9, 9);         // add the lower-left corner barrier
     }
 
     private void generateB2() {
@@ -433,7 +493,15 @@ public class TileMap {
         wallRowGap(14, 9, 17);        // south: wide exit gap
         wallRowGap(0, 9, 17);         // north: wide exit gap
         wallColGap(0, 4, 10);         // west:  wide exit gap
-        // No interior walls
+
+        // --- rocks ---
+        wallRect(9, 10, 2, 3);        // upper-left rock cluster
+        wallRect(11, 11, 5, 6);       // lower-right rock cluster
+
+        floorRect(0, 3, 0, 0);        // reopen the upper west edge
+        floorRect(0, 0, 0, 8);        // reopen the northwest top edge
+        floorRect(0, 0, 18, 24);      // reopen the northeast top edge
+        floorRect(11, 13, 0, 0);      // reopen the lower west edge
     }
 
     private void generateB3() {
@@ -443,7 +511,18 @@ public class TileMap {
         wallCol(25);                  // east:  no exit
         wallRowGap(14, 9, 17);        // south: wide exit gap
         wallColGap(0, 4, 10);         // west:  wide exit gap
-        // No interior walls
+
+        // --- trees / hedges ---
+        wallRect(1, 4, 11, 14);       // top-left grove
+        wallRect(5, 7, 13, 14);       // small center-left shrub column
+        wallRect(1, 8, 22, 24);       // right-side tree wall
+        wallRect(2, 6, 21, 21);       // left edge of the right-side canopy
+        wallRect(8, 10, 12, 24);      // bottom tree line
+
+        floorRect(1, 3, 0, 0);        // reopen the upper west edge
+        floorRect(11, 14, 0, 0);      // reopen the lower west edge
+        floorRect(14, 14, 0, 8);      // reopen the southwest edge
+        floorRect(14, 14, 18, 24);    // reopen the southeast edge
     }
 
     private void generateC2() {
@@ -453,6 +532,9 @@ public class TileMap {
         wallCol(25);                  // east: no exit
         wallRowGap(14, 9, 17);        // south: wide exit gap
         wallRowGap(0, 9, 17);         // north: wide exit gap
+        floorRect(0, 0, 5, 6);        // reopen requested north-edge tiles
+        floorRect(4, 4, 19, 19);      // explicit requested interior tile
+        floorRect(14, 14, 19, 20);    // reopen requested south-edge tiles
         // No interior walls
     }
 
@@ -463,6 +545,7 @@ public class TileMap {
         wallCol(0);                   // west:  no exit
         wallCol(25);                  // east:  no exit
         wallRowGap(14, 9, 17);        // south: wide exit gap (back to C2)
+        floorRect(14, 14, 5, 6);      // reopen extra south-edge tiles
         // No interior walls
     }
 

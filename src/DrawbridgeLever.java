@@ -80,13 +80,13 @@ public class DrawbridgeLever extends WorldObject {
     /** itemId that must be in the player's inventory to use this lever. */
     public static final String FIXED_LEVER_ID = "fixed_lever";
 
-    /** Bridge tile strip: top-left column in the C1 TileMap (centered horizontal span). */
-    private static final int BRIDGE_START_COL = 10;
-    /** Bridge tile strip: top row. */
-    private static final int BRIDGE_START_ROW = 0;
-    /** Bridge tile strip: width in tiles. */
-    private static final int BRIDGE_WIDTH = 6;
-    /** Bridge tile strip: height in tiles. */
+    /** Bridge tile strip: left column of the broken vertical bridge in C1. */
+    private static final int BRIDGE_START_COL = 12;
+    /** Bridge tile strip: top row of the blocked bridge section. */
+    private static final int BRIDGE_START_ROW = 4;
+    /** Bridge tile strip: bridge width in tiles. */
+    private static final int BRIDGE_WIDTH = 2;
+    /** Bridge tile strip: bridge height in tiles. */
     private static final int BRIDGE_HEIGHT = 2;
 
     // =========================================================
