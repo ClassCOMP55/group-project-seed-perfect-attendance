@@ -263,6 +263,7 @@ public class GameplayPane extends GraphicsPane {
 
         // --- draw the player on top of the room ---
         player.draw(canvas);
+        bringActiveRoomForegroundToFront();
 
         // --- player HUD ---
         showPlayerHUD(player);
@@ -402,6 +403,7 @@ public class GameplayPane extends GraphicsPane {
         player.setPosition(PLAYER_START_X, PLAYER_START_Y);
         player.setSpawnPosition(PLAYER_START_X, PLAYER_START_Y);
         player.draw(canvas);
+        bringActiveRoomForegroundToFront();
 
         syncActiveRoomMusic();
         updatePlayerHUD(player);
@@ -448,6 +450,7 @@ public class GameplayPane extends GraphicsPane {
             deathDelayTicks--;
             player.tickDeathAnimation(); // swap to static frame once GIF cycle ends
             player.draw(canvas);
+            bringActiveRoomForegroundToFront();
             // Freeze room logic during the death pause so enemies, hazards, and stale
             // combat hitboxes cannot keep advancing into the respawn.
             if (debugOverlayOn) drawDebugOverlay(canvas, player);
@@ -456,6 +459,7 @@ public class GameplayPane extends GraphicsPane {
                 player.removeSpriteFromCanvas(canvas); // clean up death visual
                 player.resetDeathState();
                 player.draw(canvas); // draw fresh idle sprite at spawn
+                bringActiveRoomForegroundToFront();
             }
             updatePlayerHUD(player);
             bringControlsCardToFront();
@@ -485,6 +489,7 @@ public class GameplayPane extends GraphicsPane {
         // --- world update (always runs; WorldMap handles state internally) ---
         worldMap.update(dt, player);
         syncActiveRoomMusic();
+        bringActiveRoomForegroundToFront();
 
         // Enemy contact damage lands inside Room.update(), so re-check after the room tick too.
         startDeathSequenceIfNeeded(player, canvas);
@@ -538,6 +543,7 @@ public class GameplayPane extends GraphicsPane {
         player.triggerDeathAnimation();
         deathDelayTicks = DEATH_DELAY;
         player.draw(canvas);
+        bringActiveRoomForegroundToFront();
     }
 
     private void syncActiveRoomMusic() {
@@ -877,6 +883,16 @@ public class GameplayPane extends GraphicsPane {
             if (obj != null) {
                 obj.sendToFront();
             }
+        }
+    }
+
+    private void bringActiveRoomForegroundToFront() {
+        if (worldMap == null) {
+            return;
+        }
+        Room activeRoom = worldMap.getActiveRoom();
+        if (activeRoom != null) {
+            activeRoom.bringForegroundToFront();
         }
     }
 

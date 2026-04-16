@@ -182,6 +182,8 @@ public class Room {
 
     /** Background image drawn behind all tiles. Null for dummy rooms. */
     private GImage backgroundImage;
+    /** Optional room foreground image drawn above world actors (e.g. canopy shadows). */
+    private GImage foregroundImage;
     /** Whether the TileMap visuals should be drawn for this room. */
     private boolean drawTileMap = true;
 
@@ -310,6 +312,7 @@ public class Room {
             "assets/visuals/overworld rooms/A2.png",
             "assets/visuals/overworld rooms/a2_open.png"
         );
+        setForegroundImage("assets/visuals/overworld rooms/ow_shadows.png");
         dummyLabel = null;
     }
 
@@ -321,6 +324,7 @@ public class Room {
             "assets/visuals/overworld rooms/A3.png",
             "assets/visuals/overworld rooms/a3_open.png"
         );
+        setForegroundImage("assets/visuals/overworld rooms/ow_shadows.png");
         dummyLabel = null;
     }
 
@@ -331,6 +335,7 @@ public class Room {
             "assets/visuals/overworld rooms/B2.png",
             "assets/visuals/overworld rooms/b2.png"
         );
+        setForegroundImage("assets/visuals/overworld rooms/ow_shadows.png");
         dummyLabel = null;
     }
 
@@ -342,6 +347,7 @@ public class Room {
             "assets/visuals/overworld rooms/B3.png",
             "assets/visuals/overworld rooms/b3_open.png"
         );
+        setForegroundImage("assets/visuals/overworld rooms/ow_shadows.png");
         dummyLabel = null;
     }
 
@@ -353,6 +359,7 @@ public class Room {
             "assets/visuals/overworld rooms/C1.png",
             "assets/visuals/overworld rooms/c1.png"
         );
+        setForegroundImage("assets/visuals/overworld rooms/ow_shadows.png");
         dummyLabel = null;
     }
 
@@ -363,6 +370,7 @@ public class Room {
             "assets/visuals/overworld rooms/C2.png",
             "assets/visuals/overworld rooms/c2.png"
         );
+        setForegroundImage("assets/visuals/overworld rooms/ow_shadows.png");
         dummyLabel = null;
     }
 
@@ -396,6 +404,22 @@ public class Room {
 
         // Avoid hard-crashing if assets are missing in this environment.
         drawTileMap = true;
+    }
+
+    /** Attempts to load a full-screen foreground overlay for canopy/shadow coverage. */
+    private void setForegroundImage(String... candidatePaths) {
+        foregroundImage = null;
+        for (String path : candidatePaths) {
+            try {
+                GImage candidate = new GImage(path);
+                candidate.setSize(1280, 720);
+                candidate.setLocation(0, 0);
+                foregroundImage = candidate;
+                return;
+            } catch (RuntimeException ignored) {
+                // Keep trying candidate paths until one loads.
+            }
+        }
     }
 
     /**
@@ -504,6 +528,11 @@ public class Room {
             canvas.add(dummyLabel);
         }
 
+        if (foregroundImage != null) {
+            foregroundImage.setLocation(0, 0);
+            canvas.add(foregroundImage);
+        }
+
         initialized = true;
     }
 
@@ -555,6 +584,10 @@ public class Room {
         // --- room ID label ---
         if (dummyLabel != null) {
             canvas.remove(dummyLabel);
+        }
+
+        if (foregroundImage != null) {
+            canvas.remove(foregroundImage);
         }
 
         initialized = false;
@@ -1018,6 +1051,10 @@ public class Room {
             backgroundImage.move(panX, panY);
         }
 
+        if (foregroundImage != null) {
+            foregroundImage.move(panX, panY);
+        }
+
         // --- tiles ---
         if (drawTileMap) {
             tileMap.panAll(panX, panY);
@@ -1099,6 +1136,13 @@ public class Room {
 
     /** Adds a WorldObject (interactable) to this room. */
     public void addObject(WorldObject o)  { objects.add(o); }
+
+    /** Keeps any room foreground overlay above actors after they redraw. */
+    public void bringForegroundToFront() {
+        if (foregroundImage != null) {
+            foregroundImage.sendToFront();
+        }
+    }
 
     /** Adds a ThicketGate to this room's gate list. */
     public void addGate(ThicketGate gate) { gates.add(gate); }

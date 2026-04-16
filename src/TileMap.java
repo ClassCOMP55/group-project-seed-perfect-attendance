@@ -472,6 +472,7 @@ public class TileMap {
         floorRect(6, 6, 2, 4);
         floorRect(5, 5, 9, 9);
         floorRect(6, 6, 1, 1);
+        floorRect(7, 7, 16, 18);      // remove requested barriers at (16-18,7)
     }
 
     private void generateC1() {
