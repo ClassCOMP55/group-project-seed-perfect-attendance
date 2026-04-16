@@ -284,9 +284,9 @@ public class Room {
         this.tileMap = TileMap.createA1();
         this.drawTileMap = false;
         setBackgroundImage(
+            "assets/visuals/overworld rooms/a1_closed.png",
             "assets/visuals/overworld rooms/A1.png",
-            "assets/visuals/overworld rooms/a1.png",
-            "assets/visuals/overworld rooms/a1_closed.png"
+            "assets/visuals/overworld rooms/a1.png"
         );
         dummyLabel = null;
     }
@@ -306,9 +306,9 @@ public class Room {
         this.tileMap = TileMap.createA2();
         this.drawTileMap = false;
         setBackgroundImage(
+            "assets/visuals/overworld rooms/a2_blocked.png",
             "assets/visuals/overworld rooms/A2.png",
-            "assets/visuals/overworld rooms/a2_open.png",
-            "assets/visuals/overworld rooms/a2_blocked.png"
+            "assets/visuals/overworld rooms/a2_open.png"
         );
         dummyLabel = null;
     }
@@ -317,9 +317,9 @@ public class Room {
         this.tileMap = TileMap.createA3();
         this.drawTileMap = false;
         setBackgroundImage(
+            "assets/visuals/overworld rooms/a3_blocked.png",
             "assets/visuals/overworld rooms/A3.png",
-            "assets/visuals/overworld rooms/a3_open.png",
-            "assets/visuals/overworld rooms/a3_blocked.png"
+            "assets/visuals/overworld rooms/a3_open.png"
         );
         dummyLabel = null;
     }
@@ -338,9 +338,9 @@ public class Room {
         this.tileMap = TileMap.createB3();
         this.drawTileMap = false;
         setBackgroundImage(
+            "assets/visuals/overworld rooms/b3_blocked.png",
             "assets/visuals/overworld rooms/B3.png",
-            "assets/visuals/overworld rooms/b3_open.png",
-            "assets/visuals/overworld rooms/b3_blocked.png"
+            "assets/visuals/overworld rooms/b3_open.png"
         );
         dummyLabel = null;
     }
@@ -349,9 +349,9 @@ public class Room {
         this.tileMap = TileMap.createC1();
         this.drawTileMap = false;
         setBackgroundImage(
+            "assets/visuals/overworld rooms/c1_bridge_down.png",
             "assets/visuals/overworld rooms/C1.png",
-            "assets/visuals/overworld rooms/c1.png",
-            "assets/visuals/overworld rooms/c1_bridge_down.png"
+            "assets/visuals/overworld rooms/c1.png"
         );
         dummyLabel = null;
     }
