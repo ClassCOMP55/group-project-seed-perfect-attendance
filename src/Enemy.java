@@ -53,7 +53,9 @@ public class Enemy extends Entity {
 
     /** Duration in seconds for each one-shot animation. Set by subclass. */
     protected double attackAnimDuration = 0.5;
-    protected double damageAnimDuration = 0.56;
+    // Stunlock fix: keep this below the player's attack cooldown (~0.5s / 30 ticks).
+    // Lower = enemy recovers faster and gets more time to fight back between hits.
+    protected double damageAnimDuration = 0.3;
     protected double deathAnimDuration  = 1.40;
 
     /**
@@ -647,8 +649,13 @@ public class Enemy extends Entity {
             animTimer = deathAnimDuration + DEATH_FROZEN_LINGER;
             triggerDeathAnimation();
         } else if (animState != AnimState.DEATH) {
-            setAnimState(AnimState.DAMAGE);
-            animTimer = damageAnimDuration;
+            // Stunlock fix: only enter/reset the hurt animation if not already in it.
+            // This prevents rapid hits from extending the freeze time indefinitely.
+            // The enemy still takes full damage — they just recover on their original schedule.
+            if (animState != AnimState.DAMAGE) {
+                setAnimState(AnimState.DAMAGE);
+                animTimer = damageAnimDuration;
+            }
             hitFlashTicks = HIT_FLASH_DURATION;
         }
     }
