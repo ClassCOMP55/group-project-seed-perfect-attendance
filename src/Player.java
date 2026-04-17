@@ -57,7 +57,7 @@ public class Player extends Entity {
      * Set equal to full cooldown on each activation; decrements every tick alongside
      * {@link #intangibleActiveTicks}, so the ability stays locked out until this reaches 0.
      */
-    private static final int INTANGIBLE_COOLDOWN = 3750;
+    private static final int INTANGIBLE_COOLDOWN = 938; // 938 ticks = 15.6333 seconds at 60fps
 
     // ==========================================================
     // FIELDS — identity
