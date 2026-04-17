@@ -103,6 +103,9 @@ public class GameplayPane extends GraphicsPane {
      */
     private WorldMap worldMap;
 
+    /** HUD overlay — draws hearts, coins, relics, and ability buttons using art assets. */
+    private final HUDoverlay hud = new HUDoverlay();
+
     /** Prevents double-wiring input keys across multiple showContent() calls. */
     private boolean inputsWired;
 
@@ -266,7 +269,8 @@ public class GameplayPane extends GraphicsPane {
         bringActiveRoomForegroundToFront();
 
         // --- player HUD ---
-        showPlayerHUD(player);
+        // showPlayerHUD(player); // OLD: temp HUD from GraphicsPane — kept as fallback
+        hud.showAll(this, buildHudSnapshot(player));
         if (controlsCardVisible) {
             showControlsCard();
         }
@@ -298,7 +302,8 @@ public class GameplayPane extends GraphicsPane {
             player.removeSpriteFromCanvas(canvas);
         }
 
-        hidePlayerHUD();
+        // hidePlayerHUD(); // OLD: temp HUD from GraphicsPane — kept as fallback
+        hud.hideAll(this);
         clearControlsCardVisuals();
         clearCoinGainPopup();
         lastObservedCoins = -1;
@@ -406,7 +411,10 @@ public class GameplayPane extends GraphicsPane {
         bringActiveRoomForegroundToFront();
 
         syncActiveRoomMusic();
-        updatePlayerHUD(player);
+        // updatePlayerHUD(player); // OLD: temp HUD from GraphicsPane — kept as fallback
+        hud.updateHearts(this, player.getHP());
+        hud.updateCoins(this, player.getCoins());
+        hud.updateIntangibleAbilityButton(this, player.getIntangibleCooldownTicks() > 0);
         bringControlsCardToFront();
 
         if (debugOverlayOn) {
@@ -461,7 +469,10 @@ public class GameplayPane extends GraphicsPane {
                 player.draw(canvas); // draw fresh idle sprite at spawn
                 bringActiveRoomForegroundToFront();
             }
-            updatePlayerHUD(player);
+            // updatePlayerHUD(player); // OLD: temp HUD from GraphicsPane — kept as fallback
+            hud.updateHearts(this, player.getHP());
+            hud.updateCoins(this, player.getCoins());
+            hud.updateIntangibleAbilityButton(this, player.getIntangibleCooldownTicks() > 0);
             bringControlsCardToFront();
             updateCoinGainFeedback(player);
             return; // no player input while dying
@@ -499,7 +510,10 @@ public class GameplayPane extends GraphicsPane {
             drawDebugOverlay(canvas, player);
         }
 
-        updatePlayerHUD(player);
+        // updatePlayerHUD(player); // OLD: temp HUD from GraphicsPane — kept as fallback
+        hud.updateHearts(this, player.getHP());
+        hud.updateCoins(this, player.getCoins());
+        hud.updateIntangibleAbilityButton(this, player.getIntangibleCooldownTicks() > 0);
         bringControlsCardToFront();
         updateCoinGainFeedback(player);
     }
@@ -980,6 +994,24 @@ public class GameplayPane extends GraphicsPane {
         coinGainBackdrop.sendToFront();
         coinGainLabel.sendToFront();
         coinGainPopupTicks = COIN_GAIN_POPUP_TICKS;
+    }
+
+    /**
+     * Builds a HudSnapshot from the current player state for passing to HUDoverlay.
+     * useUpgradedHeartBar is true when the player's max health exceeds the default (health relic active).
+     */
+    private HUDoverlay.HudSnapshot buildHudSnapshot(Player p) {
+        boolean upgraded = p.getMaxHealth() > Player.DEFAULT_HEART_COUNT * Player.HALF_HEARTS_PER_HEART;
+        return new HUDoverlay.HudSnapshot(
+            p.getHP(),
+            upgraded,
+            false,
+            p.getCoins(),
+            p.hasIntangible(),
+            p.hasHalfDamage(),
+            p.hasReflect(),
+            p.getIntangibleCooldownTicks() > 0
+        );
     }
 
     /** Removes any active coin-gain popup visuals from the canvas. */
