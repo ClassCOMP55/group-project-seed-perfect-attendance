@@ -33,7 +33,7 @@ public class ArmorEnemy extends Enemy {
     private static final double CHASE_SPEED = 30.0;
     private static final double AGGRO_RANGE = 320.0;
     /** How many ticks must pass before the armor can rotate one 90-degree step. Larger = slower turns (easier to flank). */
-    private static final int TURN_INTERVAL_TICKS = 45;
+    private static final int TURN_INTERVAL_TICKS = 90;
 
     // ==========================================================
     // FIELDS
@@ -211,5 +211,6 @@ public class ArmorEnemy extends Enemy {
             return; // frontal — blocked
         }
         super.takeDamage(amount);
+        turnCooldownTicks = TURN_INTERVAL_TICKS;
     }
 }
