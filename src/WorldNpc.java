@@ -46,6 +46,7 @@ public class WorldNpc extends WorldObject {
     private final GLabel hintLabel;
     private double spriteRenderWidth = 48.0;
     private double spriteRenderHeight = 48.0;
+    private final double spriteTargetHeight;
 
     /**
      * Creates a WorldNpc using the default sprite ("the drunk").
@@ -56,13 +57,26 @@ public class WorldNpc extends WorldObject {
     }
 
     /**
-     * Creates a WorldNpc with a custom sprite path.
+     * Creates a WorldNpc with a custom sprite path at the default size (48px tall).
      *
      * @param spritePath path to the NPC's PNG, e.g. {@code "assets/visuals/png's/little girl (puzzle helper).png"}
      */
     public WorldNpc(double x, double y, String speakerName, String[] dialogueLines, Dialogue dialogue,
                     String spritePath) {
+        this(x, y, speakerName, dialogueLines, dialogue, spritePath, NPC_SPRITE_TARGET_HEIGHT);
+    }
+
+    /**
+     * Creates a WorldNpc with a custom sprite path and a custom rendered height.
+     * Use a smaller value (e.g. 32) for child NPCs.
+     *
+     * @param spritePath    path to the NPC's PNG
+     * @param spriteHeight  desired rendered height in pixels
+     */
+    public WorldNpc(double x, double y, String speakerName, String[] dialogueLines, Dialogue dialogue,
+                    String spritePath, double spriteHeight) {
         super(x, y, 48, 48);
+        this.spriteTargetHeight = spriteHeight;
         this.speakerName = (speakerName == null || speakerName.trim().isEmpty())
             ? "Villager"
             : speakerName.trim();
@@ -225,9 +239,9 @@ public class WorldNpc extends WorldObject {
             GImage image = new GImage(trimmed);
             double nativeWidth = Math.max(1.0, image.getWidth());
             double nativeHeight = Math.max(1.0, image.getHeight());
-            double scale = NPC_SPRITE_TARGET_HEIGHT / nativeHeight;
-            spriteRenderWidth = Math.max(48.0, nativeWidth * scale);
-            spriteRenderHeight = NPC_SPRITE_TARGET_HEIGHT;
+            double scale = spriteTargetHeight / nativeHeight;
+            spriteRenderWidth = nativeWidth * scale;
+            spriteRenderHeight = spriteTargetHeight;
             image.setSize(spriteRenderWidth, spriteRenderHeight);
             image.setLocation(x + (48.0 - spriteRenderWidth) / 2.0, y + (48.0 - spriteRenderHeight));
             return image;

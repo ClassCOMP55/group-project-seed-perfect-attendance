@@ -606,7 +606,8 @@ public class WorldMap {
             "Little Girl",
             LITTLE_GIRL_LINES,
             dialogue,
-            "assets/visuals/png's/little girl (puzzle helper).png"
+            "assets/visuals/png's/little girl (puzzle helper).png",
+            32.0
         );
         littleGirl.setStoryFlagHooks(this::hasStoryFlag, this::addStoryFlag);
         b1.addObject(littleGirl);
