@@ -256,7 +256,7 @@ public class Boss extends Enemy {
         if (target == null) return;
 
         // ── Melee contact (own cooldown, always checked) ───────
-        if (meleeCooldownTicks <= 0 && hitbox.overlaps(target.getHitbox())) {
+        if (meleeCooldownTicks <= 0 && hitbox.overlapsHurtbox(target.getHurtbox())) {
             target.takeDamage(contactDamage);
             GameSFX.play(GameSFX.SFX.ENEMY_ATTACK);
             meleeCooldownTicks = MELEE_COOLDOWN;
