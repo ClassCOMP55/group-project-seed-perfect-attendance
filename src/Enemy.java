@@ -130,6 +130,9 @@ public class Enemy extends Entity {
     /** Clamp overlays inside the room's top edge. */
     private static final double COMBAT_OVERLAY_SCREEN_PAD = 6.0;
 
+    /** How many ticks the post-hit blink lasts (~0.5s at 60fps). */
+    private static final int HIT_FLASH_DURATION = 30;
+
     private static final Color COMBAT_OVERLAY_NAME_COLOR = new Color(255, 244, 214);
     private static final Color COMBAT_OVERLAY_HEART_FULL = new Color(232, 45, 34);
     private static final Color COMBAT_OVERLAY_HEART_EMPTY = new Color(108, 33, 30);
@@ -174,6 +177,9 @@ public class Enemy extends Entity {
      * Subclasses reset this to their attack rate (e.g. 60 = ~1s at 60fps) after attacking.
      */
     protected int attackCooldownTicks;
+
+    /** Countdown in ticks for the post-hit blink effect. 0 = no blink active. */
+    private int hitFlashTicks = 0;
 
     /** Floating pixel-heart display shown above the enemy during gameplay. */
     private HeartDisplay combatHeartDisplay;
@@ -337,7 +343,10 @@ public class Enemy extends Entity {
             return;
         }
 
-        // 2. Tick down one-shot animation timers (DAMAGE, DEATH, ATTACK)
+        // 2. Tick down hit-blink counter every tick (including during stagger)
+        if (hitFlashTicks > 0) hitFlashTicks--;
+
+        // 3. Tick down one-shot animation timers (DAMAGE, DEATH, ATTACK)
         if (animTimer > 0) {
             animTimer -= dt;
             if (animTimer <= 0) {
@@ -348,7 +357,7 @@ public class Enemy extends Entity {
             }
         }
 
-        // 3. Re-evaluate aggro every tick:
+        // 4. Re-evaluate aggro every tick:
         //    Requires target in range AND unobstructed line of sight.
         if (target != null) {
             double dist = distanceTo(target);
@@ -357,7 +366,7 @@ public class Enemy extends Entity {
             isAggro = false;
         }
 
-        // 4. Chase + attack if aggro; otherwise patrol
+        // 5. Chase + attack if aggro; otherwise patrol
         boolean targetAlive = target != null && target.isAlive();
         if (isAggro && targetAlive) {
             chase(dt, target);
@@ -373,7 +382,7 @@ public class Enemy extends Entity {
             patrol(dt);
         }
 
-        // 5. Hole-fall respawn: reset to spawn point, sync hitbox and sprite manually
+        // 6. Hole-fall respawn: reset to spawn point, sync hitbox and sprite manually
         if (isOverHole()) {
             x = spawnX;
             y = spawnY;
@@ -381,7 +390,7 @@ public class Enemy extends Entity {
             sprite.setLocation(x - 24, y - 24);
         }
 
-        // 6. Sync visual — pick the right GIF for (animState, facing) every tick
+        // 7. Sync visual — pick the right GIF for (animState, facing) every tick
         applyAnimVisual();
     }
 
@@ -640,6 +649,7 @@ public class Enemy extends Entity {
         } else if (animState != AnimState.DEATH) {
             setAnimState(AnimState.DAMAGE);
             animTimer = damageAnimDuration;
+            hitFlashTicks = HIT_FLASH_DURATION;
         }
     }
 
@@ -774,8 +784,16 @@ public class Enemy extends Entity {
             }
             return;
         }
+        boolean showSprite = (hitFlashTicks == 0) || (hitFlashTicks % 4 >= 2);
+        applyHitFlashVisibility(showSprite);
         super.draw(canvas);
         updateCombatOverlay(canvas);
+    }
+
+    private void applyHitFlashVisibility(boolean visible) {
+        if (sprite != null) sprite.setVisible(visible);
+        GImage frame = getAnimator().getCurrentFrame();
+        if (frame != null) frame.setVisible(visible);
     }
 
     @Override
