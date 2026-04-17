@@ -309,9 +309,12 @@ public class Player extends Entity {
         if (input.isHeld(KeyEvent.VK_D) || input.isHeld(KeyEvent.VK_RIGHT)) dx += 1;
 
         boolean moving = dx != 0 || dy != 0;
+        boolean strafeLock = input.isHeld(KeyEvent.VK_SHIFT);
         if (moving) {
+            Direction savedFacing = facing;
             double len = Math.sqrt(dx * dx + dy * dy);
             move((dx / len) * speed * dt, (dy / len) * speed * dt);
+            if (strafeLock) facing = savedFacing;
         }
         applyDirectionalVisual(moving);
 
