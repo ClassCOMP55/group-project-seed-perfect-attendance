@@ -14,6 +14,7 @@ import javax.imageio.ImageIO;
 public class HealingBread extends Item {
 
     public static final String ITEM_ID = "healing_bread";
+    /** Base heal amount = 2 half-hearts = 1 full heart. Doubles with the health relic. */
     private static final int    HEAL_AMOUNT  = Player.HALF_HEARTS_PER_HEART;
     private static final double DROP_SIZE    = 32.0;
     private static final double ICON_SIZE    = 32.0;
@@ -44,7 +45,13 @@ public class HealingBread extends Item {
         int hpBefore = p.getHP();
         if (hpBefore >= p.getMaxHealth()) return;
 
-        p.setHP(hpBefore + HEAL_AMOUNT);
+        // Health relic doubles the heal amount (2 HP → 4 HP).
+        int healAmount = HEAL_AMOUNT;
+        if (p.hasHalfDamage()) {
+            healAmount *= 2;
+        }
+
+        p.setHP(hpBefore + healAmount);
         if (p.getHP() > hpBefore) {
             p.consumeInventoryItem(this);
         }
@@ -57,7 +64,7 @@ public class HealingBread extends Item {
 
     @Override
     public String getDescription() {
-        return "A warm loaf that restores 1 heart. Press Space or Enter in the inventory to eat it.";
+        return "Restores 1 heart. With health relic: 2 hearts. (Space or E to eat)";
     }
 
     @Override
