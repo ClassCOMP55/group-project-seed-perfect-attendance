@@ -136,7 +136,7 @@ public class BreadMerchant extends WorldObject {
             double nativeWidth = Math.max(1.0, image.getWidth());
             double nativeHeight = Math.max(1.0, image.getHeight());
             double scale = NPC_SPRITE_TARGET_HEIGHT / nativeHeight;
-            spriteRenderWidth = Math.max(48.0, nativeWidth * scale);
+            spriteRenderWidth = nativeWidth * scale;
             spriteRenderHeight = NPC_SPRITE_TARGET_HEIGHT;
             image.setSize(spriteRenderWidth, spriteRenderHeight);
             image.setLocation(x + (48.0 - spriteRenderWidth) / 2.0, y + (48.0 - spriteRenderHeight));
