@@ -59,6 +59,8 @@ import java.awt.image.BufferedImage;
 import java.awt.Color;
 import java.io.File;
 import java.io.IOException;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 import javax.imageio.ImageIO;
 
 /**
@@ -104,6 +106,13 @@ public class DrawbridgeLever extends WorldObject {
 
     /** Optional Dialogue reference for "broken lever" hint on failed interact. */
     private Dialogue dialogue;
+
+    /** Story flag hooks — used to record that the player has inspected the broken lever. */
+    private Predicate<String> hasStoryFlagHook;
+    private Consumer<String> addStoryFlagHook;
+
+    /** Flag set when the player first inspects the broken lever without a fixed lever. */
+    public static final String LEVER_BROKEN_FLAG = "player_knows_lever_broken";
 
     /** Broken state sprite (default); hidden when lever is fixed. */
     private final GImage brokenSprite;
@@ -179,10 +188,16 @@ public class DrawbridgeLever extends WorldObject {
 
         Item lever = p.findInventoryItem(FIXED_LEVER_ID);
         if (lever == null) {
+            if (addStoryFlagHook != null) {
+                addStoryFlagHook.accept(LEVER_BROKEN_FLAG);
+            }
             if (dialogue != null && !dialogue.isOpen()) {
                 GamePlayState.setCurrent(GamePlayState.DIALOGUE);
                 dialogue.open(
-                    new String[]{"The lever is broken. A blacksmith might be able to fix it."},
+                    new String[]{
+                        "The lever is completely broken.",
+                        "You'll need a craftsman to forge a replacement piece."
+                    },
                     "Drawbridge Lever",
                     false,
                     () -> GamePlayState.setCurrent(GamePlayState.PLAYING)
@@ -230,6 +245,11 @@ public class DrawbridgeLever extends WorldObject {
     // =========================================================
 
     public void setDialogue(Dialogue d) { this.dialogue = d; }
+
+    public void setStoryFlagHooks(Predicate<String> has, Consumer<String> add) {
+        this.hasStoryFlagHook = has;
+        this.addStoryFlagHook = add;
+    }
 
     /** Applies the permanent repaired state without consuming inventory or opening dialogue. */
     public void forceFixed() {

@@ -38,6 +38,7 @@ public class WorldNpc extends WorldObject {
     private String rewardGrantedFlag;
     private Predicate<Player> rewardOwnedCheck;
     private Consumer<Player> rewardGrantAction;
+    private Predicate<Player> rewardUnlockCondition;
 
     private final GImage npcSprite;
     private final GRect body;
@@ -170,17 +171,25 @@ public class WorldNpc extends WorldObject {
         String[] linesToShow = dialogueLines;
         Runnable onComplete = () -> GamePlayState.setCurrent(GamePlayState.PLAYING);
 
+        boolean unlockItemPresent = rewardUnlockCondition != null && rewardUnlockCondition.test(p);
+        // When an item-based unlock is configured, the reward is gated exclusively on the item.
+        // Without one, use the normal two-step intro→reward flow.
+        boolean canShowReward = (rewardUnlockCondition != null)
+            ? (unlockItemPresent && !hasStoryFlag(rewardGrantedFlag))
+            : shouldUseRewardDialogue();
+
         if (hasRewardSequenceCompleted(p)) {
             if (postRewardDialogueLines.length > 0) {
                 linesToShow = postRewardDialogueLines;
             }
-        } else if (shouldUseRewardDialogue()) {
+        } else if (canShowReward) {
             if (rewardDialogueLines.length > 0) {
                 linesToShow = rewardDialogueLines;
                 onComplete = () -> {
                     if (rewardGrantAction != null && !playerAlreadyOwnsReward(p)) {
                         rewardGrantAction.accept(p);
                     }
+                    markStoryFlag(introCompleteFlag);
                     markStoryFlag(rewardGrantedFlag);
                     GamePlayState.setCurrent(GamePlayState.PLAYING);
                 };
@@ -210,6 +219,10 @@ public class WorldNpc extends WorldObject {
     public void setStoryFlagHooks(Predicate<String> hasStoryFlag, Consumer<String> addStoryFlag) {
         this.hasStoryFlag = hasStoryFlag;
         this.addStoryFlag = addStoryFlag;
+    }
+
+    public void setRewardUnlockCondition(Predicate<Player> condition) {
+        this.rewardUnlockCondition = condition;
     }
 
     public void configureTwoStepReward(String introCompleteFlag,

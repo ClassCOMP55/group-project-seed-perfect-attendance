@@ -7,6 +7,8 @@ import java.awt.image.BufferedImage;
 import java.awt.Color;
 import java.io.File;
 import java.io.IOException;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 import javax.imageio.ImageIO;
 
 /**
@@ -27,6 +29,8 @@ public class Blacksmith extends WorldObject {
     public static final String FIXED_LEVER_ID = DrawbridgeLever.FIXED_LEVER_ID;
 
     private final Dialogue dialogue;
+    private Predicate<String> hasStoryFlag;
+    private Consumer<String> addStoryFlag;
 
     private final GImage blacksmithSprite;
     private final GRect body;
@@ -93,30 +97,20 @@ public class Blacksmith extends WorldObject {
         return true;
     }
 
+    public void setStoryFlagHooks(Predicate<String> has, Consumer<String> add) {
+        this.hasStoryFlag = has;
+        this.addStoryFlag = add;
+    }
+
     @Override
     public void onInteract(Player p) {
         if (dialogue == null || dialogue.isOpen()) return;
 
         Item ore = p.findInventoryItem(OreNode.ORE_ID);
-        Item brokenLever = p.findInventoryItem(OreNode.BROKEN_LEVER_ID);
+        boolean knowsLeverBroken = hasStoryFlag != null
+            && hasStoryFlag.test(DrawbridgeLever.LEVER_BROKEN_FLAG);
 
-        if (ore != null && brokenLever != null) {
-            p.consumeInventoryItem(ore);
-            p.consumeInventoryItem(brokenLever);
-            p.collectItem(new Item(FIXED_LEVER_ID, "Fixed Lever", false));
-
-            GamePlayState.setCurrent(GamePlayState.DIALOGUE);
-            dialogue.open(
-                new String[]{
-                    "Ah, you brought ore and that broken lever head!",
-                    "Let me fire up the forge...",
-                    "There you go — good as new. This should fit the drawbridge mechanism in the east."
-                },
-                "Blacksmith",
-                true,
-                () -> GamePlayState.setCurrent(GamePlayState.PLAYING)
-            );
-        } else if (p.findInventoryItem(FIXED_LEVER_ID) != null) {
+        if (p.findInventoryItem(FIXED_LEVER_ID) != null) {
             GamePlayState.setCurrent(GamePlayState.DIALOGUE);
             dialogue.open(
                 new String[]{
@@ -127,13 +121,40 @@ public class Blacksmith extends WorldObject {
                 true,
                 () -> GamePlayState.setCurrent(GamePlayState.PLAYING)
             );
+        } else if (knowsLeverBroken) {
+            if (ore != null) {
+                p.consumeInventoryItem(ore);
+                p.collectItem(new Item(FIXED_LEVER_ID, "Fixed Lever", false));
+
+                GamePlayState.setCurrent(GamePlayState.DIALOGUE);
+                dialogue.open(
+                    new String[]{
+                        "Ore AND knowing exactly what's needed — I can have this done in no time!",
+                        "Let me fire up the forge...",
+                        "There you go — good as new. This should fit the drawbridge mechanism."
+                    },
+                    "Blacksmith",
+                    true,
+                    () -> GamePlayState.setCurrent(GamePlayState.PLAYING)
+                );
+            } else {
+                GamePlayState.setCurrent(GamePlayState.DIALOGUE);
+                dialogue.open(
+                    new String[]{
+                        "I can make you a new lever, but I need some ore.",
+                        "There's a mine to the north — bring me what you dig up."
+                    },
+                    "Blacksmith",
+                    true,
+                    () -> GamePlayState.setCurrent(GamePlayState.PLAYING)
+                );
+            }
         } else {
             GamePlayState.setCurrent(GamePlayState.DIALOGUE);
             dialogue.open(
                 new String[]{
-                    "I'm the blacksmith. I can fix just about anything — if you bring me the right materials.",
-                    "I've heard there's a broken lever buried in an ore vein to the north.",
-                    "Bring me the ore and the lever head, and I'll forge you a proper replacement."
+                    "I'm the blacksmith. I can fix just about anything — bring me what needs fixing.",
+                    "There's a broken drawbridge lever east of town, if you're feeling adventurous."
                 },
                 "Blacksmith",
                 true,

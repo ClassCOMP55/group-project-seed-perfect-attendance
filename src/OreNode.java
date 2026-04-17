@@ -146,14 +146,13 @@ public class OreNode extends WorldObject {
         }
 
         p.collectItem(new Item(ORE_ID, "Ore", false));
-        p.collectItem(new Item(BROKEN_LEVER_ID, "Broken Lever", false));
 
         if (dialogue != null && !dialogue.isOpen()) {
             GamePlayState.setCurrent(GamePlayState.DIALOGUE);
             dialogue.open(
                 new String[]{
                     "You mined the ore vein!",
-                    "Obtained Ore and a Broken Lever embedded in the rock."
+                    "Obtained Ore."
                 },
                 "Ore Vein",
                 false,

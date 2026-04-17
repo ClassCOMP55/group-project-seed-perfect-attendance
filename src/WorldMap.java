@@ -227,7 +227,8 @@ public class WorldMap {
     private final Set<String> storyFlags = new LinkedHashSet<>();
 
     /** Persistent one-time interactables that need save-state reapplication. */
-    private Chest pickaxeChest;
+    private WorldProp pickaxeProp;
+    private WorldProp minersHatProp;
     private OreNode oreNode;
     private DrawbridgeLever drawbridgeLever;
     private final List<HeroThicket> heroThickets = new ArrayList<>();
@@ -305,10 +306,6 @@ public class WorldMap {
     private static final double START_BREAD_MERCHANT_X = TileMap.MAP_OFFSET_X + 11 * 48;
     private static final double START_BREAD_MERCHANT_Y = 4 * 48;
 
-    /** Pickaxe chest in A1 — gives the player the tool needed for OreNode in B2. */
-    private static final double PICKAXE_CHEST_X = TileMap.MAP_OFFSET_X + 8 * 48;
-    private static final double PICKAXE_CHEST_Y = 5 * 48;
-
     /** Blacksmith NPC position in B1 (Inn). */
     private static final double BLACKSMITH_X = TileMap.MAP_OFFSET_X + 6 * 48;
     private static final double BLACKSMITH_Y = 5 * 48;
@@ -336,22 +333,32 @@ public class WorldMap {
     };
 
     private static final String START_NPC_FIRST_TALK_FLAG = "npc_drunk_intro_seen";
-    private static final String START_NPC_REWARD_FLAG = "npc_drunk_mark_given";
+    private static final String START_NPC_REWARD_FLAG = "npc_drunk_pickaxe_given";
+    private static final String MINERS_HAT_B2_FLAG   = "miners_hat_b2_collected";
+    private static final String PICKAXE_TAKEN_FLAG   = "pickaxe_prop_taken";
+
+    /** Position of the decorative pickaxe prop placed next to the drunk NPC in A1. */
+    private static final double PICKAXE_PROP_X = TileMap.MAP_OFFSET_X + 11 * 48;
+    private static final double PICKAXE_PROP_Y = 10 * 48;
+
+    /** Position of the miner's hat ground pickup in B2 (just left of the ore node). */
+    private static final double MINERS_HAT_X = TileMap.MAP_OFFSET_X + 8 * 48;
+    private static final double MINERS_HAT_Y = 5 * 48;
 
     private static final String[] START_NPC_LINES = {
-        "Hic... you look like someone headed somewhere important.",
-        "I had something for a real hero, but my head's still spinning.",
-        "Talk to me again in a sec. Maybe I'll remember what it was."
+        "Hic... *burp*... Oh, a traveler!",
+        "I lost me old miner's hat up near the ore fields to the north... *hic*",
+        "If you find it and bring it back, I'll give you me pickaxe — can't use it anyway!"
     };
 
     private static final String[] START_NPC_REWARD_LINES = {
-        "Oh wait! I forgot to give you the Mark of the Hero.",
-        "Here, take it. The thicket gate should recognize you now."
+        "Oi! That's me hat! I'd know it anywhere!",
+        "A deal's a deal — here, take the pickaxe!"
     };
 
     private static final String[] START_NPC_POST_REWARD_LINES = {
-        "There we go. You've already got the Mark of the Hero.",
-        "Try not to lose it before the gate sees it."
+        "Hic... you've got the pickaxe now, friend.",
+        "There's ore up north if you're looking to use it."
     };
 
     private static final String A2_HERO_THICKET_FLAG = "hero_thicket_a2_cleared";
@@ -474,7 +481,8 @@ public class WorldMap {
         installStarterSavePoint();
         installSpawnIslandDialogueTestObjects();
         installStarterBreadMerchant();
-        installPickaxeChest();
+        installPickaxeProp();
+        installMinersHat();
         installBlacksmith();
         installLittleGirlNpc();
         installOreNode();
@@ -550,8 +558,17 @@ public class WorldMap {
             START_NPC_REWARD_FLAG,
             START_NPC_REWARD_LINES,
             START_NPC_POST_REWARD_LINES,
-            Player::hasMarkOfHero,
-            player -> player.setHasMarkOfHero(true)
+            p -> p.findInventoryItem(OreNode.PICKAXE_ID) != null,
+            p -> {
+                Item hat = p.findInventoryItem(MinersHat.ITEM_ID);
+                if (hat != null) p.consumeInventoryItem(hat);
+                p.collectItem(new Pickaxe());
+                addStoryFlag(PICKAXE_TAKEN_FLAG);
+                if (pickaxeProp != null) pickaxeProp.consume();
+            }
+        );
+        drunkNpc.setRewardUnlockCondition(
+            p -> p.findInventoryItem(MinersHat.ITEM_ID) != null
         );
         startRoom.addObject(drunkNpc);
     }
@@ -570,24 +587,65 @@ public class WorldMap {
         ));
     }
 
-    /** Places a chest in A1 containing the Pickaxe needed to mine OreNode in B2. */
-    private void installPickaxeChest() {
+    /** Places the pickaxe prop in A1 next to the drunk. Consumed when the drunk gives the pickaxe. */
+    private void installPickaxeProp() {
         Room a1 = overworldGrid[0][0];
         if (a1 == null) return;
-        pickaxeChest = new Chest(
-            PICKAXE_CHEST_X, PICKAXE_CHEST_Y,
-            "chest_pickaxe_a1", OreNode.PICKAXE_ID, false
+        pickaxeProp = new WorldProp(
+            PICKAXE_PROP_X, PICKAXE_PROP_Y,
+            "assets/visuals/png's/pickaxe.png",
+            "e to interact",
+            p -> {
+                if (dialogue != null && !dialogue.isOpen()) {
+                    GamePlayState.setCurrent(GamePlayState.DIALOGUE);
+                    dialogue.open(
+                        new String[]{"The drunk has a firm grip on this. Maybe talk to him?"},
+                        "Pickaxe",
+                        false,
+                        () -> GamePlayState.setCurrent(GamePlayState.PLAYING)
+                    );
+                }
+            }
         );
-        pickaxeChest.setDialogue(dialogue);
-        pickaxeChest.setCollectedItemRecorder(this::markCollectedItem);
-        a1.addObject(pickaxeChest);
+        a1.addObject(pickaxeProp);
     }
 
-    /** Places the Blacksmith NPC in B1 who crafts FixedLever from Ore + BrokenLever. */
+    /** Places the miner's hat as a ground pickup in B2 near the ore node. */
+    private void installMinersHat() {
+        Room b2 = overworldGrid[1][1];
+        if (b2 == null) return;
+        minersHatProp = new WorldProp(
+            MINERS_HAT_X, MINERS_HAT_Y,
+            "assets/visuals/png's/miners_hat.png",
+            "e to pick up",
+            p -> {
+                p.collectItem(new MinersHat());
+                addStoryFlag(MINERS_HAT_B2_FLAG);
+                if (dialogue != null && !dialogue.isOpen()) {
+                    GamePlayState.setCurrent(GamePlayState.DIALOGUE);
+                    dialogue.open(
+                        new String[]{
+                            "You picked up the Miner's Hat!",
+                            "Someone in town might want this back..."
+                        },
+                        "Miner's Hat",
+                        false,
+                        () -> GamePlayState.setCurrent(GamePlayState.PLAYING)
+                    );
+                }
+            }
+        );
+        minersHatProp.setConsumeOnInteract(true);
+        b2.addObject(minersHatProp);
+    }
+
+    /** Places the Blacksmith NPC in B1 who crafts FixedLever from Ore when lever flag is known. */
     private void installBlacksmith() {
         Room b1 = overworldGrid[1][0];
         if (b1 == null) return;
-        b1.addObject(new Blacksmith(BLACKSMITH_X, BLACKSMITH_Y, dialogue));
+        Blacksmith blacksmith = new Blacksmith(BLACKSMITH_X, BLACKSMITH_Y, dialogue);
+        blacksmith.setStoryFlagHooks(this::hasStoryFlag, this::addStoryFlag);
+        b1.addObject(blacksmith);
     }
 
     private static final String[] LITTLE_GIRL_LINES = {
@@ -664,33 +722,80 @@ public class WorldMap {
             c1.getTileMap(), this
         );
         drawbridgeLever.setDialogue(dialogue);
+        drawbridgeLever.setStoryFlagHooks(this::hasStoryFlag, this::addStoryFlag);
         c1.addObject(drawbridgeLever);
     }
 
-    /** Seeds live overworld enemy encounters into the currently-walkable rooms. */
+    /** Seeds live overworld enemy encounters into all non-town rooms. */
     private void populateOverworldEnemyRooms() {
+        populateA2();
+        populateA3();
         populateB1();
         populateB2();
+        populateB3();
+        populateC1();
         populateC2();
+        populateC3();
     }
 
-    /** Places lizard enemies in the Inn (B1). */
+    /** Push Block puzzle room — light mixed patrol. */
+    private void populateA2() {
+        Room a2 = overworldGrid[0][1];
+        a2.addRespawningEntity(() -> new LizardEnemy(350, 250, a2.getTileMap()));
+        a2.addRespawningEntity(() -> new RangedEnemy(800, 400, a2.getTileMap()));
+    }
+
+    /** Timed Gauntlet room — mixed patrol. */
+    private void populateA3() {
+        Room a3 = overworldGrid[0][2];
+        a3.addRespawningEntity(() -> new LizardEnemy(400, 300, a3.getTileMap()));
+        a3.addRespawningEntity(() -> new RangedEnemy(780, 280, a3.getTileMap()));
+    }
+
+    /** Inn (B1) — single lizard. */
     private void populateB1() {
         Room b1 = overworldGrid[1][0];
         b1.addRespawningEntity(() -> new LizardEnemy(640, 360, b1.getTileMap()));
     }
 
-    /** Places an armored bruiser in the ore route so that room now has a live encounter. */
+    /** Ore node area (B2) — 4 armored guards protecting the mine. */
     private void populateB2() {
         Room b2 = overworldGrid[1][1];
         b2.addRespawningEntity(() -> new ArmorEnemy(420, 300, b2.getTileMap()));
+        b2.addRespawningEntity(() -> new ArmorEnemy(700, 250, b2.getTileMap()));
+        b2.addRespawningEntity(() -> new ArmorEnemy(550, 500, b2.getTileMap()));
+        b2.addRespawningEntity(() -> new ArmorEnemy(800, 450, b2.getTileMap()));
     }
 
-    /** Gives the forest a mixed encounter: one armored chaser and one ranged shooter. */
+    /** Riddle puzzle room (B3) — mixed patrol. */
+    private void populateB3() {
+        Room b3 = overworldGrid[1][2];
+        b3.addRespawningEntity(() -> new LizardEnemy(500, 300, b3.getTileMap()));
+        b3.addRespawningEntity(() -> new RangedEnemy(760, 420, b3.getTileMap()));
+    }
+
+    /** Bridge room (C1) — light mixed patrol. */
+    private void populateC1() {
+        Room c1 = overworldGrid[2][0];
+        c1.addRespawningEntity(() -> new LizardEnemy(400, 300, c1.getTileMap()));
+        c1.addRespawningEntity(() -> new RangedEnemy(760, 250, c1.getTileMap()));
+    }
+
+    /** Dense forest (C2) — high danger: 5 enemies with mixed types. */
     private void populateC2() {
         Room c2 = overworldGrid[2][1];
         c2.addRespawningEntity(() -> new ArmorEnemy(360, 252, c2.getTileMap()));
         c2.addRespawningEntity(() -> new RangedEnemy(920, 432, c2.getTileMap()));
+        c2.addRespawningEntity(() -> new ArmorEnemy(640, 180, c2.getTileMap()));
+        c2.addRespawningEntity(() -> new RangedEnemy(500, 500, c2.getTileMap()));
+        c2.addRespawningEntity(() -> new LizardEnemy(800, 280, c2.getTileMap()));
+    }
+
+    /** Dungeon entrance area (C3) — mixed patrol. */
+    private void populateC3() {
+        Room c3 = overworldGrid[2][2];
+        c3.addRespawningEntity(() -> new LizardEnemy(500, 280, c3.getTileMap()));
+        c3.addRespawningEntity(() -> new RangedEnemy(800, 400, c3.getTileMap()));
     }
 
     /**
@@ -1169,8 +1274,11 @@ public class WorldMap {
     }
 
     private void syncPersistentWorldObjects() {
-        if (pickaxeChest != null && hasCollectedItem(pickaxeChest.getChestId())) {
-            pickaxeChest.forceOpen();
+        if (pickaxeProp != null && hasStoryFlag(PICKAXE_TAKEN_FLAG)) {
+            pickaxeProp.hide();
+        }
+        if (minersHatProp != null && hasStoryFlag(MINERS_HAT_B2_FLAG)) {
+            minersHatProp.hide();
         }
         if (oreNode != null && hasCollectedItem(OreNode.SAVE_FLAG_ID)) {
             oreNode.forceMined();
