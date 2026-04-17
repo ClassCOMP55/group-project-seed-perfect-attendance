@@ -381,6 +381,7 @@ public class Room {
             "assets/visuals/overworld rooms/C3.png",
             "assets/visuals/overworld rooms/c3.png"
         );
+        setForegroundImage("assets/visuals/overworld rooms/ow_shadows.png");
         dummyLabel = null;
     }
 
