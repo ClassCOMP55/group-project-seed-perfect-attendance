@@ -160,6 +160,13 @@ public class Enemy extends Entity {
     /** True when the target is within aggroRange AND visible this tick. Re-evaluated every tick. */
     protected boolean isAggro;
 
+    /**
+     * When true, this enemy is nudged away from the player on contact (player can slightly push it).
+     * When false, the player is nudged away instead — the enemy acts as a solid immovable wall.
+     * Defaults to true; set to false in subclasses that should feel immovable (e.g. ArmorEnemy, Boss).
+     */
+    protected boolean isPushable = true;
+
     // ── Combat ─────────────────────────────────────────────────────────────
 
     /**
@@ -978,6 +985,9 @@ public class Enemy extends Entity {
 
     /** @return true if this enemy is currently in chase/attack mode */
     public boolean isAggro() { return isAggro; }
+
+    /** @return true if the player can push this enemy; false if this enemy acts as a solid wall */
+    public boolean isPushable() { return isPushable; }
 
     /** @return ticks remaining on attack cooldown (0 = ready to attack) */
     public int getAttackCooldown() { return attackCooldownTicks; }

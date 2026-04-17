@@ -146,6 +146,7 @@ public class Boss extends Enemy {
         this.phaseFlipThreshold = maxHealth / 2; // 5
         this.fireRate          = PHASE1_FIRE_RATE;
         this.contactDamage     = 1;
+        this.isPushable        = false;
         this.meleeCooldownTicks = 0;
         this.isLunging         = false;
         this.lungeWindupTimer  = 0;

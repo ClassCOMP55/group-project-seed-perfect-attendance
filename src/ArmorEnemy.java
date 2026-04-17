@@ -65,6 +65,7 @@ public class ArmorEnemy extends Enemy {
               AGGRO_RANGE);
         this.contactDamage = 1;
         this.turnCooldownTicks = 0;
+        this.isPushable = false;
         loadSkeletonAnimations(SPRITE_DIR, SPRITE_PREFIX);
         setSpriteRenderSize(72, 72);
     }

@@ -652,18 +652,24 @@ public class Room {
 
         // --- player-to-enemy solid collision (prevent walking through enemies) ---
         // Skipped when the Intangible relic is active so the player can pass through.
+        // Pushable enemies (most) are nudged away from the player — enemies can't shove the player.
+        // Non-pushable enemies (ArmorEnemy, Boss) act as solid walls — the player is nudged away.
         if (!player.isIntangibleActive()) {
             for (Entity e : entities) {
                 if (!(e instanceof Enemy) || !e.isAlive()) continue;
                 double dx = player.getX() - e.getX();
                 double dy = player.getY() - e.getY();
                 double dist = Math.sqrt(dx * dx + dy * dy);
-                double minDist = 44; // slightly smaller than enemy-enemy (52) to feel less sticky
+                double minDist = 44;
                 if (dist < minDist && dist > 0.01) {
                     double overlap = minDist - dist;
                     double nx = dx / dist;
                     double ny = dy / dist;
-                    player.nudge(nx * overlap, ny * overlap);
+                    if (((Enemy) e).isPushable()) {
+                        e.nudge(-nx * overlap, -ny * overlap);
+                    } else {
+                        player.nudge(nx * overlap, ny * overlap);
+                    }
                 }
             }
         }
