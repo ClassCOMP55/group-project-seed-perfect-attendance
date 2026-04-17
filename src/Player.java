@@ -211,6 +211,7 @@ public class Player extends Entity {
         super(0, 0, PLAYER_SPRITE, null, DEFAULT_MAX_HEALTH, PLAYER_SPEED);
         this.respawnX = x;
         this.respawnY = y;
+        setSpriteRenderSize(58, 58);
         initializeDirectionalSprites();
     }
 
@@ -225,6 +226,7 @@ public class Player extends Entity {
         super(startX, startY, PLAYER_SPRITE, tileMap, DEFAULT_MAX_HEALTH, PLAYER_SPEED);
         this.respawnX = startX;
         this.respawnY = startY;
+        setSpriteRenderSize(58, 58);
         initializeDirectionalSprites();
     }
 
