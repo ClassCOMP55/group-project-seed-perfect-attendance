@@ -554,6 +554,30 @@ within this class
   }
 
   /**
+   * Lifts every live HUD element to the top of the drawing stack so room art,
+   * enemies, and player sprites cannot cover it. Call each tick after other
+   * bring-to-front operations (e.g. room foreground, controls card).
+   */
+  public void bringToFront()
+  {
+    if (hearts != null)
+    {
+      for (GImage h : hearts)
+      {
+        if (h != null) h.sendToFront();
+      }
+    }
+    if (coinsicon != null) coinsicon.sendToFront();
+    coinslabel.sendToFront();
+    if (relicIntangibleIcon != null) relicIntangibleIcon.sendToFront();
+    if (relicHalfDamageIcon != null) relicHalfDamageIcon.sendToFront();
+    if (relicReflectIcon != null) relicReflectIcon.sendToFront();
+    if (SWDicon != null) SWDicon.sendToFront();
+    if (intangibleAbilityIcon != null) intangibleAbilityIcon.sendToFront();
+    if (intangibleAbilityCooldownIcon != null) intangibleAbilityCooldownIcon.sendToFront();
+  }
+
+  /**
    * Removes every HUD {@link GObject} this overlay added (hearts, relics, coins, sword, etc.) from
    * {@code pane.contents} and the canvas. Call on transitions where the HUD should disappear.
    * Clears field references so shapes can be garbage-collected.

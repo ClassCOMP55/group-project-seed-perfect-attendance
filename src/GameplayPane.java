@@ -179,21 +179,6 @@ public class GameplayPane extends GraphicsPane {
     /** True when the F6 debug overlay is visible. */
     private boolean debugOverlayOn = false;
 
-    /** Frames the temporary coin-gain popup stays visible after the wallet increases. */
-    private static final int COIN_GAIN_POPUP_TICKS = 50;
-
-    /** Gold popup shown briefly when the player gains coins during regular gameplay. */
-    private acm.graphics.GLabel coinGainLabel;
-
-    /** Backdrop behind the coin-gain popup so it stays readable over the room art. */
-    private acm.graphics.GRect coinGainBackdrop;
-
-    /** Remaining frames for the coin-gain popup. */
-    private int coinGainPopupTicks = 0;
-
-    /** Last wallet total observed by this pane so coin gains can be detected without touching Player. */
-    private int lastObservedCoins = -1;
-
     // =========================================================
     // PLAYER DEATH
     // =========================================================
@@ -274,9 +259,6 @@ public class GameplayPane extends GraphicsPane {
         if (controlsCardVisible) {
             showControlsCard();
         }
-        clearCoinGainPopup();
-        lastObservedCoins = player.getCoins();
-
         // --- wire attack / ability keys ---
         wireInputOnce();
     }
@@ -305,8 +287,6 @@ public class GameplayPane extends GraphicsPane {
         // hidePlayerHUD(); // OLD: temp HUD from GraphicsPane — kept as fallback
         hud.hideAll(this);
         clearControlsCardVisuals();
-        clearCoinGainPopup();
-        lastObservedCoins = -1;
         lastMusicRoomId = null;
         GameMusic.stopJourneyBeginsMusic();
         GameMusic.stopMysteriousDungeonMusic();
@@ -326,8 +306,6 @@ public class GameplayPane extends GraphicsPane {
         deathDelayTicks = 0;
         debugOverlayOn = false;
         controlsCardVisible = true;
-        clearCoinGainPopup();
-        lastObservedCoins = -1;
         lastMusicRoomId = null;
     }
 
@@ -340,8 +318,6 @@ public class GameplayPane extends GraphicsPane {
         deathDelayTicks = 0;
         debugOverlayOn = false;
         controlsCardVisible = true;
-        clearCoinGainPopup();
-        lastObservedCoins = -1;
         lastMusicRoomId = null;
         GamePlayState.setCurrent(GamePlayState.PLAYING);
     }
@@ -365,8 +341,6 @@ public class GameplayPane extends GraphicsPane {
         deathDelayTicks = 0;
         debugOverlayOn = false;
         controlsCardVisible = true;
-        clearCoinGainPopup();
-        lastObservedCoins = -1;
         lastMusicRoomId = null;
         GamePlayState.setCurrent(GamePlayState.PLAYING);
     }
@@ -474,7 +448,7 @@ public class GameplayPane extends GraphicsPane {
             hud.updateCoins(this, player.getCoins());
             hud.updateIntangibleAbilityButton(this, player.getIntangibleCooldownTicks() > 0);
             bringControlsCardToFront();
-            updateCoinGainFeedback(player);
+            hud.bringToFront();
             return; // no player input while dying
         }
 
@@ -515,7 +489,7 @@ public class GameplayPane extends GraphicsPane {
         hud.updateCoins(this, player.getCoins());
         hud.updateIntangibleAbilityButton(this, player.getIntangibleCooldownTicks() > 0);
         bringControlsCardToFront();
-        updateCoinGainFeedback(player);
+        hud.bringToFront();
     }
 
     @Override
@@ -934,68 +908,6 @@ public class GameplayPane extends GraphicsPane {
             y + (height + label.getAscent() - label.getDescent()) / 2.0);
     }
 
-    /** Detects wallet increases and keeps the short-lived coin popup visible while it is active. */
-    private void updateCoinGainFeedback(Player player) {
-        if (player == null) return;
-
-        int currentCoins = player.getCoins();
-        if (lastObservedCoins < 0) {
-            lastObservedCoins = currentCoins;
-        } else {
-            int gainedCoins = currentCoins - lastObservedCoins;
-            if (gainedCoins > 0) {
-                showCoinGainPopup(gainedCoins);
-            }
-            lastObservedCoins = currentCoins;
-        }
-
-        if (coinGainPopupTicks > 0) {
-            coinGainPopupTicks--;
-            if (coinGainBackdrop != null) coinGainBackdrop.sendToFront();
-            if (coinGainLabel != null) coinGainLabel.sendToFront();
-        } else {
-            clearCoinGainPopup();
-        }
-    }
-
-    /** Creates a small floating popup near the top-right with a slight random offset. */
-    private void showCoinGainPopup(int gainedCoins) {
-        clearCoinGainPopup();
-
-        String popupText = "+" + gainedCoins;
-        coinGainLabel = new acm.graphics.GLabel(popupText, 0, 0);
-        coinGainLabel.setFont("SansSerif-BOLD-18");
-        coinGainLabel.setColor(new java.awt.Color(255, 224, 122));
-        place(coinGainLabel);
-
-        double jitterX = (Math.random() - 0.5) * 16.0;
-        double jitterY = (Math.random() - 0.5) * 10.0;
-        double rightX = getHudCoinClusterRightX();
-        double labelX = rightX - coinGainLabel.getWidth() + jitterX;
-        double minX = originX() + 18.0;
-        double maxX = originX() + mainScreen.getLayoutWidth() - coinGainLabel.getWidth() - 18.0;
-        labelX = Math.max(minX, Math.min(maxX, labelX));
-        double labelY = getCoinGainPopupBaselineY() + jitterY;
-        coinGainLabel.setLocation(labelX, labelY);
-
-        double padX = 10.0;
-        double padY = 7.0;
-        coinGainBackdrop = new acm.graphics.GRect(
-            labelX - padX,
-            labelY - coinGainLabel.getAscent() - padY,
-            coinGainLabel.getWidth() + padX * 2.0,
-            coinGainLabel.getAscent() + coinGainLabel.getDescent() + padY * 2.0
-        );
-        coinGainBackdrop.setFilled(true);
-        coinGainBackdrop.setFillColor(new java.awt.Color(18, 14, 10, 210));
-        coinGainBackdrop.setColor(new java.awt.Color(150, 106, 42));
-        place(coinGainBackdrop);
-
-        coinGainBackdrop.sendToFront();
-        coinGainLabel.sendToFront();
-        coinGainPopupTicks = COIN_GAIN_POPUP_TICKS;
-    }
-
     /**
      * Builds a HudSnapshot from the current player state for passing to HUDoverlay.
      * useUpgradedHeartBar is true when the player's max health exceeds the default (health relic active).
@@ -1012,21 +924,6 @@ public class GameplayPane extends GraphicsPane {
             p.hasReflect(),
             p.getIntangibleCooldownTicks() > 0
         );
-    }
-
-    /** Removes any active coin-gain popup visuals from the canvas. */
-    private void clearCoinGainPopup() {
-        if (coinGainBackdrop != null) {
-            mainScreen.remove(coinGainBackdrop);
-            contents.remove(coinGainBackdrop);
-            coinGainBackdrop = null;
-        }
-        if (coinGainLabel != null) {
-            mainScreen.remove(coinGainLabel);
-            contents.remove(coinGainLabel);
-            coinGainLabel = null;
-        }
-        coinGainPopupTicks = 0;
     }
 
     // =========================================================

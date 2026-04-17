@@ -42,7 +42,6 @@ PLAN OF ACTION
 
 import acm.graphics.GCanvas;
 import acm.graphics.GImage;
-import acm.graphics.GLabel;
 import acm.graphics.GRect;
 
 import java.awt.image.BufferedImage;
@@ -81,9 +80,6 @@ public class Coin extends Item {
     /** Optional coin sprite loaded from assets. */
     private final GImage worldSpriteImage;
 
-    /** World label shown above the dropped coin (e.g., "coin +1"). */
-    private GLabel worldLabel;
-
     // =========================================================
     // CONSTRUCTOR
     // =========================================================
@@ -117,14 +113,6 @@ public class Coin extends Item {
         this.worldSprite.setFilled(true);
         this.worldSprite.setFillColor(COIN_COLOR);
         this.worldSprite.setColor(Color.BLACK);
-
-        this.worldLabel = new GLabel(this.value == 1 ? "+1" : "+" + this.value);
-        this.worldLabel.setFont("SansSerif-BOLD-10");
-        this.worldLabel.setColor(new Color(255, 220, 120));
-        this.worldLabel.setLocation(
-            topLeftX + (DROP_SIZE - worldLabel.getWidth()) / 2.0,
-            topLeftY - 4.0
-        );
     }
 
     // =========================================================
@@ -157,16 +145,12 @@ public class Coin extends Item {
         } else if (worldSprite != null) {
             canvas.add(worldSprite);
         }
-        if (worldLabel != null) {
-            canvas.add(worldLabel);
-        }
     }
 
     @Override
     public void removeFrom(GCanvas canvas) {
         if (worldSpriteImage != null) canvas.remove(worldSpriteImage);
         if (worldSprite != null) canvas.remove(worldSprite);
-        if (worldLabel != null) canvas.remove(worldLabel);
     }
 
     /** Coins are not usable from inventory. */
@@ -181,9 +165,6 @@ public class Coin extends Item {
         if (worldSprite != null) {
             worldSprite.move(panX, panY);
         }
-        if (worldLabel != null) {
-            worldLabel.move(panX, panY);
-        }
     }
 
     @Override
@@ -193,12 +174,6 @@ public class Coin extends Item {
         }
         if (worldSprite != null) {
             worldSprite.setLocation(worldX, worldY);
-        }
-        if (worldLabel != null) {
-            worldLabel.setLocation(
-                worldX + (DROP_SIZE - worldLabel.getWidth()) / 2.0,
-                worldY - 4.0
-            );
         }
     }
 
