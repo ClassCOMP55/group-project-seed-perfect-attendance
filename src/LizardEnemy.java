@@ -38,8 +38,8 @@ public class LizardEnemy extends Enemy {
     /** 3 hearts in half-heart units, matching the player's default. */
     private static final int MAX_HEALTH = (Player.DEFAULT_HEART_COUNT-1) * Player.HALF_HEARTS_PER_HEART;
 
-    /** Ticks between attacks (~1.5s at 60fps). */
-    private static final int ATTACK_COOLDOWN = 90;
+    /** Ticks between attacks (~1.0s at 60fps). */
+    private static final int ATTACK_COOLDOWN = 60;
     /** Ticks of windup before damage lands (~0.5s at 60fps). */
     private static final int ATTACK_WINDUP = 30;
 
