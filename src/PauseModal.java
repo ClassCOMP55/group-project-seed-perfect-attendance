@@ -227,6 +227,8 @@ public class PauseModal extends GraphicsPane
   private GLabel[] pauseInventoryItemStubLabels;
   /** Wrapped lines inside the description outline (ACM has no multiline label). */
   private GLabel[] pauseInventoryDescriptionLines;
+  /** Icon for the currently focused inventory item; null when no item is focused or icon unavailable. */
+  private GImage pauseInventoryIconImage;
   // Cached inner box for the description outline — rebuild wrapped lines when focus moves.
   private double inventoryDescInnerX;
   private double inventoryDescInnerY;
@@ -719,6 +721,10 @@ public class PauseModal extends GraphicsPane
         }
       }
     }
+    if (pauseInventoryIconImage != null)
+    {
+      pauseInventoryIconImage.setVisible(inventoryTab);
+    }
     if (settingsTabWidgets != null)
     {
       for (GObject g : settingsTabWidgets)
@@ -972,7 +978,16 @@ public class PauseModal extends GraphicsPane
     pauseInventoryDescriptionLines = null;
   }
 
-  // Picks dummy text for the current inventory row; real game will ask the item object instead.
+  private void removePauseInventoryIcon()
+  {
+    if (pauseInventoryIconImage != null)
+    {
+      mainScreen.remove(pauseInventoryIconImage);
+      contents.remove(pauseInventoryIconImage);
+      pauseInventoryIconImage = null;
+    }
+  }
+
   private void refreshInventoryDescriptionFromFocus()
   {
     if (inventoryDescInnerW <= 1)
@@ -980,8 +995,10 @@ public class PauseModal extends GraphicsPane
       return;
     }
     removePauseInventoryDescriptionLines();
+    removePauseInventoryIcon();
     List<Item> inventoryItems = getPauseInventoryItems();
     String description;
+    GImage focusedIcon = null;
     if (inventoryItems.isEmpty())
     {
       description = "No items in the inventory yet.";
@@ -1000,7 +1017,21 @@ public class PauseModal extends GraphicsPane
       pauseInventoryFocusIndex = idx;
       Item item = inventoryItems.get(idx);
       description = item.getDescription();
+      focusedIcon  = item.getIcon();
     }
+
+    if (focusedIcon != null)
+    {
+      double iconSize = Math.min(40, Math.min(inventoryDescInnerW, inventoryDescInnerH));
+      focusedIcon.setSize(iconSize, iconSize);
+      focusedIcon.setLocation(
+          inventoryDescInnerX + inventoryDescInnerW - iconSize - 4,
+          inventoryDescInnerY + 4);
+      focusedIcon.setVisible(!settingsTabActive);
+      addBoth(focusedIcon);
+      pauseInventoryIconImage = focusedIcon;
+    }
+
     pauseInventoryDescriptionLines =
         addWrappedDescriptionLines(
             description,
@@ -1820,6 +1851,7 @@ public class PauseModal extends GraphicsPane
     pauseInventoryDescriptionOutline = null;
     pauseInventoryItemStubLabels = null;
     pauseInventoryDescriptionLines = null;
+    pauseInventoryIconImage = null;
     settingsTabWidgets = null;
     settingsContentBg = null;
     settingsDividerAudioDisplay = null;

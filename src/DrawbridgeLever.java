@@ -105,12 +105,14 @@ public class DrawbridgeLever extends WorldObject {
     /** Optional Dialogue reference for "broken lever" hint on failed interact. */
     private Dialogue dialogue;
 
-    /** Optional sprite used when lever art is available. */
-    private final GImage leverSprite;
+    /** Broken state sprite (default); hidden when lever is fixed. */
+    private final GImage brokenSprite;
+    /** Fixed state sprite; hidden until lever is repaired. */
+    private final GImage fixedSprite;
     private double spriteRenderWidth = 48.0;
     private double spriteRenderHeight = 48.0;
 
-    /** Placeholder visual until real lever sprite is ready. */
+    /** Placeholder visual shown when both sprites fail to load. */
     private final GRect placeholder;
 
     // =========================================================
@@ -127,8 +129,10 @@ public class DrawbridgeLever extends WorldObject {
         super(x, y, 48, 48);
         this.roomTileMap = roomTileMap;
         this.worldMap    = worldMap;
-        this.isFixed     = false;
-        this.leverSprite = loadSprite("assets/visuals/png's/button.png");
+        this.isFixed      = false;
+        this.brokenSprite = loadSprite("assets/visuals/png's/broken_lever.png");
+        this.fixedSprite  = loadSprite("assets/visuals/png's/fixed_lever.png");
+        if (fixedSprite != null) fixedSprite.setVisible(false);
 
         this.placeholder = new GRect(x, y, 48, 48);
         this.placeholder.setFilled(true);
@@ -143,8 +147,9 @@ public class DrawbridgeLever extends WorldObject {
     public void draw(GCanvas canvas) {
         if (!visible) return;
         resetVisualPosition();
-        if (leverSprite != null) {
-            canvas.add(leverSprite);
+        if (brokenSprite != null || fixedSprite != null) {
+            if (brokenSprite != null) canvas.add(brokenSprite);
+            if (fixedSprite  != null) canvas.add(fixedSprite);
         } else {
             canvas.add(placeholder);
         }
@@ -152,9 +157,8 @@ public class DrawbridgeLever extends WorldObject {
 
     @Override
     public void removeFrom(GCanvas canvas) {
-        if (leverSprite != null) {
-            canvas.remove(leverSprite);
-        }
+        if (brokenSprite != null) canvas.remove(brokenSprite);
+        if (fixedSprite  != null) canvas.remove(fixedSprite);
         canvas.remove(placeholder);
     }
 
@@ -207,20 +211,17 @@ public class DrawbridgeLever extends WorldObject {
 
     @Override
     public void panVisual(double panX, double panY) {
-        if (leverSprite != null) {
-            leverSprite.move(panX, panY);
-        }
+        if (brokenSprite != null) brokenSprite.move(panX, panY);
+        if (fixedSprite  != null) fixedSprite.move(panX, panY);
         placeholder.move(panX, panY);
     }
 
     @Override
     public void resetVisualPosition() {
-        if (leverSprite != null) {
-            leverSprite.setLocation(
-                x + (48.0 - spriteRenderWidth) / 2.0,
-                y + (48.0 - spriteRenderHeight)
-            );
-        }
+        double sx = x + (48.0 - spriteRenderWidth) / 2.0;
+        double sy = y + (48.0 - spriteRenderHeight);
+        if (brokenSprite != null) brokenSprite.setLocation(sx, sy);
+        if (fixedSprite  != null) fixedSprite.setLocation(sx, sy);
         placeholder.setLocation(x, y);
     }
 
@@ -234,7 +235,9 @@ public class DrawbridgeLever extends WorldObject {
     public void forceFixed() {
         if (isFixed) return;
         isFixed = true;
-        if (leverSprite == null) {
+        if (brokenSprite != null) brokenSprite.setVisible(false);
+        if (fixedSprite  != null) fixedSprite.setVisible(true);
+        if (brokenSprite == null && fixedSprite == null) {
             placeholder.setFillColor(LEVER_FIXED_COLOR);
         }
         applyBridgeTiles();

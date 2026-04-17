@@ -9,55 +9,45 @@ import java.io.IOException;
 import javax.imageio.ImageIO;
 
 /**
- * Simple consumable that restores one full heart when used from the pause inventory.
+ * Ore chunk dropped by OreNode when the player mines it with a Pickaxe.
+ * Lies on the ground as a world drop; the player walks over it to collect it.
+ * Bring it to the Blacksmith in B1 to have it crafted into a FixedLever.
  */
-public class HealingBread extends Item {
+public class RawOre extends Item {
 
-    public static final String ITEM_ID = "healing_bread";
-    private static final int    HEAL_AMOUNT  = Player.HALF_HEARTS_PER_HEART;
-    private static final double DROP_SIZE    = 32.0;
-    private static final double ICON_SIZE    = 32.0;
-    private static final Color  FALLBACK_COLOR = new Color(210, 170, 80);
+    public static final String ITEM_ID     = "raw_ore";
+    private static final double DROP_SIZE   = 32.0;
+    private static final double ICON_SIZE   = 32.0;
+    private static final Color  FALLBACK_COLOR = new Color(130, 110, 80);
 
     /** World-drop sprite (shown on the ground in a Room). */
     private GImage worldSprite;
     /** Fallback rectangle used if the PNG fails to load. */
     private GRect  worldFallback;
 
-    public HealingBread() {
-        super(ITEM_ID, "Healing Bread", true);
-        BufferedImage trimmed = loadTrimmed("assets/visuals/png's/bread.png");
+    public RawOre() {
+        this(0, 0);
+    }
+
+    public RawOre(double worldX, double worldY) {
+        super(ITEM_ID, "Raw Ore", true);
+        setWorldPosition(worldX, worldY);
+        BufferedImage trimmed = loadTrimmed("assets/visuals/png's/raw_ore.png");
         if (trimmed != null) {
             worldSprite = new GImage(trimmed);
             worldSprite.setSize(DROP_SIZE, DROP_SIZE);
+            worldSprite.setLocation(worldX, worldY);
             icon = new GImage(trimmed);
             icon.setSize(ICON_SIZE, ICON_SIZE);
         }
-        worldFallback = new GRect(0, 0, DROP_SIZE, DROP_SIZE);
+        worldFallback = new GRect(worldX, worldY, DROP_SIZE, DROP_SIZE);
         worldFallback.setFilled(true);
         worldFallback.setFillColor(FALLBACK_COLOR);
     }
 
     @Override
-    public void onUse(Player p) {
-        if (p == null) return;
-        int hpBefore = p.getHP();
-        if (hpBefore >= p.getMaxHealth()) return;
-
-        p.setHP(hpBefore + HEAL_AMOUNT);
-        if (p.getHP() > hpBefore) {
-            p.consumeInventoryItem(this);
-        }
-    }
-
-    @Override
-    public boolean isUsable() {
-        return true;
-    }
-
-    @Override
     public String getDescription() {
-        return "A warm loaf that restores 1 heart. Press Space or Enter in the inventory to eat it.";
+        return "A chunk of raw ore pried from the mine wall. The Blacksmith in B1 can work with this.";
     }
 
     @Override

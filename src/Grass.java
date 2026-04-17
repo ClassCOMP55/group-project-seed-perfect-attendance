@@ -45,11 +45,16 @@ PLAN OF ACTION
 */
 
 import acm.graphics.GCanvas;
+import acm.graphics.GImage;
 import acm.graphics.GLabel;
 import acm.graphics.GRect;
 
 import java.awt.Color;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
 import java.util.function.Consumer;
+import javax.imageio.ImageIO;
 
 /**
  * Cuttable grass. Reacts to SwordSwing hits via onHit().
@@ -103,7 +108,10 @@ public class Grass extends WorldObject {
     /** True when this tile may keep dropping coins after regrowing. */
     private final boolean repeatCoinDrops;
 
-    /** Placeholder visual until real grass sprite is ready. */
+    /** Grass sprite loaded from assets; null if load fails. */
+    private GImage grassSprite;
+
+    /** Placeholder visual shown when sprite is unavailable. */
     private GRect placeholder;
 
     /** Small always-on debug label so testers can identify the patch quickly. */
@@ -156,6 +164,8 @@ public class Grass extends WorldObject {
         this.regrowTimerSeconds = 0.0;
         this.coinDropExhausted = false;
 
+        this.grassSprite = loadSprite("assets/visuals/png's/grass_to_cut.png");
+
         this.placeholder = new GRect(x, y, 48, 48);
         this.placeholder.setFilled(true);
         this.placeholder.setFillColor(GRASS_COLOR);
@@ -175,12 +185,17 @@ public class Grass extends WorldObject {
     public void draw(GCanvas canvas) {
         if (!visible) return;
         refreshVisualState();
-        canvas.add(placeholder);
+        if (grassSprite != null) {
+            canvas.add(grassSprite);
+        } else {
+            canvas.add(placeholder);
+        }
         canvas.add(debugLabel);
     }
 
     @Override
     public void removeFrom(GCanvas canvas) {
+        if (grassSprite != null) canvas.remove(grassSprite);
         canvas.remove(placeholder);
         canvas.remove(debugLabel);
     }
@@ -241,6 +256,7 @@ public class Grass extends WorldObject {
 
     @Override
     public void panVisual(double panX, double panY) {
+        if (grassSprite != null) grassSprite.move(panX, panY);
         placeholder.move(panX, panY);
         debugLabel.move(panX, panY);
     }
@@ -258,10 +274,15 @@ public class Grass extends WorldObject {
         refreshVisualState();
     }
 
-    /** Keeps placeholder visibility, label text, and label placement in sync with the current state. */
+    /** Keeps sprite/placeholder visibility, label text, and label placement in sync with the current state. */
     private void refreshVisualState() {
+        boolean showVisual = visible && !isCut;
+        if (grassSprite != null) {
+            grassSprite.setLocation(x, y);
+            grassSprite.setVisible(showVisual);
+        }
         placeholder.setLocation(x, y);
-        placeholder.setVisible(visible && !isCut);
+        placeholder.setVisible(grassSprite == null && showVisual);
         debugLabel.setVisible(visible);
         updateDebugLabel();
     }
@@ -294,5 +315,35 @@ public class Grass extends WorldObject {
         }
         return MIN_REGROW_DURATION_SECONDS
             + Math.random() * (MAX_REGROW_DURATION_SECONDS - MIN_REGROW_DURATION_SECONDS);
+    }
+
+    private GImage loadSprite(String path) {
+        try {
+            BufferedImage source = ImageIO.read(new File(path));
+            if (source == null) return null;
+            BufferedImage trimmed = trimTransparentBounds(source);
+            GImage image = new GImage(trimmed);
+            image.setSize(48, 48);
+            image.setLocation(x, y);
+            return image;
+        } catch (IOException | RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    private BufferedImage trimTransparentBounds(BufferedImage source) {
+        int w = source.getWidth(), h = source.getHeight();
+        int minX = w, minY = h, maxX = -1, maxY = -1;
+        for (int py = 0; py < h; py++) {
+            for (int px = 0; px < w; px++) {
+                if (((source.getRGB(px, py) >>> 24) & 0xFF) == 0) continue;
+                if (px < minX) minX = px;
+                if (py < minY) minY = py;
+                if (px > maxX) maxX = px;
+                if (py > maxY) maxY = py;
+            }
+        }
+        return (maxX < minX || maxY < minY) ? source
+            : source.getSubimage(minX, minY, maxX - minX + 1, maxY - minY + 1);
     }
 }

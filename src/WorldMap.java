@@ -313,6 +313,10 @@ public class WorldMap {
     private static final double BLACKSMITH_X = TileMap.MAP_OFFSET_X + 6 * 48;
     private static final double BLACKSMITH_Y = 5 * 48;
 
+    /** Little girl NPC position in B1, just outside the inn save crystal (grid col 18, row 8). */
+    private static final double LITTLE_GIRL_X = TileMap.MAP_OFFSET_X + 18 * 48;
+    private static final double LITTLE_GIRL_Y = 8 * 48;
+
     /** B2 ore-vein footprint (col,row) tiles: 9,4 10,4 11,4 9,5 10,5 11,5 9,6 10,6 11,6 */
     private static final int[][] ORE_VEIN_TILES_B2 = {
         {9, 4}, {10, 4}, {11, 4},
@@ -472,6 +476,7 @@ public class WorldMap {
         installStarterBreadMerchant();
         installPickaxeChest();
         installBlacksmith();
+        installLittleGirlNpc();
         installOreNode();
         installHeroThickets();
         installDrawbridgeLever();
@@ -583,6 +588,28 @@ public class WorldMap {
         Room b1 = overworldGrid[1][0];
         if (b1 == null) return;
         b1.addObject(new Blacksmith(BLACKSMITH_X, BLACKSMITH_Y, dialogue));
+    }
+
+    private static final String[] LITTLE_GIRL_LINES = {
+        "The save crystal inside the inn lets you record your journey.",
+        "If something bad happens, you can come back here and try again.",
+        "My dad says real heroes always save before heading into danger."
+    };
+
+    /** Places a little girl NPC in B1 just outside the inn save crystal. */
+    private void installLittleGirlNpc() {
+        Room b1 = overworldGrid[1][0];
+        if (b1 == null) return;
+        WorldNpc littleGirl = new WorldNpc(
+            LITTLE_GIRL_X,
+            LITTLE_GIRL_Y,
+            "Little Girl",
+            LITTLE_GIRL_LINES,
+            dialogue,
+            "assets/visuals/png's/little girl (puzzle helper).png"
+        );
+        littleGirl.setStoryFlagHooks(this::hasStoryFlag, this::addStoryFlag);
+        b1.addObject(littleGirl);
     }
 
     /** Places the OreNode in B2 that gives Ore + BrokenLever when mined with the Pickaxe. */

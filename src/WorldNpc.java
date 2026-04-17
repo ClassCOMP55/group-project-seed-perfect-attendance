@@ -47,14 +47,28 @@ public class WorldNpc extends WorldObject {
     private double spriteRenderWidth = 48.0;
     private double spriteRenderHeight = 48.0;
 
+    /**
+     * Creates a WorldNpc using the default sprite ("the drunk").
+     * Use the overload below if you need a different NPC sprite.
+     */
     public WorldNpc(double x, double y, String speakerName, String[] dialogueLines, Dialogue dialogue) {
+        this(x, y, speakerName, dialogueLines, dialogue, "assets/visuals/png's/the drunk.png");
+    }
+
+    /**
+     * Creates a WorldNpc with a custom sprite path.
+     *
+     * @param spritePath path to the NPC's PNG, e.g. {@code "assets/visuals/png's/little girl (puzzle helper).png"}
+     */
+    public WorldNpc(double x, double y, String speakerName, String[] dialogueLines, Dialogue dialogue,
+                    String spritePath) {
         super(x, y, 48, 48);
         this.speakerName = (speakerName == null || speakerName.trim().isEmpty())
             ? "Villager"
             : speakerName.trim();
         this.dialogueLines = dialogueLines == null ? new String[0] : dialogueLines.clone();
         this.dialogue = dialogue;
-        this.npcSprite = loadNpcSprite(this.speakerName);
+        this.npcSprite = loadNpcSprite(spritePath);
 
         this.body = new GRect(x, y, 48, 48);
         this.body.setFilled(true);
@@ -199,8 +213,8 @@ public class WorldNpc extends WorldObject {
         this.rewardGrantAction = rewardGrantAction;
     }
 
-    private GImage loadNpcSprite(String name) {
-        return loadSprite("assets/visuals/png's/the drunk.png");
+    private GImage loadNpcSprite(String path) {
+        return loadSprite(path);
     }
 
     private GImage loadSprite(String path) {

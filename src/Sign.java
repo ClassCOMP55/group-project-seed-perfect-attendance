@@ -40,10 +40,15 @@ PLAN OF ACTION
 */
 
 import acm.graphics.GCanvas;
+import acm.graphics.GImage;
 import acm.graphics.GLabel;
 import acm.graphics.GRect;
 
 import java.awt.Color;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import javax.imageio.ImageIO;
 
 /**
  * A readable sign. Opens Dialogue with stored text lines when the player presses E while facing it.
@@ -73,7 +78,10 @@ public class Sign extends WorldObject {
     /** The shared Dialogue overlay. Set at construction or via setDialogue(). */
     private Dialogue dialogue;
 
-    /** Placeholder visual until real sign sprite is ready. */
+    /** Sign sprite loaded from assets; null if load fails. */
+    private GImage signSprite;
+
+    /** Placeholder visual shown when sprite is unavailable. */
     private GRect placeholder;
 
     /** Floating helper text above and below the sign for quick testing. */
@@ -94,6 +102,8 @@ public class Sign extends WorldObject {
         super(x, y, 48, 48);
         this.dialogueLines = dialogueLines == null ? new String[0] : dialogueLines.clone();
         this.dialogue      = dialogue;
+
+        this.signSprite = loadSprite("assets/visuals/png's/sign.png");
 
         this.placeholder = new GRect(x, y, 48, 48);
         this.placeholder.setFilled(true);
@@ -119,7 +129,11 @@ public class Sign extends WorldObject {
     public void draw(GCanvas canvas) {
         if (!visible) return;
         resetVisualPosition();
-        canvas.add(placeholder);
+        if (signSprite != null) {
+            canvas.add(signSprite);
+        } else {
+            canvas.add(placeholder);
+        }
         canvas.add(titleLabel);
         canvas.add(hintLabel);
         positionLabels();
@@ -127,6 +141,7 @@ public class Sign extends WorldObject {
 
     @Override
     public void removeFrom(GCanvas canvas) {
+        if (signSprite != null) canvas.remove(signSprite);
         canvas.remove(placeholder);
         canvas.remove(titleLabel);
         canvas.remove(hintLabel);
@@ -139,6 +154,7 @@ public class Sign extends WorldObject {
 
     @Override
     public void panVisual(double panX, double panY) {
+        if (signSprite != null) signSprite.move(panX, panY);
         placeholder.move(panX, panY);
         titleLabel.move(panX, panY);
         hintLabel.move(panX, panY);
@@ -146,6 +162,7 @@ public class Sign extends WorldObject {
 
     @Override
     public void resetVisualPosition() {
+        if (signSprite != null) signSprite.setLocation(x, y);
         placeholder.setLocation(x, y);
         positionLabels();
     }
@@ -181,4 +198,34 @@ public class Sign extends WorldObject {
     // =========================================================
 
     public void setDialogue(Dialogue d) { this.dialogue = d; }
+
+    private GImage loadSprite(String path) {
+        try {
+            BufferedImage source = ImageIO.read(new File(path));
+            if (source == null) return null;
+            BufferedImage trimmed = trimTransparentBounds(source);
+            GImage image = new GImage(trimmed);
+            image.setSize(48, 48);
+            image.setLocation(x, y);
+            return image;
+        } catch (IOException | RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    private BufferedImage trimTransparentBounds(BufferedImage source) {
+        int w = source.getWidth(), h = source.getHeight();
+        int minX = w, minY = h, maxX = -1, maxY = -1;
+        for (int py = 0; py < h; py++) {
+            for (int px = 0; px < w; px++) {
+                if (((source.getRGB(px, py) >>> 24) & 0xFF) == 0) continue;
+                if (px < minX) minX = px;
+                if (py < minY) minY = py;
+                if (px > maxX) maxX = px;
+                if (py > maxY) maxY = py;
+            }
+        }
+        return (maxX < minX || maxY < minY) ? source
+            : source.getSubimage(minX, minY, maxX - minX + 1, maxY - minY + 1);
+    }
 }
