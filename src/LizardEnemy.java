@@ -38,12 +38,20 @@ public class LizardEnemy extends Enemy {
     /** 3 hearts in half-heart units, matching the player's default. */
     private static final int MAX_HEALTH = (Player.DEFAULT_HEART_COUNT-1) * Player.HALF_HEARTS_PER_HEART;
 
+    /** Ticks between attacks (~1.5s at 60fps). */
+    private static final int ATTACK_COOLDOWN = 90;
+    /** Ticks of windup before damage lands (~0.5s at 60fps). */
+    private static final int ATTACK_WINDUP = 30;
+
     // ==========================================================
     // FIELDS
     // ==========================================================
 
     /** Damage dealt per hit when hitboxes overlap. */
     private int meleeDamage;
+
+    /** Counts down after the attack animation starts; damage lands when this reaches 0. */
+    private int windupTicks = 0;
 
     // ==========================================================
     // CONSTRUCTOR
@@ -63,6 +71,7 @@ public class LizardEnemy extends Enemy {
               130.0,      // chaseSpeed  (px/s)
               210.0);     // aggroRange  (px)
         this.meleeDamage = 1;
+        this.attackAnimDuration = 0.7;
         loadAllSprites();
         applyRenderSizeForState(animState);
     }
@@ -137,6 +146,9 @@ public class LizardEnemy extends Enemy {
 
     @Override
     protected void setAnimState(AnimState state) {
+        if (state == AnimState.DAMAGE || state == AnimState.DEATH) {
+            windupTicks = 0;
+        }
         super.setAnimState(state);
         applyRenderSizeForState(state);
     }
@@ -146,10 +158,13 @@ public class LizardEnemy extends Enemy {
     // ==========================================================
 
     /**
-     * Deals meleeDamage to the target when hitboxes overlap and
-     * the attack cooldown has expired.
+     * Deals meleeDamage to the target after a short windup delay.
      *
-     * Cooldown: 180 ticks ≈ 3s at 60fps.
+     * When the player's hitbox first overlaps, the attack animation starts and
+     * windupTicks begins counting down (~0.5s). Damage lands only when the
+     * countdown expires, giving the player a brief window to back away.
+     *
+     * Cooldown: ATTACK_COOLDOWN ticks ≈ 1.5s at 60fps.
      *
      * @param target Entity to attack (typically the Player)
      */
@@ -159,14 +174,24 @@ public class LizardEnemy extends Enemy {
         if (attackCooldownTicks > 0) return;
         if (animState == AnimState.DAMAGE || animState == AnimState.DEATH) return;
 
-        if (hitbox.overlaps(target.getHitbox())) {
-            target.takeDamage(meleeDamage);
-            GameSFX.play(GameSFX.SFX.ENEMY_ATTACK);
-            attackCooldownTicks = 180; // ~3s at 60fps
-            if (animState != AnimState.DEATH) {
-                setAnimState(AnimState.ATTACK);
-                animTimer = attackAnimDuration;
+        // Mid-windup: count down and fire damage when it expires
+        if (windupTicks > 0) {
+            windupTicks--;
+            if (windupTicks == 0) {
+                if (hitbox.overlaps(target.getHitbox())) {
+                    target.takeDamage(meleeDamage);
+                    GameSFX.play(GameSFX.SFX.ENEMY_ATTACK);
+                }
+                attackCooldownTicks = ATTACK_COOLDOWN;
             }
+            return;
+        }
+
+        // Start windup when touching player
+        if (hitbox.overlaps(target.getHitbox())) {
+            windupTicks = ATTACK_WINDUP;
+            setAnimState(AnimState.ATTACK);
+            animTimer = attackAnimDuration;
         }
     }
 }
