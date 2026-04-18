@@ -27,8 +27,10 @@ public class PauseModal extends GraphicsPane
   // ================================================================
   private static final int PANEL_W = 766;
   private static final int PANEL_H = 431;
-  private static final int PANEL_X = (1280 - PANEL_W) / 2;  // 257
-  private static final int PANEL_Y = (int)(720 * 0.08);      // 57
+  // panelX / panelY are NOT static — computed from the actual canvas
+  // size each time showPause() runs so centering survives DPI scaling.
+  private int panelX;
+  private int panelY;
 
   // ================================================================
   // ASSET PATHS
@@ -42,67 +44,74 @@ public class PauseModal extends GraphicsPane
   private static final String ASSET_SLIDER_THUMB  = "assets/visuals/Pause screen stuff/slider thumb.png";
   private static final String ASSET_PORTRAIT      = "assets/visuals/characters/player-in-inventory-1.png";
   private static final String ASSET_COIN          = "assets/visuals/png's/coin.png";
-  private static final String ASSET_RELIC_HEALTH  = "assets/visuals/png's/health_relic_icon.png";
-  private static final String ASSET_RELIC_FADE    = "assets/visuals/png's/fade_relic_icon.png";
-  private static final String ASSET_RELIC_REFLECT = "assets/visuals/png's/reflect_attack_relic_icon.png";
+  private static final String ASSET_RELIC_HEALTH  = "assets/visuals/png's/health_relic.png";
+  private static final String ASSET_RELIC_FADE    = "assets/visuals/png's/fade_relic.png";
+  private static final String ASSET_RELIC_REFLECT = "assets/visuals/png's/reflect_attack_relic.png";
   private static final String HEART_FULL          = "assets/visuals/hearts/pixel heart full single.png";
   private static final String HEART_HALF          = "assets/visuals/hearts/pixel heart half.png";
   private static final String HEART_EMPTY         = "assets/visuals/hearts/pixel heart empty.png";
 
   // ================================================================
   // INVENTORY TAB — offsets within inventory_menu.png
-  // Add PANEL_X / PANEL_Y to get game-window coordinates.
+  // Add panelX / panelY to get game-window coordinates.
   // Values marked "tune" should be adjusted by eye after first run.
   // ================================================================
-  private static final int INV_HEARTS_X      = 62;
-  private static final int INV_HEARTS_Y      = 88;
+  private static final int INV_HEARTS_X      = 64;
+  private static final int INV_HEARTS_Y      = 98;
   // Portrait sits below the hearts strip inside the left column box:
-  private static final int INV_PORTRAIT_X    = 63;   // tune
-  private static final int INV_PORTRAIT_Y    = 130;  // tune
-  private static final int INV_PORTRAIT_W    = 155;  // tune
-  private static final int INV_PORTRAIT_H    = 185;  // tune
+  private static final int    INV_PORTRAIT_X    = -115;   // tune — top-left of portrait on panel
+  private static final int    INV_PORTRAIT_Y    = 120;  // tune
+  /** Uniform scale: 1.0 = native PNG size; same factor on W and H (never squished). */
+  private static final double INV_PORTRAIT_SCALE = 4.0; // tune
   // Relic slots (three small squares at bottom of portrait column):
-  private static final int INV_RELIC1_X      = 64;
-  private static final int INV_RELIC2_X      = 108;
-  private static final int INV_RELIC3_X      = 154;
-  private static final int INV_RELIC_Y       = 336;
-  private static final int INV_RELIC_SIZE    = 36;   // tune
+  private static final int INV_RELIC1_X      = 44;
+  private static final int INV_RELIC2_X      = 89;
+  private static final int INV_RELIC3_X      = 134;
+  private static final int INV_RELIC_Y       = 332;
+  /** Same idea as portrait: 1.0 = native PNG size; one number scales W and H together. */
+  private static final double INV_RELIC_SCALE = 0.045; // tune
   // Item grid (3 cols × 4 rows = 12 slots):
-  private static final int INV_GRID_ORIGIN_X = 244;
-  private static final int INV_GRID_ORIGIN_Y = 59;
+  private static final int INV_GRID_ORIGIN_X = 249;
+  private static final int INV_GRID_ORIGIN_Y = 64;
   private static final int INV_GRID_CELL_W   = 55;   // matches grid cell highlight image width
   private static final int INV_GRID_CELL_H   = 57;   // matches grid cell highlight image height
-  private static final int INV_GRID_GAP      = 8;    // tune
+  private static final int INV_GRID_GAP      = 31;    // tune — horizontal stride gap
+  private static final int INV_GRID_GAP_Y    = 34;    // tune — vertical stride gap (adjust independently)
   private static final int INV_GRID_COLS     = 3;
-  private static final int INV_GRID_ROWS     = 4;
+  private static final int INV_GRID_ROWS     = 5;
   // Coins + last-saved box (top right of panel):
-  private static final int INV_COINS_BOX_X   = 559;
-  private static final int INV_COINS_BOX_Y   = 49;
+  private static final int INV_COINS_BOX_X   = 565;
+  private static final int INV_COINS_BOX_Y   = 60;
   private static final int INV_COIN_ICON_SIZE = 16;
   // Description box (right side, below coins box):
-  private static final int INV_DESC_X        = 519;
+  private static final int INV_DESC_X        = 525;
   private static final int INV_DESC_Y        = 142;
-  private static final int INV_DESC_W        = 230;  // tune
+  private static final int INV_DESC_W        = 170;  // tune
   private static final int INV_DESC_H        = 270;  // tune
   private static final int INV_DESC_PAD      = 8;
   private static final double INV_DESC_LINE_GAP = 3;
   // Heart display cell size — tune to match the hearts strip height in art:
-  private static final double PAUSE_HEART_CELL_SIZE = 4.0;
+  private static final double PAUSE_HEART_CELL_SIZE = 4.5;
 
   // ================================================================
   // SETTINGS TAB — offsets within setting_menu.png
   // ================================================================
-  private static final int SET_MUSIC_TRACK_X = 241;
-  private static final int SET_MUSIC_TRACK_Y = 139;
+  private static final int SET_MUSIC_TRACK_X = 242;
+  private static final int SET_MUSIC_TRACK_Y = 145;
   private static final int SET_SFX_TRACK_X   = 242;
-  private static final int SET_SFX_TRACK_Y   = 235;
-  private static final int SET_TRACK_RIGHT_X = 660;  // tune
-  private static final int SET_RESUME_X      = 75;
-  private static final int SET_RESUME_Y      = 367;
-  private static final int SET_MENU_X        = 289;
-  private static final int SET_MENU_Y        = 367;
-  private static final int SET_QUIT_X        = 502;
-  private static final int SET_QUIT_Y        = 367;
+  private static final int SET_SFX_TRACK_Y   = 240;
+  // Top-left for grid_cell_highlight over the music / SFX icons (left of the slider tracks). tune
+  private static final int SET_MUSIC_ICON_HL_X = 171;
+  private static final int SET_MUSIC_ICON_HL_Y = 115;
+  private static final int SET_SFX_ICON_HL_X   = 171;
+  private static final int SET_SFX_ICON_HL_Y   = 210;
+  private static final int SET_TRACK_RIGHT_X = 580;  // tune
+  private static final int SET_RESUME_X      = 69;
+  private static final int SET_RESUME_Y      = 362;
+  private static final int SET_MENU_X        = 283;
+  private static final int SET_MENU_Y        = 362;
+  private static final int SET_QUIT_X        = 497;
+  private static final int SET_QUIT_Y        = 362;
   private static final int SLIDER_STEP       = 5;
 
   // ================================================================
@@ -110,12 +119,13 @@ public class PauseModal extends GraphicsPane
   // ================================================================
   private static final int CONFIRM_W      = 540;
   private static final int CONFIRM_H      = 256;
-  private static final int CONFIRM_X      = (1280 - CONFIRM_W) / 2;  // 370
-  private static final int CONFIRM_Y      = (720  - CONFIRM_H) / 2;  // 232
-  private static final int CONFIRM_YES_X  = 102;
-  private static final int CONFIRM_YES_Y  = 166;
-  private static final int CONFIRM_NO_X   = 296;
-  private static final int CONFIRM_NO_Y   = 166;
+  // confirmX / confirmY computed at showConfirmDialog() time — same reason as panelX/Y.
+  private int confirmX;
+  private int confirmY;
+  private static final int CONFIRM_YES_X  = 97;
+  private static final int CONFIRM_YES_Y  = 164;
+  private static final int CONFIRM_NO_X   = 290;
+  private static final int CONFIRM_NO_Y   = 164;
 
   // Actual pixel sizes of each highlight / thumb image (read from files):
   private static final int GRID_HL_W      = 55;
@@ -167,7 +177,10 @@ public class PauseModal extends GraphicsPane
   // ================================================================
   private GRect  dimOverlay;
   private GImage panelBgImage;
-  private GLabel pauseNavHintLabel;
+  private GLabel pauseHintJ;
+  private GLabel pauseHintK;
+  private GLabel pauseHintWASD;
+  private GLabel pauseHintUse;
 
   // Inventory tab:
   private HeartDisplay pauseHeartDisplay;
@@ -186,6 +199,7 @@ public class PauseModal extends GraphicsPane
   private GImage pauseSfxThumb;
   private GLabel pauseMusicPercentLabel;
   private GLabel pauseSfxPercentLabel;
+  private GImage pauseVolumeIconHighlight;
   private GImage pauseActionBarHighlight;
 
   // Confirm dialog (tracked separately so A/D can reposition the highlight):
@@ -208,6 +222,10 @@ public class PauseModal extends GraphicsPane
    */
   public void showPause()
   {
+    // Recompute panel position from the real canvas size every call.
+    panelX = (int)((mainScreen.getWidth()  - PANEL_W) / 2);
+    panelY = (int)(mainScreen.getHeight() * 0.2);
+
     boolean preserveState = !contents.isEmpty();
     hideContent();
     if (!preserveState)
@@ -232,7 +250,7 @@ public class PauseModal extends GraphicsPane
     if (panelBgImage != null)
     {
       panelBgImage.setSize(PANEL_W, PANEL_H);
-      panelBgImage.setLocation(PANEL_X, PANEL_Y);
+      panelBgImage.setLocation(panelX, panelY);
       addBoth(panelBgImage);
     }
 
@@ -254,14 +272,46 @@ public class PauseModal extends GraphicsPane
 
   private void buildNavHint()
   {
-    pauseNavHintLabel = new GLabel(
-        "J: Inventory  K: Settings  WASD: Navigate  Space/E: Use Item", 0, 0);
-    pauseNavHintLabel.setFont("Courier New-BOLD-10");
-    pauseNavHintLabel.setColor(Color.WHITE);
-    double hintX = PANEL_X + PANEL_W - pauseNavHintLabel.getWidth() - 10;
-    double hintY = PANEL_Y + 24;
-    pauseNavHintLabel.setLocation(hintX, hintY);
-    addBoth(pauseNavHintLabel);
+    String font = "Courier New-BOLD-14";
+
+    // Left group — tab switching hints, stacked vertically
+    pauseHintJ = new GLabel("J: Inventory", 0, 0);
+    pauseHintJ.setFont(font);
+    pauseHintJ.setColor(Color.BLACK);
+
+    pauseHintK = new GLabel("K: Settings", 0, 0);
+    pauseHintK.setFont(font);
+    pauseHintK.setColor(Color.BLACK);
+
+    // Right group — navigation hints, stacked vertically
+    pauseHintWASD = new GLabel("WASD: Navigate", 0, 0);
+    pauseHintWASD.setFont(font);
+    pauseHintWASD.setColor(Color.BLACK);
+
+    pauseHintUse = new GLabel("Space/E: Use Item", 0, 0);
+    pauseHintUse.setFont(font);
+    pauseHintUse.setColor(Color.BLACK);
+
+    // Two rows inside the tab strip.
+    // Row 1 baseline sits near the top of the strip; row 2 just below it.
+    double row1Y = panelY + 15;
+    double row2Y = panelY + 27;
+    double rightEdge = panelX + PANEL_W - 40;
+
+    // Right group — right-aligned at panel edge
+    pauseHintUse.setLocation(rightEdge - pauseHintUse.getWidth(), row2Y);
+    pauseHintWASD.setLocation(rightEdge - pauseHintWASD.getWidth(), row1Y);
+
+    // Left group — sits just to the left of the right group with a gap
+    double rightGroupLeft = Math.min(
+        pauseHintWASD.getX(), pauseHintUse.getX()) - 16;
+    pauseHintJ.setLocation(rightGroupLeft - pauseHintJ.getWidth(), row1Y);
+    pauseHintK.setLocation(rightGroupLeft - pauseHintK.getWidth(), row2Y);
+
+    addBoth(pauseHintJ);
+    addBoth(pauseHintK);
+    addBoth(pauseHintWASD);
+    addBoth(pauseHintUse);
   }
 
   // ================================================================
@@ -281,8 +331,16 @@ public class PauseModal extends GraphicsPane
   {
     pausePortraitImage = loadImage(ASSET_PORTRAIT);
     if (pausePortraitImage == null) return;
-    pausePortraitImage.setSize(INV_PORTRAIT_W, INV_PORTRAIT_H);
-    pausePortraitImage.setLocation(PANEL_X + INV_PORTRAIT_X, PANEL_Y + INV_PORTRAIT_Y);
+
+    // Uniform scale — same multiplier on width and height (proportions preserved).
+    double natW = pausePortraitImage.getWidth();
+    double natH = pausePortraitImage.getHeight();
+    double scale = INV_PORTRAIT_SCALE;
+    if (natW > 0 && natH > 0)
+    {
+      pausePortraitImage.setSize(natW * scale, natH * scale);
+    }
+    pausePortraitImage.setLocation(panelX + INV_PORTRAIT_X, panelY + INV_PORTRAIT_Y);
     addBoth(pausePortraitImage);
   }
 
@@ -290,7 +348,7 @@ public class PauseModal extends GraphicsPane
   {
     pauseHeartDisplay = new HeartDisplay(Player.DEFAULT_HEART_COUNT, PAUSE_HEART_CELL_SIZE);
     pauseHeartDisplay.setImages(HEART_FULL, HEART_HALF, HEART_EMPTY);
-    pauseHeartDisplay.show(this, PANEL_X + INV_HEARTS_X, PANEL_Y + INV_HEARTS_Y);
+    pauseHeartDisplay.show(this, panelX + INV_HEARTS_X, panelY + INV_HEARTS_Y);
     pauseHeartDisplay.setFilledHalfHearts(getPauseHeartSegmentsFilled());
   }
 
@@ -317,16 +375,21 @@ public class PauseModal extends GraphicsPane
   {
     GImage img = loadImage(path);
     if (img == null) return null;
-    img.setSize(INV_RELIC_SIZE, INV_RELIC_SIZE);
-    img.setLocation(PANEL_X + offsetX, PANEL_Y + INV_RELIC_Y);
+    double natW = img.getWidth();
+    double natH = img.getHeight();
+    if (natW > 0 && natH > 0)
+    {
+      img.setSize(natW * INV_RELIC_SCALE, natH * INV_RELIC_SCALE);
+    }
+    img.setLocation(panelX + offsetX, panelY + INV_RELIC_Y);
     addBoth(img);
     return img;
   }
 
   private void buildCoinsSave()
   {
-    double iconX = PANEL_X + INV_COINS_BOX_X + 6;
-    double iconY = PANEL_Y + INV_COINS_BOX_Y + 8;
+    double iconX = panelX + INV_COINS_BOX_X + 6;
+    double iconY = panelY + INV_COINS_BOX_Y + 8;
 
     pauseCoinIconImage = loadImage(ASSET_COIN);
     if (pauseCoinIconImage != null)
@@ -338,7 +401,7 @@ public class PauseModal extends GraphicsPane
 
     int coins = Math.min(999, Math.max(0, getPauseCoins()));
     pauseCoinsLabel = new GLabel(String.valueOf(coins), 0, 0);
-    pauseCoinsLabel.setFont("Courier New-BOLD-12");
+    pauseCoinsLabel.setFont("Courier New-BOLD-14");
     pauseCoinsLabel.setColor(Color.BLACK);
     pauseCoinsLabel.setLocation(
         iconX + INV_COIN_ICON_SIZE + 4,
@@ -346,7 +409,7 @@ public class PauseModal extends GraphicsPane
     addBoth(pauseCoinsLabel);
 
     pauseLastSavedLabel = new GLabel(getInventoryLastSavedText(), 0, 0);
-    pauseLastSavedLabel.setFont("Courier New-PLAIN-9");
+    pauseLastSavedLabel.setFont("Courier New-BOLD-12");
     pauseLastSavedLabel.setColor(Color.BLACK);
     pauseLastSavedLabel.setLocation(
         iconX,
@@ -365,8 +428,8 @@ public class PauseModal extends GraphicsPane
     {
       int row = slot / INV_GRID_COLS;
       int col = slot % INV_GRID_COLS;
-      double sx = PANEL_X + INV_GRID_ORIGIN_X + col * (INV_GRID_CELL_W + INV_GRID_GAP);
-      double sy = PANEL_Y + INV_GRID_ORIGIN_Y + row * (INV_GRID_CELL_H + INV_GRID_GAP);
+      double sx = panelX + INV_GRID_ORIGIN_X + col * (INV_GRID_CELL_W + INV_GRID_GAP);
+      double sy = panelY + INV_GRID_ORIGIN_Y + row * (INV_GRID_CELL_H + INV_GRID_GAP_Y);
 
       if (slot >= items.size()) continue;
       Item item = items.get(slot);
@@ -383,11 +446,11 @@ public class PauseModal extends GraphicsPane
       if (item.isStackable() && item.getStackCount() > 1)
       {
         GLabel count = new GLabel("x" + item.getStackCount(), 0, 0);
-        count.setFont("Courier New-BOLD-9");
-        count.setColor(Color.WHITE);
+        count.setFont("Courier New-BOLD-12");
+        count.setColor(Color.BLACK);
         count.setLocation(
-            sx + INV_GRID_CELL_W - count.getWidth() - 3,
-            sy + INV_GRID_CELL_H - 3);
+            sx + INV_GRID_CELL_W - count.getWidth() - 1,
+            sy + INV_GRID_CELL_H - 4);
         addBoth(count);
         pauseGridStackLabels[slot] = count;
       }
@@ -411,8 +474,8 @@ public class PauseModal extends GraphicsPane
     }
     int row = pauseInventoryFocusIndex / INV_GRID_COLS;
     int col = pauseInventoryFocusIndex % INV_GRID_COLS;
-    double hx = PANEL_X + INV_GRID_ORIGIN_X + col * (INV_GRID_CELL_W + INV_GRID_GAP);
-    double hy = PANEL_Y + INV_GRID_ORIGIN_Y + row * (INV_GRID_CELL_H + INV_GRID_GAP);
+    double hx = panelX + INV_GRID_ORIGIN_X + col * (INV_GRID_CELL_W + INV_GRID_GAP);
+    double hy = panelY + INV_GRID_ORIGIN_Y + row * (INV_GRID_CELL_H + INV_GRID_GAP_Y);
     pauseGridHighlight = loadImage(ASSET_GRID_HL);
     if (pauseGridHighlight == null) return;
     pauseGridHighlight.setSize(GRID_HL_W, GRID_HL_H);
@@ -438,10 +501,10 @@ public class PauseModal extends GraphicsPane
 
     pauseDescriptionLines = addWrappedLines(
         text,
-        "Courier New-PLAIN-11",
+        "Courier New-BOLD-14",
         Color.BLACK,
-        PANEL_X + INV_DESC_X + INV_DESC_PAD,
-        PANEL_Y + INV_DESC_Y + INV_DESC_PAD,
+        panelX + INV_DESC_X + INV_DESC_PAD,
+        panelY + INV_DESC_Y + INV_DESC_PAD,
         INV_DESC_W - 2 * INV_DESC_PAD,
         INV_DESC_H - 2 * INV_DESC_PAD);
   }
@@ -472,6 +535,7 @@ public class PauseModal extends GraphicsPane
   {
     buildSlider(true);
     buildSlider(false);
+    placeVolumeIconHighlight();
     placeActionBarHighlight();
   }
 
@@ -505,15 +569,15 @@ public class PauseModal extends GraphicsPane
   {
     if (pauseMusicThumb == null) return;
     double span = SET_TRACK_RIGHT_X - SET_MUSIC_TRACK_X;
-    double cx   = PANEL_X + SET_MUSIC_TRACK_X + (pauseMusicVolumePercent / 100.0) * span;
+    double cx   = panelX + SET_MUSIC_TRACK_X + (pauseMusicVolumePercent / 100.0) * span;
     pauseMusicThumb.setLocation(cx - SLIDER_THUMB_W / 2.0,
-        PANEL_Y + SET_MUSIC_TRACK_Y - SLIDER_THUMB_H / 2.0);
+        panelY + SET_MUSIC_TRACK_Y - SLIDER_THUMB_H / 2.0);
     if (pauseMusicPercentLabel != null)
     {
       pauseMusicPercentLabel.setLabel(pauseMusicVolumePercent + "%");
       pauseMusicPercentLabel.setLocation(
-          PANEL_X + SET_TRACK_RIGHT_X + 6,
-          PANEL_Y + SET_MUSIC_TRACK_Y + pauseMusicPercentLabel.getAscent() / 2.0);
+          panelX + SET_TRACK_RIGHT_X + 6,
+          panelY + SET_MUSIC_TRACK_Y + pauseMusicPercentLabel.getAscent() / 2.0);
     }
   }
 
@@ -521,16 +585,38 @@ public class PauseModal extends GraphicsPane
   {
     if (pauseSfxThumb == null) return;
     double span = SET_TRACK_RIGHT_X - SET_SFX_TRACK_X;
-    double cx   = PANEL_X + SET_SFX_TRACK_X + (pauseSfxVolumePercent / 100.0) * span;
+    double cx   = panelX + SET_SFX_TRACK_X + (pauseSfxVolumePercent / 100.0) * span;
     pauseSfxThumb.setLocation(cx - SLIDER_THUMB_W / 2.0,
-        PANEL_Y + SET_SFX_TRACK_Y - SLIDER_THUMB_H / 2.0);
+        panelY + SET_SFX_TRACK_Y - SLIDER_THUMB_H / 2.0);
     if (pauseSfxPercentLabel != null)
     {
       pauseSfxPercentLabel.setLabel(pauseSfxVolumePercent + "%");
       pauseSfxPercentLabel.setLocation(
-          PANEL_X + SET_TRACK_RIGHT_X + 6,
-          PANEL_Y + SET_SFX_TRACK_Y + pauseSfxPercentLabel.getAscent() / 2.0);
+          panelX + SET_TRACK_RIGHT_X + 6,
+          panelY + SET_SFX_TRACK_Y + pauseSfxPercentLabel.getAscent() / 2.0);
     }
+  }
+
+  /**
+   * Yellow highlight over the music-note or speaker icon when that slider row has focus (0 or 1).
+   */
+  private void placeVolumeIconHighlight()
+  {
+    if (pauseVolumeIconHighlight != null)
+    {
+      mainScreen.remove(pauseVolumeIconHighlight);
+      contents.remove(pauseVolumeIconHighlight);
+      pauseVolumeIconHighlight = null;
+    }
+    if (pauseSettingsFocusIndex >= 2) return;
+
+    int hx = (pauseSettingsFocusIndex == 0) ? SET_MUSIC_ICON_HL_X : SET_SFX_ICON_HL_X;
+    int hy = (pauseSettingsFocusIndex == 0) ? SET_MUSIC_ICON_HL_Y : SET_SFX_ICON_HL_Y;
+    pauseVolumeIconHighlight = loadImage(ASSET_GRID_HL);
+    if (pauseVolumeIconHighlight == null) return;
+    pauseVolumeIconHighlight.setSize(GRID_HL_W, GRID_HL_H);
+    pauseVolumeIconHighlight.setLocation(panelX + hx, panelY + hy);
+    addBoth(pauseVolumeIconHighlight);
   }
 
   private void placeActionBarHighlight()
@@ -553,7 +639,7 @@ public class PauseModal extends GraphicsPane
     pauseActionBarHighlight = loadImage(ASSET_ACTION_HL);
     if (pauseActionBarHighlight == null) return;
     pauseActionBarHighlight.setSize(ACTION_HL_W, ACTION_HL_H);
-    pauseActionBarHighlight.setLocation(PANEL_X + btnX, PANEL_Y + btnY);
+    pauseActionBarHighlight.setLocation(panelX + btnX, panelY + btnY);
     addBoth(pauseActionBarHighlight);
   }
 
@@ -568,6 +654,10 @@ public class PauseModal extends GraphicsPane
     if (confirmPending != ConfirmKind.NONE || kind == ConfirmKind.NONE) return;
     confirmPending = kind;
     confirmDialogObjects = new ArrayList<>();
+
+    // Center the dialog on the real canvas size.
+    confirmX = (int)((mainScreen.getWidth()  - CONFIRM_W) / 2);
+    confirmY = (int)((mainScreen.getHeight() - CONFIRM_H) / 2);
 
     double fw = mainScreen.getWidth();
     double fh = mainScreen.getHeight();
@@ -584,7 +674,7 @@ public class PauseModal extends GraphicsPane
     if (confirmBg != null)
     {
       confirmBg.setSize(CONFIRM_W, CONFIRM_H);
-      confirmBg.setLocation(CONFIRM_X, CONFIRM_Y);
+      confirmBg.setLocation(confirmX, confirmY);
       addConfirmObject(confirmBg);
     }
 
@@ -608,7 +698,7 @@ public class PauseModal extends GraphicsPane
     confirmHighlightImage = loadImage(ASSET_CONFIRM_HL);
     if (confirmHighlightImage == null) return;
     confirmHighlightImage.setSize(CONFIRM_HL_W, CONFIRM_HL_H);
-    confirmHighlightImage.setLocation(CONFIRM_X + offX, CONFIRM_Y + offY);
+    confirmHighlightImage.setLocation(confirmX + offX, confirmY + offY);
     addConfirmObject(confirmHighlightImage);
     restackOnTop();
   }
@@ -707,13 +797,13 @@ public class PauseModal extends GraphicsPane
     }
     if (k == KeyEvent.VK_A)
     {
-      pauseConfirmFocus = 0; // NO
+      pauseConfirmFocus = 1; // YES is on the LEFT — A moves left
       placeConfirmHighlight();
       return;
     }
     if (k == KeyEvent.VK_D)
     {
-      pauseConfirmFocus = 1; // YES
+      pauseConfirmFocus = 0; // NO is on the RIGHT — D moves right
       placeConfirmHighlight();
       return;
     }
@@ -801,6 +891,7 @@ public class PauseModal extends GraphicsPane
     {
       if      (f == 1) pauseSettingsFocusIndex = 0;
       else if (f >= 2) pauseSettingsFocusIndex = 1;
+      placeVolumeIconHighlight();
       placeActionBarHighlight();
       return;
     }
@@ -809,6 +900,7 @@ public class PauseModal extends GraphicsPane
       if      (f == 0) pauseSettingsFocusIndex = 1;
       else if (f == 1) pauseSettingsFocusIndex = 2;
       else if (f < 4)  pauseSettingsFocusIndex++;
+      placeVolumeIconHighlight();
       placeActionBarHighlight();
       return;
     }
@@ -830,16 +922,19 @@ public class PauseModal extends GraphicsPane
       else if (f == 2 && k == KeyEvent.VK_D)
       {
         pauseSettingsFocusIndex = 3;
+        placeVolumeIconHighlight();
         placeActionBarHighlight();
       }
       else if (f == 3)
       {
         pauseSettingsFocusIndex = (k == KeyEvent.VK_A) ? 2 : 4;
+        placeVolumeIconHighlight();
         placeActionBarHighlight();
       }
       else if (f == 4 && k == KeyEvent.VK_A)
       {
         pauseSettingsFocusIndex = 3;
+        placeVolumeIconHighlight();
         placeActionBarHighlight();
       }
       return;
@@ -866,7 +961,10 @@ public class PauseModal extends GraphicsPane
 
     dimOverlay            = null;
     panelBgImage          = null;
-    pauseNavHintLabel     = null;
+    pauseHintJ            = null;
+    pauseHintK            = null;
+    pauseHintWASD         = null;
+    pauseHintUse          = null;
     pauseHeartDisplay     = null;
     pausePortraitImage    = null;
     pauseRelicImages      = null;
@@ -881,6 +979,7 @@ public class PauseModal extends GraphicsPane
     pauseSfxThumb         = null;
     pauseMusicPercentLabel = null;
     pauseSfxPercentLabel  = null;
+    pauseVolumeIconHighlight = null;
     pauseActionBarHighlight = null;
     confirmHighlightImage = null;
     confirmDialogObjects  = null;
@@ -1066,11 +1165,39 @@ public class PauseModal extends GraphicsPane
     class Sandbox extends MainApplication
     {
       private final PauseModal sandboxPause = new PauseModal(this);
+      private final Player testPlayer = new Player();
+
+      /** Returns the pre-configured test player instead of the real game player. */
+      @Override public Player getPlayer() { return testPlayer; }
 
       @Override
       public void run()
       {
         setSize(1280, 720);
+
+        // All three relics active so the relic slots render.
+        testPlayer.setHasHalfDamage(true);
+        testPlayer.setHasReflect(true);
+        testPlayer.setHasIntangible(true);
+        testPlayer.setHP(testPlayer.getMaxHealth());
+
+        // Start at 1 heart (2 HP) so bread healing is visible in the test.
+        testPlayer.setHP(2);
+
+        // 3 stacked breads in slot 0 — press Space/E on them to consume one
+        // at a time and watch the stack count drop and hearts refill.
+        testPlayer.collectItem(new HealingBread());
+        testPlayer.collectItem(new HealingBread());
+        testPlayer.collectItem(new HealingBread());
+        // One of each remaining inventory item (all non-stackable):
+        testPlayer.collectItem(new RawOre());
+        testPlayer.collectItem(new MinersHat());
+        testPlayer.collectItem(new Pickaxe());
+        testPlayer.collectItem(new HalfDamageRelicItem());
+        testPlayer.collectItem(new ReflectRelicItem());
+        testPlayer.collectItem(new IntangibleRelicItem());
+        testPlayer.collectItem(new MarkOfHeroItem());
+
         setupInteractions();
         requestFocus();
       }

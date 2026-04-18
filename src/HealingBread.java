@@ -64,7 +64,7 @@ public class HealingBread extends Item {
 
     @Override
     public String getDescription() {
-        return "Restores 1 heart. With health relic: 2 hearts. (Space or E to eat)";
+        return "Restores 1 heart. (Space or E to eat)";
     }
 
     @Override
