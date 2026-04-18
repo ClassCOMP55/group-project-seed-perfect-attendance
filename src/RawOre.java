@@ -30,7 +30,7 @@ public class RawOre extends Item {
     }
 
     public RawOre(double worldX, double worldY) {
-        super(ITEM_ID, "Raw Ore", true);
+        super(ITEM_ID, "Raw Ore", false);
         setWorldPosition(worldX, worldY);
         BufferedImage trimmed = loadTrimmed("assets/visuals/png's/raw_ore.png");
         if (trimmed != null) {
