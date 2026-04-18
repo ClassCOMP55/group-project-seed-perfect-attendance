@@ -800,7 +800,7 @@ public class WorldMap {
         hideSpecialMarkers();
         if (canvas == null) return;
         if (activeRoom == roomC3) {
-            canvas.add(dungeonEntranceMarker);
+            //canvas.add(dungeonEntranceMarker);
         }
         if (activeRoom == dungeonRooms[0]) {
             canvas.add(dungeonExitMarker);
