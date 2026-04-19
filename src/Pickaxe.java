@@ -26,7 +26,7 @@ public class Pickaxe extends Item {
 
     @Override
     public String getDescription() {
-        return "A sturdy pickaxe. Take it to the ore vein in the mine to the north and start digging.";
+        return "A well-worn tool built for breaking rock. Waba seemed very sure you knew what to do with it.";
     }
 
     private static BufferedImage loadTrimmed(String path) {

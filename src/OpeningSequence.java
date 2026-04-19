@@ -53,15 +53,17 @@ public class OpeningSequence {
     /** Distance at which the Goat Wizard stops approaching and starts dialogue. */
     private static final double GOAT_INTERACT_RANGE = 60.0;
 
-    /** Forced dialogue lines (placeholder copy — replace with script / DialogueNode later). */
     private static final String[] GOAT_DIALOGUE_1_LINES = {
-        "Caelomund (Goat Wizard): Hoof there! You look like someone who can hold a line.",
-        "The market's about to get lively — stay close.",
-        "I'll explain more once things settle. Ready?"
+        "Ah, greetings, brave warrior. I am Calumund Vaen Solmare, once a mighty wizard of considerable renown.",
+        "That scoundrel Bastian Myrwick, my traitorous apprentice, stole my polymorph wand and transformed me into... this. A goat. The indignity!",
+        "But worse, he's been using my wand to corrupt the creatures of the forest, creating monsters that now plague this town.",
+        "I need you to venture forth and stop him. You are my only hope."
     };
     private static final String[] GOAT_DIALOGUE_2_LINES = {
-        "Caelomund: Not bad! That thing had too many teeth anyway.",
-        "Take this — the thicket gate will know you now. You're marked."
+        "Oh! Before you go, I nearly forgot something crucial.",
+        "There are legends of powerful relics hidden throughout these lands. Artifacts meant for heroes such as yourself.",
+        "Here, take this Mark of the Hero. It will grant you access to trials where you can claim these relics.",
+        "You'll need all the help you can get."
     };
 
     // ==========================================================

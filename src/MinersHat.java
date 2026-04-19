@@ -15,7 +15,7 @@ public class MinersHat extends Item {
     private static final double ICON_SIZE = 32.0;
 
     public MinersHat() {
-        super(ITEM_ID, "Miner's Hat", false);
+        super(ITEM_ID, "Miner's Helmet", false);
         BufferedImage trimmed = loadTrimmed("assets/visuals/png's/miners_hat.png");
         if (trimmed != null) {
             icon = new GImage(trimmed);
@@ -25,7 +25,7 @@ public class MinersHat extends Item {
 
     @Override
     public String getDescription() {
-        return "A well-worn miner's hat, given as thanks by the Blacksmith. Smells like iron and hard work.";
+        return "A sturdy helmet with a small lamp attached to the front. It smells faintly of earth and someone else's hard work.";
     }
 
     private static BufferedImage loadTrimmed(String path) {

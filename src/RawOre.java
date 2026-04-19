@@ -47,7 +47,7 @@ public class RawOre extends Item {
 
     @Override
     public String getDescription() {
-        return "A chunk of raw ore pried from the mine wall. The Blacksmith in B1 can work with this.";
+        return "A hefty chunk of metal pulled from the earth, rough and unrefined. Someone who knows what they're doing could make something useful out of this.";
     }
 
     @Override

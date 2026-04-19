@@ -16,7 +16,7 @@ public class HalfDamageRelicItem extends Item {
     private static final double ICON_SIZE = 32.0;
 
     public HalfDamageRelicItem() {
-        super(ITEM_ID, "Health Relic", false);
+        super(ITEM_ID, "Relic of Strength", false);
         BufferedImage trimmed = loadTrimmed("assets/visuals/png's/health_relic.png");
         if (trimmed != null) {
             icon = new GImage(trimmed);
@@ -26,7 +26,7 @@ public class HalfDamageRelicItem extends Item {
 
     @Override
     public String getDescription() {
-        return "A relic that radiates warmth. All damage you receive is cut in half while you carry this.";
+        return "A circlet earned through the Trial of Strength, fit for a hero who can take a hit. Your body is tougher than it looks now, capable of taking twice the punishment it could before.";
     }
 
     private static BufferedImage loadTrimmed(String path) {

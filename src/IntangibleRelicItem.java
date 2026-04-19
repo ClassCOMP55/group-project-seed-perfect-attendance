@@ -16,7 +16,7 @@ public class IntangibleRelicItem extends Item {
     private static final double ICON_SIZE = 32.0;
 
     public IntangibleRelicItem() {
-        super(ITEM_ID, "Fade Relic", false);
+        super(ITEM_ID, "Relic of Courage", false);
         BufferedImage trimmed = loadTrimmed("assets/visuals/png's/fade_relic.png");
         if (trimmed != null) {
             icon = new GImage(trimmed);
@@ -26,7 +26,7 @@ public class IntangibleRelicItem extends Item {
 
     @Override
     public String getDescription() {
-        return "A ghostly relic that lets you phase out of harm's way. Press the ability button to briefly become untouchable.";
+        return "A glowing keepsake earned through the Trial of Courage. For a brief moment, nothing can stop you, enemies pass through you like you're made of wind. Recharges every ten seconds.";
     }
 
     private static BufferedImage loadTrimmed(String path) {

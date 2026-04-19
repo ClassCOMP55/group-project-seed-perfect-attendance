@@ -145,7 +145,12 @@ public class OreNode extends WorldObject {
             collectedItemRecorder.accept(SAVE_FLAG_ID);
         }
 
-        p.collectItem(new Item(ORE_ID, "Ore", false));
+        p.collectItem(new Item(ORE_ID, "Ore", false) {
+            @Override
+            public String getDescription() {
+                return "A hefty chunk of metal pulled from the earth, rough and unrefined. Someone who knows what they're doing could make something useful out of this.";
+            }
+        });
 
         if (dialogue != null && !dialogue.isOpen()) {
             GamePlayState.setCurrent(GamePlayState.DIALOGUE);

@@ -64,7 +64,7 @@ public class HealingBread extends Item {
 
     @Override
     public String getDescription() {
-        return "Restores 1 heart. (Space or E to eat)";
+        return "Ramona's famous magical bread, said to heal the body and the soul equally. It's surprisingly delicious.";
     }
 
     @Override

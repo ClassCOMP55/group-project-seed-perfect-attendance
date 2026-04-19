@@ -25,6 +25,7 @@ public class BreadMerchant extends WorldObject {
 
     private final String merchantName;
     private final ShopMenu shopMenu;
+    private Dialogue dialogue;
 
     private final GImage merchantSprite;
     private final GRect body;
@@ -35,11 +36,16 @@ public class BreadMerchant extends WorldObject {
     private double spriteRenderHeight = 48.0;
 
     public BreadMerchant(double x, double y, String merchantName, ShopMenu shopMenu) {
+        this(x, y, merchantName, shopMenu, null);
+    }
+
+    public BreadMerchant(double x, double y, String merchantName, ShopMenu shopMenu, Dialogue dialogue) {
         super(x, y, 48, 48);
         this.merchantName = (merchantName == null || merchantName.trim().isEmpty())
             ? "Bread Merchant"
             : merchantName.trim();
         this.shopMenu = shopMenu;
+        this.dialogue = dialogue;
 
         merchantSprite = loadSprite("assets/visuals/png's/bread maker.png");
 
@@ -103,7 +109,37 @@ public class BreadMerchant extends WorldObject {
         if (shopMenu.isOpen()) {
             return;
         }
-        shopMenu.openFor(p, merchantName, null);
+        if (dialogue != null && !dialogue.isOpen()) {
+            GamePlayState.setCurrent(GamePlayState.DIALOGUE);
+            dialogue.open(
+                new String[]{
+                    "Oh, hello there, friend! Isn't it just the loveliest day?",
+                    "I'm not entirely sure what all that ruckus was earlier, but it doesn't matter!",
+                    "I've got something much better. My magical yummy bread! It heals your body and your soul."
+                },
+                merchantName,
+                true,
+                () -> {
+                    GamePlayState.setCurrent(GamePlayState.PLAYING);
+                    shopMenu.openFor(p, merchantName, () -> {
+                        if (dialogue != null && !dialogue.isOpen()) {
+                            GamePlayState.setCurrent(GamePlayState.DIALOGUE);
+                            dialogue.open(
+                                new String[]{
+                                    "You take care now, friend!",
+                                    "And remember, if you ever need more magical yummy bread to brighten your day, you know where to find me!"
+                                },
+                                merchantName,
+                                true,
+                                () -> GamePlayState.setCurrent(GamePlayState.PLAYING)
+                            );
+                        }
+                    });
+                }
+            );
+        } else {
+            shopMenu.openFor(p, merchantName, null);
+        }
     }
 
     @Override

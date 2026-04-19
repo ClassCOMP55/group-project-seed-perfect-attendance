@@ -232,6 +232,9 @@ public class WorldMap {
     private OreNode oreNode;
     private DrawbridgeLever drawbridgeLever;
     private final List<HeroThicket> heroThickets = new ArrayList<>();
+    private Chest courageChest;
+    private Chest strengthChest;
+    private Chest wisdomChest;
 
     // =========================================================
     // DUNGEON ENTRANCE MARKER (tech-demo placeholder)
@@ -314,6 +317,38 @@ public class WorldMap {
     private static final double LITTLE_GIRL_X = TileMap.MAP_OFFSET_X + 18 * 48;
     private static final double LITTLE_GIRL_Y = 8 * 48;
 
+    /** Calumund Vaen Solmare (wizard-goat NPC) position in A1. */
+    private static final double CALUMUND_X = TileMap.MAP_OFFSET_X + 18 * 48;
+    private static final double CALUMUND_Y = 7 * 48;
+
+    private static final String CALUMUND_2ND_TALK_FLAG  = "calumund_second_talk_seen";
+    private static final String CALUMUND_REPEAT_FLAG    = "calumund_repeating_talk";
+
+    private static final String[] CALUMUND_1ST_TALK_LINES = {
+        "Ah, greetings, brave warrior. I am Calumund Vaen Solmare, once a mighty wizard of considerable renown.",
+        "That scoundrel Bastian Myrwick, my traitorous apprentice, stole my polymorph wand and transformed me into... this. A goat. The indignity!",
+        "But worse, he's been using my wand to corrupt the creatures of the forest, creating monsters that now plague this town.",
+        "I need you to venture forth and stop him. You are my only hope."
+    };
+
+    private static final String[] CALUMUND_2ND_TALK_LINES = {
+        "You may wonder why I'm entrusting this task to you specifically. Well, the answer is simple:",
+        "You're the only person in this entire town who knows how to swing a sword without hurling yourself into a tree.",
+        "Everyone else fled or can't fight. So by process of elimination, you're my hero."
+    };
+
+    private static final String[] CALUMUND_4TH_TALK_LINES = {
+        "Off you go. Defeat Bastian, restore peace to the town. Do hero things."
+    };
+
+    /** Relic chest positions for trial rooms (center of each room, approximately). */
+    private static final double TRIAL_CHEST_A3_X = TileMap.MAP_OFFSET_X + 13 * 48;
+    private static final double TRIAL_CHEST_A3_Y = 7 * 48;
+    private static final double TRIAL_CHEST_A2_X = TileMap.MAP_OFFSET_X + 14 * 48;
+    private static final double TRIAL_CHEST_A2_Y = 12 * 48;
+    private static final double TRIAL_CHEST_B3_X = TileMap.MAP_OFFSET_X + 8 * 48;
+    private static final double TRIAL_CHEST_B3_Y = 7 * 48;
+
     /** B2 ore-vein footprint (col,row) tiles: 9,4 10,4 11,4 9,5 10,5 11,5 9,6 10,6 11,6 */
     private static final int[][] ORE_VEIN_TILES_B2 = {
         {9, 4}, {10, 4}, {11, 4},
@@ -346,19 +381,20 @@ public class WorldMap {
     private static final double MINERS_HAT_Y = 5 * 48;
 
     private static final String[] START_NPC_LINES = {
-        "Hic... *burp*... Oh, a traveler!",
-        "I lost me old miner's hat up near the ore fields to the north... *hic*",
-        "If you find it and bring it back, I'll give you me pickaxe — can't use it anyway!"
+        "I barely made it out alive when those monsters attacked. Lost my hat in the chaos, dropped it right by the ore deposits when I was running.",
+        "A miner never swings a pickaxe without proper head protection, you understand? That hat's essential.",
+        "If I ever find it... well, at least this drink will help comfort me."
     };
 
     private static final String[] START_NPC_REWARD_LINES = {
-        "Oi! That's me hat! I'd know it anywhere!",
-        "A deal's a deal — here, take the pickaxe!"
+        "Well, well, well... *hic* ...look who decided to show up for the shift! Put on your hat, did ya? Good, good.",
+        "Can't be swingin' a pickaxe without... without the proper protection, y'know? Here, take this. *hic*",
+        "You're gonna need it more than I do anyway. Go on, get outta here before the boss gets mad."
     };
 
     private static final String[] START_NPC_POST_REWARD_LINES = {
-        "Hic... you've got the pickaxe now, friend.",
-        "There's ore up north if you're looking to use it."
+        "Where'd that other miner go? *hic* Was just here a second ago... or was that yesterday?",
+        "Hard to keep track these days. Anyway, good riddance. More drink for me. *hic*"
     };
 
     private static final String A2_HERO_THICKET_FLAG = "hero_thicket_a2_cleared";
@@ -485,9 +521,11 @@ public class WorldMap {
         installMinersHat();
         installBlacksmith();
         installLittleGirlNpc();
+        installCalumundNpc();
         installOreNode();
         installHeroThickets();
         installDrawbridgeLever();
+        installTrialChests();
         syncPersistentWorldObjects();
 
         // --- wire exit callbacks: each room calls triggerTransition() when the player exits ---
@@ -548,7 +586,7 @@ public class WorldMap {
         WorldNpc drunkNpc = new WorldNpc(
             START_NPC_X,
             START_NPC_Y,
-            "The Drunk",
+            "Waba",
             START_NPC_LINES,
             dialogue
         );
@@ -582,8 +620,9 @@ public class WorldMap {
         startRoom.addObject(new BreadMerchant(
             START_BREAD_MERCHANT_X,
             START_BREAD_MERCHANT_Y,
-            "Bread Merchant",
-            shopMenu
+            "Ramona",
+            shopMenu,
+            dialogue
         ));
     }
 
@@ -649,10 +688,22 @@ public class WorldMap {
     }
 
     private static final String[] LITTLE_GIRL_LINES = {
-        "The save crystal inside the inn lets you record your journey.",
-        "If something bad happens, you can come back here and try again.",
-        "My dad says real heroes always save before heading into danger."
+        "My mom told me that when you can do really cool things, you have to be really careful about how you use them.",
+        "She said it's not about how much power you have, it's about being responsible with that power."
     };
+
+    private static final String[] LITTLE_GIRL_HINT2_LINES = {
+        "My mom says some doors only open when you speak with kindness in your heart.",
+        "She says real friends can unlock things that nobody else can."
+    };
+
+    private static final String[] LITTLE_GIRL_HINT3_LINES = {
+        "One time I met this guy with really crazy yellow hair. He told me that real heroes don't give up.",
+        "They go beyond even when things seem impossible. He kept shouting... \"plus extra\" really loud. I think that's what he said."
+    };
+
+    private static final String LITTLE_GIRL_HINT1_FLAG = "little_girl_hint1_seen";
+    private static final String LITTLE_GIRL_HINT2_FLAG = "little_girl_hint2_seen";
 
     /** Places a little girl NPC in B1 just outside the inn save crystal. */
     private void installLittleGirlNpc() {
@@ -668,7 +719,78 @@ public class WorldMap {
             32.0
         );
         littleGirl.setStoryFlagHooks(this::hasStoryFlag, this::addStoryFlag);
+        littleGirl.configureTwoStepReward(
+            LITTLE_GIRL_HINT1_FLAG,
+            LITTLE_GIRL_HINT2_FLAG,
+            LITTLE_GIRL_HINT2_LINES,
+            LITTLE_GIRL_HINT3_LINES,
+            null,
+            null
+        );
         b1.addObject(littleGirl);
+    }
+
+    /** Exposes the player reference stored each tick for use by world objects that need it. */
+    public Player getLastTickPlayer() { return lastTickPlayer; }
+
+    /** Places Calumund Vaen Solmare as a directional animated NPC in A1. */
+    private void installCalumundNpc() {
+        Room a1 = overworldGrid[0][0];
+        if (a1 == null) return;
+        CalumundNpc calumund = new CalumundNpc(
+            CALUMUND_X,
+            CALUMUND_Y,
+            CALUMUND_1ST_TALK_LINES,
+            dialogue,
+            this::getLastTickPlayer
+        );
+        calumund.setStoryFlagHooks(this::hasStoryFlag, this::addStoryFlag);
+        calumund.setRewardUnlockCondition(p -> p.hasMarkOfHero());
+        calumund.configureTwoStepReward(
+            CALUMUND_2ND_TALK_FLAG,
+            CALUMUND_REPEAT_FLAG,
+            CALUMUND_2ND_TALK_LINES,
+            CALUMUND_4TH_TALK_LINES,
+            null,
+            null
+        );
+        a1.addObject(calumund);
+    }
+
+    /** Places relic chests in the three trial rooms (A3, A2, B3). */
+    private void installTrialChests() {
+        Room a3 = overworldGrid[0][2];
+        if (a3 != null) {
+            courageChest = new Chest(
+                TRIAL_CHEST_A3_X, TRIAL_CHEST_A3_Y,
+                "chest_a3_courage", Chest.RELIC_INTANGIBLE, true
+            );
+            courageChest.setDialogue(dialogue);
+            courageChest.setCollectedItemRecorder(this::markCollectedItem);
+            a3.addObject(courageChest);
+        }
+
+        Room a2 = overworldGrid[0][1];
+        if (a2 != null) {
+            strengthChest = new Chest(
+                TRIAL_CHEST_A2_X, TRIAL_CHEST_A2_Y,
+                "chest_a2_strength", Chest.RELIC_HALF_DAMAGE, true
+            );
+            strengthChest.setDialogue(dialogue);
+            strengthChest.setCollectedItemRecorder(this::markCollectedItem);
+            a2.addObject(strengthChest);
+        }
+
+        Room b3 = overworldGrid[1][2];
+        if (b3 != null) {
+            wisdomChest = new Chest(
+                TRIAL_CHEST_B3_X, TRIAL_CHEST_B3_Y,
+                "chest_b3_wisdom", Chest.RELIC_REFLECT, true
+            );
+            wisdomChest.setDialogue(dialogue);
+            wisdomChest.setCollectedItemRecorder(this::markCollectedItem);
+            b3.addObject(wisdomChest);
+        }
     }
 
     /** Places the OreNode in B2 that gives Ore + BrokenLever when mined with the Pickaxe. */
@@ -684,15 +806,25 @@ public class WorldMap {
     /** Places the Mark-of-the-Hero tree barriers in A2, A3, and B3. */
     private void installHeroThickets() {
         heroThickets.clear();
-        installHeroThicket(overworldGrid[0][1], A2_HERO_THICKET_FLAG, A2_HERO_THICKET_TILES,
-            "assets/visuals/overworld rooms/a2_open.png");
-        installHeroThicket(overworldGrid[0][2], A3_HERO_THICKET_FLAG, A3_HERO_THICKET_TILES,
-            "assets/visuals/overworld rooms/a3_open.png");
-        installHeroThicket(overworldGrid[1][2], B3_HERO_THICKET_FLAG, B3_HERO_THICKET_TILES,
-            "assets/visuals/overworld rooms/b3_open.png");
+        installHeroThicket(
+            overworldGrid[0][1], A2_HERO_THICKET_FLAG, A2_HERO_THICKET_TILES,
+            new String[]{"Welcome, hero. This is the Trial of Strength. Move the blocks."},
+            "assets/visuals/overworld rooms/a2_open.png"
+        );
+        installHeroThicket(
+            overworldGrid[0][2], A3_HERO_THICKET_FLAG, A3_HERO_THICKET_TILES,
+            new String[]{"Welcome, hero. This is the Trial of Courage. Survive the onslaught."},
+            "assets/visuals/overworld rooms/a3_open.png"
+        );
+        installHeroThicket(
+            overworldGrid[1][2], B3_HERO_THICKET_FLAG, B3_HERO_THICKET_TILES,
+            new String[]{"Welcome, hero. This is the Trial of Wisdom. Answer true."},
+            "assets/visuals/overworld rooms/b3_open.png"
+        );
     }
 
-    private void installHeroThicket(Room room, String storyFlag, int[][] tiles, String... openBackgroundPaths) {
+    private void installHeroThicket(Room room, String storyFlag, int[][] tiles,
+                                     String[] unlockDialogue, String... openBackgroundPaths) {
         if (room == null) return;
 
         HeroThicket thicket = new HeroThicket(
@@ -709,6 +841,7 @@ public class WorldMap {
             openBackgroundPaths
         );
         thicket.setStoryFlagHooks(this::hasStoryFlag, this::addStoryFlag);
+        thicket.setUnlockDialogue(unlockDialogue);
         room.addObject(thicket);
         heroThickets.add(thicket);
     }
@@ -1288,6 +1421,9 @@ public class WorldMap {
                 thicket.syncPersistentState();
             }
         }
+        if (courageChest  != null && hasCollectedItem(courageChest.getChestId()))  courageChest.forceOpen();
+        if (strengthChest != null && hasCollectedItem(strengthChest.getChestId())) strengthChest.forceOpen();
+        if (wisdomChest   != null && hasCollectedItem(wisdomChest.getChestId()))   wisdomChest.forceOpen();
         Room c1 = overworldGrid[2][0];
         boolean bridgeRepaired = hasStoryFlag(DRAWBRIDGE_REPAIRED_FLAG)
             || (c1 != null && c1.getExitAt(Direction.UP));

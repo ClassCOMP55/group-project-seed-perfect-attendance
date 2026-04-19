@@ -55,7 +55,7 @@ public class Blacksmith extends WorldObject {
         apron.setFillColor(APRON_COLOR);
         apron.setColor(APRON_COLOR.darker());
 
-        titleLabel = new GLabel("Blacksmith", x, y);
+        titleLabel = new GLabel("Bismuth", x, y);
         titleLabel.setFont("SansSerif-BOLD-12");
         titleLabel.setColor(TITLE_COLOR);
 
@@ -114,26 +114,26 @@ public class Blacksmith extends WorldObject {
             GamePlayState.setCurrent(GamePlayState.DIALOGUE);
             dialogue.open(
                 new String[]{
-                    "You already have the repaired lever.",
-                    "Try the drawbridge mechanism east of here."
+                    "I feel better now that I've had a chance to work.",
+                    "The forge has always been my sanctuary."
                 },
-                "Blacksmith",
+                "Bismuth",
                 true,
                 () -> GamePlayState.setCurrent(GamePlayState.PLAYING)
             );
         } else if (knowsLeverBroken) {
             if (ore != null) {
                 p.consumeInventoryItem(ore);
-                p.collectItem(new Item(FIXED_LEVER_ID, "Fixed Lever", false));
+                p.collectItem(new FixedLeverItem());
 
                 GamePlayState.setCurrent(GamePlayState.DIALOGUE);
                 dialogue.open(
                     new String[]{
-                        "Ore AND knowing exactly what's needed — I can have this done in no time!",
-                        "Let me fire up the forge...",
-                        "There you go — good as new. This should fit the drawbridge mechanism."
+                        "Ah, perfect! Thank you. Now, if you'll excuse me, I need to work.",
+                        "There's something about forging that settles my nerves.",
+                        "Here it is! A brand new metal lever. Stronger than the old wooden one. It should hold that bridge just fine."
                     },
-                    "Blacksmith",
+                    "Bismuth",
                     true,
                     () -> GamePlayState.setCurrent(GamePlayState.PLAYING)
                 );
@@ -141,10 +141,11 @@ public class Blacksmith extends WorldObject {
                 GamePlayState.setCurrent(GamePlayState.DIALOGUE);
                 dialogue.open(
                     new String[]{
-                        "I can make you a new lever, but I need some ore.",
-                        "There's a mine to the north — bring me what you dig up."
+                        "Wait, the bridge lever is broken? Oh no, oh no...",
+                        "I could forge you a new one, but I'd need ore. Good quality ore from the mines.",
+                        "If you can bring me that, I can fix it. I need to work on something anyway — it'll help settle my nerves."
                     },
-                    "Blacksmith",
+                    "Bismuth",
                     true,
                     () -> GamePlayState.setCurrent(GamePlayState.PLAYING)
                 );
@@ -153,10 +154,11 @@ public class Blacksmith extends WorldObject {
             GamePlayState.setCurrent(GamePlayState.DIALOGUE);
             dialogue.open(
                 new String[]{
-                    "I'm the blacksmith. I can fix just about anything — bring me what needs fixing.",
-                    "There's a broken drawbridge lever east of town, if you're feeling adventurous."
+                    "This stall... it's too heavy to move, too anchored to flee. I'm stuck here while everyone else escaped.",
+                    "I wish I could be at my forge right now, working on something, anything. It calms me down.",
+                    "But here I am, just waiting and worrying."
                 },
-                "Blacksmith",
+                "Bismuth",
                 true,
                 () -> GamePlayState.setCurrent(GamePlayState.PLAYING)
             );

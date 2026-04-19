@@ -16,7 +16,7 @@ public class ReflectRelicItem extends Item {
     private static final double ICON_SIZE = 32.0;
 
     public ReflectRelicItem() {
-        super(ITEM_ID, "Reflect Relic", false);
+        super(ITEM_ID, "Relic of Wisdom", false);
         BufferedImage trimmed = loadTrimmed("assets/visuals/png's/reflect_attack_relic.png");
         if (trimmed != null) {
             icon = new GImage(trimmed);
@@ -26,7 +26,7 @@ public class ReflectRelicItem extends Item {
 
     @Override
     public String getDescription() {
-        return "A mirror-faced relic that bounces projectiles straight back at enemies who fire them.";
+        return "A token earned through the Trial of Wisdom, shaped like the handle of a sword. Your sword now sends projectiles back where they came from. Turns out knowledge really is power.";
     }
 
     private static BufferedImage loadTrimmed(String path) {

@@ -184,15 +184,18 @@ public class Chest extends WorldObject {
             switch (itemId) {
                 case RELIC_REFLECT:
                     p.setHasReflect(true);
-                    obtainedName = "Reflect Relic";
+                    p.collectItem(new ReflectRelicItem());
+                    obtainedName = "Relic of Wisdom";
                     break;
                 case RELIC_HALF_DAMAGE:
                     p.setHasHalfDamage(true);
-                    obtainedName = "Half-Damage Relic";
+                    p.collectItem(new HalfDamageRelicItem());
+                    obtainedName = "Relic of Strength";
                     break;
                 case RELIC_INTANGIBLE:
                     p.setHasIntangible(true);
-                    obtainedName = "Intangible Relic";
+                    p.collectItem(new IntangibleRelicItem());
+                    obtainedName = "Relic of Courage";
                     break;
                 default:
                     obtainedName = itemId;

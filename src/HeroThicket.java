@@ -34,6 +34,7 @@ public class HeroThicket extends WorldObject {
     private Consumer<String> addStoryFlag;
     private boolean unlocked;
     private GCanvas canvas;
+    private String[] unlockDialogueLines;
 
     public HeroThicket(double x, double y,
                        double width, double height,
@@ -121,10 +122,7 @@ public class HeroThicket extends WorldObject {
         if (p == null || !p.hasMarkOfHero()) {
             GamePlayState.setCurrent(GamePlayState.DIALOGUE);
             dialogue.open(
-                new String[]{
-                    "These trees are too thick to cut right now.",
-                    "Maybe the Mark of the Hero could carve a way through them."
-                },
+                new String[]{"You lack the proof of heroism required to proceed. Turn back."},
                 speakerName,
                 false,
                 () -> GamePlayState.setCurrent(GamePlayState.PLAYING)
@@ -135,12 +133,13 @@ public class HeroThicket extends WorldObject {
         unlockInternal();
         GameSFX.play(GameSFX.SFX.GRASS_CUT);
 
+        String[] lines = (unlockDialogueLines != null && unlockDialogueLines.length > 0)
+            ? unlockDialogueLines
+            : new String[]{"The thicket parts and the way forward opens."};
+
         GamePlayState.setCurrent(GamePlayState.DIALOGUE);
         dialogue.open(
-            new String[]{
-                "You strike the trees with the Mark of the Hero. Rustle!",
-                "The thicket parts and the way forward opens."
-            },
+            lines,
             speakerName,
             false,
             () -> GamePlayState.setCurrent(GamePlayState.PLAYING)
@@ -149,6 +148,10 @@ public class HeroThicket extends WorldObject {
 
     public void setDialogue(Dialogue dialogue) {
         this.dialogue = dialogue;
+    }
+
+    public void setUnlockDialogue(String... lines) {
+        this.unlockDialogueLines = lines;
     }
 
     public void setStoryFlagHooks(Predicate<String> hasStoryFlag, Consumer<String> addStoryFlag) {

@@ -6,18 +6,17 @@ import java.io.IOException;
 import javax.imageio.ImageIO;
 
 /**
- * Key item representing the Mark of the Hero.
- * Received from the drunk NPC; required to pass through HeroThicket gates.
- * Non-consumable — stays in inventory until the thicket is cleared.
+ * The freshly forged lever crafted by Bismuth. Used to repair the broken drawbridge in C1.
+ * Non-consumable — stays in inventory until placed.
  */
-public class MarkOfHeroItem extends Item {
+public class FixedLeverItem extends Item {
 
-    public static final String ITEM_ID   = "mark_of_the_hero";
+    public static final String ITEM_ID   = DrawbridgeLever.FIXED_LEVER_ID;
     private static final double ICON_SIZE = 32.0;
 
-    public MarkOfHeroItem() {
-        super(ITEM_ID, "Mark of the Hero", false);
-        BufferedImage trimmed = loadTrimmed("assets/visuals/png's/mark_of_the_hero.png");
+    public FixedLeverItem() {
+        super(ITEM_ID, "Metal Lever", false);
+        BufferedImage trimmed = loadTrimmed("assets/visuals/png's/fixed_lever.png");
         if (trimmed != null) {
             icon = new GImage(trimmed);
             icon.setSize(ICON_SIZE, ICON_SIZE);
@@ -26,7 +25,7 @@ public class MarkOfHeroItem extends Item {
 
     @Override
     public String getDescription() {
-        return "A small token bestowed by Calumund Vaen Solmare, proof that a worthy hero walks these lands. Strange trees seem to recognize it.";
+        return "A freshly forged lever, still warm from Bismuth's forge. Sturdier than whatever it's replacing.";
     }
 
     private static BufferedImage loadTrimmed(String path) {
