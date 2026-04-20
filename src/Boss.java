@@ -118,6 +118,9 @@ public class Boss extends Enemy {
     /** Ticks remaining before the next lunge is allowed. */
     private int lungeCooldownTicks;
 
+    /** Called once when the boss dies. Wired by WorldMap to trigger the ending cutscene. */
+    private Runnable onDefeated;
+
     // ==========================================================
     // CONSTRUCTOR
     // ==========================================================
@@ -168,6 +171,9 @@ public class Boss extends Enemy {
     public void setProjectileList(List<Projectile> list) {
         this.projectiles = list;
     }
+
+    /** Sets the callback fired once when the boss is defeated. */
+    public void setOnDefeated(Runnable callback) { this.onDefeated = callback; }
 
     // ==========================================================
     // CORE UPDATE
@@ -411,10 +417,7 @@ public class Boss extends Enemy {
      */
     @Override
     public boolean onDeath() {
-        // TODO [Task 19 — CutscenePlayer]: trigger ending cutscene here:
-        //   CutscenePlayer.play(endingFrames);
-        System.out.println("TODO: Boss defeated — trigger CutscenePlayer ending sequence");
-        // # rig — play GameSFX.SFX.BOSS_DEATH here once a boss-death sound is added to the catalog
+        if (onDefeated != null) onDefeated.run();
         return false; // no coin drop
     }
 

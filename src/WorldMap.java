@@ -337,13 +337,20 @@ public class WorldMap {
         "Everyone else fled or can't fight. So by process of elimination, you're my hero."
     };
 
+    private static final String[] CALUMUND_3RD_TALK_LINES = {
+        "Oh! Before you go, I nearly forgot something crucial.",
+        "There are legends of powerful relics hidden throughout these lands. Artifacts meant for heroes such as yourself.",
+        "Here, take this Mark of the Hero. It will grant you access to trials where you can claim these relics.",
+        "You'll need all the help you can get."
+    };
+
     private static final String[] CALUMUND_4TH_TALK_LINES = {
         "Off you go. Defeat Bastian, restore peace to the town. Do hero things."
     };
 
     /** Relic chest positions for trial rooms (center of each room, approximately). */
-    private static final double TRIAL_CHEST_A3_X = TileMap.MAP_OFFSET_X + 13 * 48;
-    private static final double TRIAL_CHEST_A3_Y = 7 * 48;
+    private static final double TRIAL_CHEST_A3_X = TileMap.MAP_OFFSET_X + 17 * 48;
+    private static final double TRIAL_CHEST_A3_Y = 8 * 48;
     private static final double TRIAL_CHEST_A2_X = TileMap.MAP_OFFSET_X + 14 * 48;
     private static final double TRIAL_CHEST_A2_Y = 12 * 48;
     private static final double TRIAL_CHEST_B3_X = TileMap.MAP_OFFSET_X + 8 * 48;
@@ -423,6 +430,9 @@ public class WorldMap {
     /** Reserved story-flag prefix used to encode exact exit states in the save file. */
     private static final String EXIT_FLAG_PREFIX = "wm_exit:";
 
+    /** Fired once when the Boss in D3 is defeated. Wired by GameplayPane for the ending cutscene. */
+    private Runnable bossDefeatedCallback;
+
     /**
      * Red rectangle placed near the west wall of D1 as a visible stand-in for the dungeon exit door.
      * Added to canvas when the player enters the dungeon; removed when they step on it to leave.
@@ -498,9 +508,9 @@ public class WorldMap {
         overworldGrid[2][2] = new Room("C3"); overworldGrid[2][2].buildC3(); // Dungeon Entrance
 
         // --- dungeon rooms ---
-        dungeonRooms[0] = new Room("D1"); dungeonRooms[0].buildDummy(); // Combat + RoomLock
-        dungeonRooms[1] = new Room("D2"); dungeonRooms[1].buildDummy(); // Puzzle + SaveCrystal
-        dungeonRooms[2] = new Room("D3"); dungeonRooms[2].buildDummy(); // Boss fight
+        dungeonRooms[0] = new Room("D1"); dungeonRooms[0].buildD1(); // Combat + RoomLock
+        dungeonRooms[1] = new Room("D2"); dungeonRooms[1].buildD2(); // Puzzle + SaveCrystal
+        dungeonRooms[2] = new Room("D3"); dungeonRooms[2].buildD3(); // Boss fight
 
         // --- convenience reference to C3 for dungeon entrance checks ---
         roomC3 = overworldGrid[2][2];
@@ -513,6 +523,11 @@ public class WorldMap {
             new RoomLock(() -> openExit("D1", Direction.RIGHT)),
             Direction.RIGHT
         );
+
+        populateD2();
+        populateD3();
+        installD2SavePoint();
+        installD2Puzzle();
 
         installStarterSavePoint();
         installSpawnIslandDialogueTestObjects();
@@ -745,14 +760,18 @@ public class WorldMap {
             this::getLastTickPlayer
         );
         calumund.setStoryFlagHooks(this::hasStoryFlag, this::addStoryFlag);
-        calumund.setRewardUnlockCondition(p -> p.hasMarkOfHero());
+        // Combine "why you" (2nd) + "here's the mark" (3rd) into one reward conversation.
+        // rewardUnlockCondition = null so it triggers naturally after introCompleteFlag is set.
+        String[] combinedMarkLines = new String[CALUMUND_2ND_TALK_LINES.length + CALUMUND_3RD_TALK_LINES.length];
+        System.arraycopy(CALUMUND_2ND_TALK_LINES, 0, combinedMarkLines, 0, CALUMUND_2ND_TALK_LINES.length);
+        System.arraycopy(CALUMUND_3RD_TALK_LINES, 0, combinedMarkLines, CALUMUND_2ND_TALK_LINES.length, CALUMUND_3RD_TALK_LINES.length);
         calumund.configureTwoStepReward(
             CALUMUND_2ND_TALK_FLAG,
             CALUMUND_REPEAT_FLAG,
-            CALUMUND_2ND_TALK_LINES,
+            combinedMarkLines,
             CALUMUND_4TH_TALK_LINES,
-            null,
-            null
+            p -> p.hasMarkOfHero(),
+            p -> p.collectItem(new MarkOfHeroItem())
         );
         a1.addObject(calumund);
     }
@@ -944,6 +963,59 @@ public class WorldMap {
         d1.addRespawningEntity(() -> new MeleeEnemy(640, 500, d1.getTileMap()));
     }
 
+    /** Sets the callback fired when the Boss in D3 is defeated. */
+    public void setBossDefeatedCallback(Runnable r) { this.bossDefeatedCallback = r; }
+
+    /** Spawns the Boss in Dungeon Room 3 and wires its defeat callback. */
+    private void populateD3() {
+        Room d3 = dungeonRooms[2];
+        double bossX = TileMap.MAP_OFFSET_X + 640;
+        double bossY = 360;
+        Boss boss = new Boss(bossX, bossY, d3.getTileMap());
+        boss.setProjectileList(d3.getProjectiles());
+        boss.setOnDefeated(() -> {
+            if (bossDefeatedCallback != null) bossDefeatedCallback.run();
+        });
+        d3.addRespawningEntity(() -> {
+            Boss b = new Boss(bossX, bossY, d3.getTileMap());
+            b.setProjectileList(d3.getProjectiles());
+            b.setOnDefeated(() -> {
+                if (bossDefeatedCallback != null) bossDefeatedCallback.run();
+            });
+            return b;
+        });
+    }
+
+    /** Places a save crystal in D2 mid-dungeon. */
+    private void installD2SavePoint() {
+        Room d2 = dungeonRooms[1];
+        if (d2 == null) return;
+        double saveX = TileMap.MAP_OFFSET_X + 4 * 48;
+        double saveY = 6 * 48;
+        d2.setSavePoint(new SavePoint(
+            saveX, saveY,
+            d2.getRoomId(),
+            SavePoint.SavePointType.SAVE_CRYSTAL,
+            saveX, saveY
+        ));
+    }
+
+    /** Places a push-block puzzle in D2: push the block onto the button to unlock the east exit. */
+    private void installD2Puzzle() {
+        Room d2 = dungeonRooms[1];
+        if (d2 == null) return;
+        d2.addObject(new PushBlock(14, 7));
+        d2.addObject(new PressureButton(17, 7, false));
+        d2.setPuzzleSolvedCallback(() -> openExit("D2", Direction.RIGHT));
+    }
+
+    /** Seeds enemies into Dungeon Room 2 (puzzle + save). */
+    private void populateD2() {
+        Room d2 = dungeonRooms[1];
+        d2.addRespawningEntity(() -> new MeleeEnemy(700, 300, d2.getTileMap()));
+        d2.addRespawningEntity(() -> new RangedEnemy(900, 500, d2.getTileMap()));
+    }
+
     /**
      * Opens all valid exits between rooms, exactly as defined in the design doc.
      * C1 NORTH starts CLOSED (bridge broken). D1 NORTH starts CLOSED (RoomLock).
@@ -999,8 +1071,8 @@ public class WorldMap {
         dungeonRooms[0].setExit(Direction.RIGHT, false);
         dungeonRooms[1].setExit(Direction.LEFT,  true);
 
-        // --- D2 ↔ D3 ---
-        dungeonRooms[1].setExit(Direction.RIGHT, true);
+        // --- D2 ↔ D3 — D2 east starts CLOSED (locked by push-block puzzle) ---
+        dungeonRooms[1].setExit(Direction.RIGHT, false);
         dungeonRooms[2].setExit(Direction.LEFT,  true);
     }
 
@@ -1040,9 +1112,8 @@ public class WorldMap {
         if (activeRoom == roomC3) {
             //canvas.add(dungeonEntranceMarker);
         }
-        if (activeRoom == dungeonRooms[0]) {
-            canvas.add(dungeonExitMarker);
-        }
+        // dungeonExitMarker intentionally hidden — trigger zone is invisible, matching the entrance.
+        // if (activeRoom == dungeonRooms[0]) { canvas.add(dungeonExitMarker); }
     }
 
     // =========================================================

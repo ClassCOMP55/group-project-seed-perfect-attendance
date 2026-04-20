@@ -83,6 +83,9 @@ public class PushBlock extends WorldObject {
     /** Starting tile row — used by reset(). */
     private final int startRow;
 
+    /** Ticks remaining before another push is allowed (~0.2s cooldown). */
+    private int pushCooldownTicks = 0;
+
     /** Placeholder visual until real block sprite is ready. */
     private GRect placeholder;
 
@@ -137,8 +140,14 @@ public class PushBlock extends WorldObject {
      * @param allBlocks  all PushBlocks in this room (to prevent block-into-block pushing)
      * @return true if the block moved, false if it was blocked
      */
+    /** Decrements the push cooldown each tick. Call from Room.update(). */
+    public void tickCooldown() {
+        if (pushCooldownTicks > 0) pushCooldownTicks--;
+    }
+
     public boolean tryPush(Direction dir, TileMap tileMap, List<PushBlock> allBlocks) {
         if (dir == null || tileMap == null) return false;
+        if (pushCooldownTicks > 0) return false;
 
         int dCol = 0;
         int dRow = 0;
@@ -172,6 +181,7 @@ public class PushBlock extends WorldObject {
         y = tileRow * 48;
         placeholder.setLocation(x, y);
         hitbox.updatePosition(x, y);
+        pushCooldownTicks = 12;
         return true;
     }
 
@@ -202,6 +212,7 @@ public class PushBlock extends WorldObject {
         y = tileRow * 48;
         placeholder.setLocation(x, y);
         hitbox.updatePosition(x, y);
+        pushCooldownTicks = 0;
     }
 
     // =========================================================

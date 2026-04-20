@@ -160,6 +160,11 @@ public class Room {
     /** Exit direction temporarily blocked while {@link #roomLock} remains locked. */
     private Direction roomLockDirection;
 
+    /** Called once when all PressureButtons in this room become simultaneously pressed. */
+    private Runnable puzzleSolvedCallback;
+    /** True after puzzleSolvedCallback has fired so it only fires once per session entry. */
+    private boolean puzzleSolved = false;
+
     /**
      * Puzzle-area gates in this room (used in A2, A3, B3).
      * ThicketGate will extend WorldObject after the refactor, but stored separately for now
@@ -382,6 +387,27 @@ public class Room {
             "assets/visuals/overworld rooms/c3.png"
         );
         setForegroundImage("assets/visuals/overworld rooms/ow_shadows.png");
+        dummyLabel = null;
+    }
+
+    public void buildD1() {
+        this.tileMap = TileMap.createD1();
+        this.drawTileMap = false;
+        setBackgroundImage("assets/visuals/overworld rooms/d1.png");
+        dummyLabel = null;
+    }
+
+    public void buildD2() {
+        this.tileMap = TileMap.createD2();
+        this.drawTileMap = false;
+        setBackgroundImage("assets/visuals/overworld rooms/d2.png");
+        dummyLabel = null;
+    }
+
+    public void buildD3() {
+        this.tileMap = TileMap.createD3();
+        this.drawTileMap = false;
+        setBackgroundImage("assets/visuals/overworld rooms/d3.png");
         dummyLabel = null;
     }
 
@@ -758,9 +784,34 @@ public class Room {
             }
         }
 
-        // --- push block detection ---
-        // RIG POINT: detect player walking into a PushBlock and call tryPush(direction).
-        // Skipped for tech demo — no puzzle rooms have content yet.
+        // --- push block and pressure button logic ---
+        java.util.List<PushBlock> pushBlocks = getPushBlocks();
+        java.util.List<PressureButton> pressureButtons = getPressureButtons();
+        if (!pushBlocks.isEmpty()) {
+            Direction facing = player.getFacing();
+            for (PushBlock block : pushBlocks) {
+                block.tickCooldown();
+                if (facing != null && player.getHitbox().overlaps(block.getHitbox())) {
+                    block.tryPush(facing, tileMap, pushBlocks);
+                }
+                block.updateButtonOverlap(pressureButtons);
+            }
+        }
+        if (!pressureButtons.isEmpty()) {
+            for (PressureButton button : pressureButtons) {
+                button.update(player);
+            }
+            if (!puzzleSolved) {
+                boolean allPressed = true;
+                for (PressureButton button : pressureButtons) {
+                    if (!button.isPressed()) { allPressed = false; break; }
+                }
+                if (allPressed) {
+                    puzzleSolved = true;
+                    if (puzzleSolvedCallback != null) puzzleSolvedCallback.run();
+                }
+            }
+        }
 
         // --- room lock check ---
         // RIG POINT: roomLock.update(entities) checks if all enemies are dead → opens exit.
@@ -966,18 +1017,36 @@ public class Room {
             }
         }
 
-        // --- push blocks (puzzle rooms only) ---
-        // RIG POINT: iterate objects, find PushBlock instances, call pushBlock.resetPosition().
-        // Skipped for tech demo — no puzzle rooms have content yet.
-
-        // --- pressure buttons (puzzle rooms only) ---
-        // RIG POINT: iterate objects, find PressureButton instances, call pressureButton.reset().
-        // Skipped for tech demo — no pressure buttons exist yet.
+        // --- push blocks and pressure buttons (puzzle rooms) ---
+        for (WorldObject obj : objects) {
+            if (obj instanceof PushBlock) ((PushBlock) obj).reset();
+            else if (obj instanceof PressureButton) ((PressureButton) obj).reset();
+        }
+        puzzleSolved = false;
     }
 
     // =========================================================
     // ROOM LOCK
     // =========================================================
+
+    /** Sets the callback fired once when all PressureButtons in this room are pressed. */
+    public void setPuzzleSolvedCallback(Runnable r) { this.puzzleSolvedCallback = r; }
+
+    private java.util.List<PushBlock> getPushBlocks() {
+        java.util.List<PushBlock> result = new java.util.ArrayList<>();
+        for (WorldObject obj : objects) {
+            if (obj instanceof PushBlock) result.add((PushBlock) obj);
+        }
+        return result;
+    }
+
+    private java.util.List<PressureButton> getPressureButtons() {
+        java.util.List<PressureButton> result = new java.util.ArrayList<>();
+        for (WorldObject obj : objects) {
+            if (obj instanceof PressureButton) result.add((PressureButton) obj);
+        }
+        return result;
+    }
 
     /** Attaches a RoomLock to this room. Call from WorldMap during dungeon setup. */
     public void setRoomLock(RoomLock lock) {

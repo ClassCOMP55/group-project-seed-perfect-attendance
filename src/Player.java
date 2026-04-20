@@ -670,6 +670,7 @@ public class Player extends Entity {
     public boolean hasReflect()     { return hasReflect; }
     public boolean hasIntangible()  { return hasIntangible; }
     public boolean hasMarkOfHero()  { return hasMarkOfHero; }
+    public Direction getFacing()    { return facing; }
 
     public void setHasHalfDamage(boolean v)  { this.hasHalfDamage = v; }
     public void setHasReflect(boolean v)     { this.hasReflect = v; }

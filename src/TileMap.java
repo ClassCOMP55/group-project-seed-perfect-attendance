@@ -735,6 +735,9 @@ public class TileMap {
     public static TileMap createA3() { TileMap m = new TileMap(); m.generateA3(); return m; }
     public static TileMap createB3() { TileMap m = new TileMap(); m.generateB3(); return m; }
     public static TileMap createC3() { TileMap m = new TileMap(); m.generateC3(); return m; }
+    public static TileMap createD1() { TileMap m = new TileMap(); m.generateD1(); return m; }
+    public static TileMap createD2() { TileMap m = new TileMap(); m.generateD2(); return m; }
+    public static TileMap createD3() { TileMap m = new TileMap(); m.generateD3(); return m; }
 
     // =========================================================
     // TECH-DEMO FACTORY — all-floor dummy layout
@@ -755,6 +758,34 @@ public class TileMap {
         TileMap m = new TileMap(); // initialises the grid via generateMarket(); overwritten below
         m.generateAllFloor();
         return m;
+    }
+
+    private void generateD1() {
+        // Combat room — exits: EAST gap rows 5-9 (to D2), WEST solid (exit via trigger zone)
+        generateAllFloor();
+        wallRow(0);
+        wallRow(14);
+        wallCol(0);
+        wallColGap(25, 5, 9);
+    }
+
+    private void generateD2() {
+        // Puzzle + save room — exits: WEST gap rows 5-9 (from D1), EAST gap rows 5-9 (to D3)
+        generateAllFloor();
+        wallRow(0);
+        wallRow(14);
+        wallColGap(0, 5, 9);
+        wallColGap(25, 5, 9);
+        wallRect(4, 10, 18, 18); // stop wall so push block can't slide past the button
+    }
+
+    private void generateD3() {
+        // Boss room — exit: WEST gap rows 5-9 (from D2)
+        generateAllFloor();
+        wallRow(0);
+        wallRow(14);
+        wallColGap(0, 5, 9);
+        wallCol(25);
     }
 
     /** Fills every cell in the tile grid with a FLOOR tile. No walls, no holes. */

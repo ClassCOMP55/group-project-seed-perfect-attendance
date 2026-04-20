@@ -214,6 +214,26 @@ public class GameplayPane extends GraphicsPane {
             mainScreen.getDialogue(),
             mainScreen.getShopMenu()
         );
+        this.worldMap.setBossDefeatedCallback(this::triggerEndingSequence);
+    }
+
+    private static final String[] ENDING_DIALOGUE_LINES = {
+        "Bastian... you've done it. The wand is destroyed.",
+        "I can feel my power returning. The polymorph is breaking at last!",
+        "You've saved this town, warrior. I always knew you were the right choice.",
+        "Now then. Off you go. Peace is restored. Do... hero things."
+    };
+
+    private void triggerEndingSequence() {
+        Dialogue dialogue = mainScreen.getDialogue();
+        if (dialogue == null) return;
+        GamePlayState.setCurrent(GamePlayState.DIALOGUE);
+        dialogue.open(
+            ENDING_DIALOGUE_LINES,
+            "Calumund Vaen Solmare",
+            true,
+            () -> mainScreen.switchToStartMenuScreen()
+        );
     }
 
     // =========================================================
