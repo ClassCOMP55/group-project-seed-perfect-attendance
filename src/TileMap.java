@@ -522,6 +522,7 @@ public class TileMap {
         floorRect(0, 0, 18, 21);
         floorRect(2, 2, 5, 6);
         floorRect(6, 6, 11, 11);
+        wallRect(0, 0, 18, 18);       // add requested barrier at (18,0)
     }
 
     private void generateA2() {
