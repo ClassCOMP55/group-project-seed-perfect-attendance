@@ -1,29 +1,16 @@
+import acm.graphics.GImage;
+import java.util.Collections;
 import java.util.List;
 
 /**
- * RangedEnemy.java
+ * RangedEnemy.java — tree monster variant.
  *
  * A ranged enemy that fires projectiles at the player and actively retreats
  * to maintain a preferred distance. Vulnerable from all directions.
- *
- * Behavior:
- *   Patrol:  walks a 4-point square loop around spawn (inherited from Enemy).
- *   Chase:   retreats if player is closer than retreatDistance;
- *            holds position if at or beyond that distance (does NOT advance).
- *   Attack:  spawns a Projectile toward the player every fireRate ticks.
- *
- * Stats (Zelda-feel):
- *   Health  2 — fragile glass-cannon; 2 sword hits to kill
- *   Patrol 50 px/s — slow, methodical pacing
- *   Chase  90 px/s — repurposed as retreat speed; fast enough to maintain distance
- *   Aggro 256 px — 4-tile radius; spots the player first
- *
- * Person 3 — Combat & Enemies
  */
 public class RangedEnemy extends Enemy {
 
-    private static final String SPRITE_DIR = "assets/visuals/skeley-mob-1/normalized/";
-    private static final String SPRITE_PREFIX = "skeley-mob-1";
+    private static final String SPRITE_DIR = "assets/visuals/tree-monster-mob(long ranged attacks)/";
     private static final int MAX_HEALTH = Player.HALF_HEARTS_PER_HEART;
 
     // ==========================================================
@@ -62,7 +49,7 @@ public class RangedEnemy extends Enemy {
      * @param tileMap Tile map for collision and line-of-sight
      */
     public RangedEnemy(double x, double y, TileMap tileMap) {
-        super(x, y, SPRITE_DIR + SPRITE_PREFIX + "-idle-front.gif", tileMap,
+        super(x, y, SPRITE_DIR + "tree_monster_idle_front.gif", tileMap,
               MAX_HEALTH, // maxHealth   — fragile, 2 hits to kill
               50.0,   // patrolSpeed (px/s)
               90.0,   // chaseSpeed  (px/s) — used as retreat speed
@@ -70,8 +57,50 @@ public class RangedEnemy extends Enemy {
         this.fireRate        = 90;
         this.retreatDistance = 160.0;
         this.projectiles     = null; // wired by Room via setProjectileList()
-        loadSkeletonAnimations(SPRITE_DIR, SPRITE_PREFIX);
+        loadAllSprites();
         setSpriteRenderSize(72, 72);
+    }
+
+    private void loadAllSprites() {
+        String[][] names = {
+            // IDLE
+            { "tree_monster_idle_front.gif",          "tree monster idle back.gif",
+              "tree monster idle left.gif",            "tree monster idle right.gif"          },
+            // ATTACK (different word order in filenames)
+            { "monster tree attack front.gif",         "monster tree attack back.gif",
+              "monster tree attack left.gif",           "monster tree attack right.gif"        },
+            // DAMAGE
+            { "tree monster taking damage front.gif",  "tree monster taking damage back.gif",
+              "tree monster taking damage left.gif",    "tree monster taking damage right.gif" },
+            // DEATH (front/left/right use spaces; back uses underscore)
+            { "tree monster death front.gif",           "tree_monster_death_back.gif",
+              "tree monster death left.gif",             "tree monster death right.gif"         },
+        };
+
+        animSprites = new GImage[4][4];
+        for (int state = 0; state < 4; state++) {
+            for (int dir = 0; dir < 4; dir++) {
+                GImage img = new GImage(SPRITE_DIR + names[state][dir]);
+                img.setSize(72, 72); // lock size before canvas.add() so ACM imageUpdate won't reset it
+                animSprites[state][dir] = img;
+            }
+        }
+
+        SpriteAnimator anim = getAnimator();
+        Direction[] dirs = { Direction.DOWN, Direction.UP, Direction.LEFT, Direction.RIGHT };
+        for (int d = 0; d < dirs.length; d++) {
+            anim.addFrames(dirs[d], Collections.singletonList(animSprites[0][d]));
+        }
+
+        // Single-GIF death (no per-frame PNGs available for tree monster)
+        String[] deathFiles = {
+            "tree monster death front.gif", "tree_monster_death_back.gif",
+            "tree monster death left.gif",  "tree monster death right.gif"
+        };
+        deathFramePathsByDirection = new String[4][1];
+        for (int dir = 0; dir < 4; dir++) {
+            deathFramePathsByDirection[dir][0] = SPRITE_DIR + deathFiles[dir];
+        }
     }
 
     /**

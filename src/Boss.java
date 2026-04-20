@@ -156,6 +156,7 @@ public class Boss extends Enemy {
         this.lungeDurationTimer = 0;
         this.lungeCooldownTicks = 0;
         this.projectiles       = null; // wired by Room via setProjectileList()
+        setSpriteRenderSize(96, 96);
     }
 
     // ==========================================================

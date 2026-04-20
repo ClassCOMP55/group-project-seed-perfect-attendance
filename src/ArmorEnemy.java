@@ -1,3 +1,6 @@
+import acm.graphics.GImage;
+import java.util.Collections;
+
 /**
  * ArmorEnemy.java
  *
@@ -26,8 +29,7 @@
  */
 public class ArmorEnemy extends Enemy {
 
-    private static final String SPRITE_DIR = "assets/visuals/skeley-mob-1/normalized/";
-    private static final String SPRITE_PREFIX = "skeley-mob-1";
+    private static final String SPRITE_DIR = "assets/visuals/mushroom mob/";
     private static final int MAX_HEALTH = 3 * Player.HALF_HEARTS_PER_HEART;
     private static final double PATROL_SPEED = 28.0;
     private static final double CHASE_SPEED = 30.0;
@@ -58,16 +60,59 @@ public class ArmorEnemy extends Enemy {
      * @param tileMap Tile map for collision and line-of-sight
      */
     public ArmorEnemy(double x, double y, TileMap tileMap) {
-        super(x, y, SPRITE_DIR + SPRITE_PREFIX + "-idle-front.gif", tileMap,
-              MAX_HEALTH, // maxHealth   — 5 full hearts in half-heart units
+        super(x, y, SPRITE_DIR + "mushroom run foward.gif", tileMap,
+              MAX_HEALTH,
               PATROL_SPEED,
               CHASE_SPEED,
               AGGRO_RANGE);
         this.contactDamage = 1;
         this.turnCooldownTicks = 0;
         this.isPushable = false;
-        loadSkeletonAnimations(SPRITE_DIR, SPRITE_PREFIX);
+        loadAllSprites();
         setSpriteRenderSize(72, 72);
+    }
+
+    private void loadAllSprites() {
+        // Mushroom asset filenames have typos preserved exactly as on disk
+        String[][] names = {
+            // IDLE — no separate idle; reuse run sprites
+            { "mushroom run foward.gif",          "mushroom run back.gif",
+              "mushroom run left.gif",              "mushroom run right.gif"           },
+            // ATTACK (front filename: "attck" not "attack")
+            { "mushroom attck front.gif",           "mushroom attack back.gif",
+              "mushroom attack left.gif",            "mushroom attack right.gif"        },
+            // DAMAGE
+            { "mushroom taking damage front.gif",   "mushroom taking damage back.gif",
+              "mushroom taking damage left.gif",     "mushroom taking damage right.gif" },
+            // DEATH — front is a PNG; rest are GIFs
+            { "mushroom death front.png",            "mushroom death back.gif",
+              "mushroom death left.gif",              "mushroom death right.gif"         },
+        };
+
+        animSprites = new GImage[4][4];
+        for (int state = 0; state < 4; state++) {
+            for (int dir = 0; dir < 4; dir++) {
+                GImage img = new GImage(SPRITE_DIR + names[state][dir]);
+                img.setSize(72, 72); // pre-size before canvas.add() so ACM imageUpdate won't reset
+                animSprites[state][dir] = img;
+            }
+        }
+
+        SpriteAnimator anim = getAnimator();
+        Direction[] dirs = { Direction.DOWN, Direction.UP, Direction.LEFT, Direction.RIGHT };
+        for (int d = 0; d < dirs.length; d++) {
+            anim.addFrames(dirs[d], java.util.Collections.singletonList(animSprites[0][d]));
+        }
+
+        // Single-file death animations (mushroom has no per-frame PNGs)
+        String[] deathFiles = {
+            "mushroom death front.png", "mushroom death back.gif",
+            "mushroom death left.gif",  "mushroom death right.gif"
+        };
+        deathFramePathsByDirection = new String[4][1];
+        for (int dir = 0; dir < 4; dir++) {
+            deathFramePathsByDirection[dir][0] = SPRITE_DIR + deathFiles[dir];
+        }
     }
 
     // ==========================================================
