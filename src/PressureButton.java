@@ -120,7 +120,7 @@ public class PressureButton extends WorldObject {
         this.isPressed      = false;
         this.pressedByBlock  = false;
         this.pressedByPlayer = false;
-        this.buttonSprite = loadSprite("assets/visuals/png's/button.png");
+        this.buttonSprite = loadSprite("assets/visuals/png's/push_button.png");
 
         this.placeholder = new GRect(x, y, 48, 48);
         this.placeholder.setFilled(true);

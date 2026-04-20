@@ -49,6 +49,7 @@ PLAN OF ACTION
 */
 
 import acm.graphics.GCanvas;
+import acm.graphics.GImage;
 import acm.graphics.GRect;
 
 import java.awt.Color;
@@ -86,7 +87,9 @@ public class PushBlock extends WorldObject {
     /** Ticks remaining before another push is allowed (~0.2s cooldown). */
     private int pushCooldownTicks = 0;
 
-    /** Placeholder visual until real block sprite is ready. */
+    /** Sprite image; non-null when push_block.png loads successfully. */
+    private GImage blockSprite;
+    /** Fallback colored rectangle when the sprite asset is unavailable. */
     private GRect placeholder;
 
     // =========================================================
@@ -108,9 +111,21 @@ public class PushBlock extends WorldObject {
         this.startCol = tileCol;
         this.startRow = tileRow;
 
+        this.blockSprite = loadSprite("assets/visuals/png's/push_block.png");
         this.placeholder = new GRect(x, y, 48, 48);
         this.placeholder.setFilled(true);
         this.placeholder.setFillColor(BLOCK_COLOR);
+    }
+
+    private GImage loadSprite(String path) {
+        try {
+            GImage img = new GImage(path);
+            img.setSize(48, 48);
+            img.setLocation(x, y);
+            return img;
+        } catch (RuntimeException ignored) {
+            return null;
+        }
     }
 
     // =========================================================
@@ -119,11 +134,14 @@ public class PushBlock extends WorldObject {
 
     @Override
     public void draw(GCanvas canvas) {
-        if (visible) canvas.add(placeholder);
+        if (!visible) return;
+        if (blockSprite != null) canvas.add(blockSprite);
+        else canvas.add(placeholder);
     }
 
     @Override
     public void removeFrom(GCanvas canvas) {
+        if (blockSprite != null) canvas.remove(blockSprite);
         canvas.remove(placeholder);
     }
 
@@ -179,7 +197,7 @@ public class PushBlock extends WorldObject {
         tileRow = destRow;
         x = tileCol * 48 + TileMap.MAP_OFFSET_X;
         y = tileRow * 48;
-        placeholder.setLocation(x, y);
+        syncVisualPosition();
         hitbox.updatePosition(x, y);
         pushCooldownTicks = 12;
         return true;
@@ -210,9 +228,25 @@ public class PushBlock extends WorldObject {
         tileRow = startRow;
         x = tileCol * 48 + TileMap.MAP_OFFSET_X;
         y = tileRow * 48;
-        placeholder.setLocation(x, y);
+        syncVisualPosition();
         hitbox.updatePosition(x, y);
         pushCooldownTicks = 0;
+    }
+
+    @Override
+    public void panVisual(double panX, double panY) {
+        if (blockSprite != null) blockSprite.move(panX, panY);
+        placeholder.move(panX, panY);
+    }
+
+    @Override
+    public void resetVisualPosition() {
+        syncVisualPosition();
+    }
+
+    private void syncVisualPosition() {
+        if (blockSprite != null) blockSprite.setLocation(x, y);
+        placeholder.setLocation(x, y);
     }
 
     // =========================================================
