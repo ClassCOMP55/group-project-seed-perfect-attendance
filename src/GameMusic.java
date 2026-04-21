@@ -21,6 +21,8 @@ public final class GameMusic {
     private static Clip mainMenuClip;
     private static Clip journeyBeginsClip;
     private static Clip mysteriousDungeonClip;
+    private static Clip overworldMusicClip;
+    private static Clip bossMusicClip;
 
     private GameMusic() {
     }
@@ -31,6 +33,8 @@ public final class GameMusic {
     public static synchronized void startMainMenuMusic() {
         stopJourneyBeginsMusic();
         stopMysteriousDungeonMusic();
+        stopOverworldMusic();
+        stopBossMusic();
         if (mainMenuClip != null && mainMenuClip.isActive()) {
             applyVolume(mainMenuClip);
             return;
@@ -77,6 +81,8 @@ public final class GameMusic {
     public static synchronized void startJourneyBeginsMusic() {
         stopMainMenuMusic();
         stopMysteriousDungeonMusic();
+        stopOverworldMusic();
+        stopBossMusic();
         if (journeyBeginsClip != null && journeyBeginsClip.isActive()) {
             applyVolume(journeyBeginsClip);
             return;
@@ -120,6 +126,8 @@ public final class GameMusic {
     public static synchronized void startMysteriousDungeonMusic() {
         stopMainMenuMusic();
         stopJourneyBeginsMusic();
+        stopOverworldMusic();
+        stopBossMusic();
         if (mysteriousDungeonClip != null && mysteriousDungeonClip.isActive()) {
             applyVolume(mysteriousDungeonClip);
             return;
@@ -159,6 +167,92 @@ public final class GameMusic {
         mysteriousDungeonClip = null;
     }
 
+    /** Loops the overworld theme for non-dungeon rooms. */
+    public static synchronized void startOverworldMusic() {
+        stopMainMenuMusic();
+        stopJourneyBeginsMusic();
+        stopMysteriousDungeonMusic();
+        stopBossMusic();
+        if (overworldMusicClip != null && overworldMusicClip.isActive()) {
+            applyVolume(overworldMusicClip);
+            return;
+        }
+        stopOverworldMusic();
+        InputStream raw = openMusicStream("/audio/music/overworld-music.wav", "overworld-music.wav");
+        if (raw == null) {
+            System.err.println("GameMusic: could not find audio/music/overworld-music.wav (classpath or assets/)");
+            return;
+        }
+        try (InputStream in = new BufferedInputStream(raw)) {
+            AudioInputStream ais = AudioSystem.getAudioInputStream(in);
+            Clip clip = AudioSystem.getClip();
+            clip.open(ais);
+            applyVolume(clip);
+            clip.loop(Clip.LOOP_CONTINUOUSLY);
+            overworldMusicClip = clip;
+        } catch (IOException | UnsupportedAudioFileException | LineUnavailableException e) {
+            System.err.println("GameMusic: failed to play overworld-music.wav");
+            e.printStackTrace();
+        }
+    }
+
+    public static synchronized void stopOverworldMusic() {
+        if (overworldMusicClip == null) {
+            return;
+        }
+        try {
+            overworldMusicClip.stop();
+            overworldMusicClip.flush();
+            overworldMusicClip.close();
+        } catch (Exception e) {
+            // ignore
+        }
+        overworldMusicClip = null;
+    }
+
+    /** Loops the boss battle theme for the D3 boss room. */
+    public static synchronized void startBossMusic() {
+        stopMainMenuMusic();
+        stopJourneyBeginsMusic();
+        stopMysteriousDungeonMusic();
+        stopOverworldMusic();
+        if (bossMusicClip != null && bossMusicClip.isActive()) {
+            applyVolume(bossMusicClip);
+            return;
+        }
+        stopBossMusic();
+        InputStream raw = openMusicStream("/audio/music/boss-music.wav", "boss-music.wav");
+        if (raw == null) {
+            System.err.println("GameMusic: could not find audio/music/boss-music.wav (classpath or assets/)");
+            return;
+        }
+        try (InputStream in = new BufferedInputStream(raw)) {
+            AudioInputStream ais = AudioSystem.getAudioInputStream(in);
+            Clip clip = AudioSystem.getClip();
+            clip.open(ais);
+            applyVolume(clip);
+            clip.loop(Clip.LOOP_CONTINUOUSLY);
+            bossMusicClip = clip;
+        } catch (IOException | UnsupportedAudioFileException | LineUnavailableException e) {
+            System.err.println("GameMusic: failed to play boss-music.wav");
+            e.printStackTrace();
+        }
+    }
+
+    public static synchronized void stopBossMusic() {
+        if (bossMusicClip == null) {
+            return;
+        }
+        try {
+            bossMusicClip.stop();
+            bossMusicClip.flush();
+            bossMusicClip.close();
+        } catch (Exception e) {
+            // ignore
+        }
+        bossMusicClip = null;
+    }
+
     /** Re-apply music volume from {@link GameSettings} (call after slider changes). */
     public static synchronized void refreshVolume() {
         if (mainMenuClip != null) {
@@ -169,6 +263,12 @@ public final class GameMusic {
         }
         if (mysteriousDungeonClip != null) {
             applyVolume(mysteriousDungeonClip);
+        }
+        if (overworldMusicClip != null) {
+            applyVolume(overworldMusicClip);
+        }
+        if (bossMusicClip != null) {
+            applyVolume(bossMusicClip);
         }
     }
 
