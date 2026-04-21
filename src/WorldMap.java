@@ -350,12 +350,12 @@ public class WorldMap {
     };
 
     /** Relic chest positions for trial rooms (center of each room, approximately). */
-    private static final double TRIAL_CHEST_A3_X = TileMap.MAP_OFFSET_X + 17 * 48;
-    private static final double TRIAL_CHEST_A3_Y = 8 * 48;
+    private static final double TRIAL_CHEST_A3_X = TileMap.MAP_OFFSET_X + 7 * 48;
+    private static final double TRIAL_CHEST_A3_Y = 1 * 48;
     private static final double TRIAL_CHEST_A2_X = TileMap.MAP_OFFSET_X + 5 * 48;
     private static final double TRIAL_CHEST_A2_Y = 1 * 48;
-    private static final double TRIAL_CHEST_B3_X = TileMap.MAP_OFFSET_X + 8 * 48;
-    private static final double TRIAL_CHEST_B3_Y = 7 * 48;
+    private static final double TRIAL_CHEST_B3_X = TileMap.MAP_OFFSET_X + 17 * 48;
+    private static final double TRIAL_CHEST_B3_Y = 1 * 48;
 
     /** B2 ore-vein footprint (col,row) tiles: 9,4 10,4 11,4 9,5 10,5 11,5 9,6 10,6 11,6 */
     private static final int[][] ORE_VEIN_TILES_B2 = {

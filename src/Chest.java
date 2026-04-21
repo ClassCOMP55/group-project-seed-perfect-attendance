@@ -73,7 +73,6 @@ public class Chest extends WorldObject {
     // =========================================================
 
     private static final Color CHEST_CLOSED_COLOR = new Color(180, 140, 60);
-    private static final Color CHEST_OPEN_COLOR   = new Color(200, 180, 120);
     private static final double CHEST_SPRITE_TARGET_HEIGHT = 72.0;
 
     // Relic itemId constants — assignment to specific chests is TBD
@@ -175,9 +174,6 @@ public class Chest extends WorldObject {
 
         isOpen = true;
         GameSFX.play(GameSFX.SFX.CHEST_OPEN);
-        if (chestSprite == null) {
-            placeholder.setFillColor(CHEST_OPEN_COLOR);
-        }
 
         String obtainedName;
         if (givesRelic) {
@@ -248,7 +244,6 @@ public class Chest extends WorldObject {
      */
     public void forceOpen() {
         isOpen = true;
-        if (placeholder != null) placeholder.setFillColor(CHEST_OPEN_COLOR);
     }
 
     // =========================================================
