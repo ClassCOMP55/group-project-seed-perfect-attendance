@@ -166,11 +166,11 @@ public class WorldMap {
     /** Height of the trigger zone in pixels (2 tiles). */
     private static final double DUNGEON_ENTRANCE_H = 2 * 48; // = 96
 
-    /** X position where the player spawns when entering D1 (center of room). */
-    private static final double DUNGEON_SPAWN_X    = TileMap.MAP_OFFSET_X + ROOM_WIDTH_PX / 2.0;
+    /** X position where the player spawns when entering D1 (col 2). */
+    private static final double DUNGEON_SPAWN_X    = TileMap.MAP_OFFSET_X + 2 * 48;
 
-    /** Y position where the player spawns when entering D1 (one tile above south edge). */
-    private static final double DUNGEON_SPAWN_Y    = ROOM_HEIGHT_PX - 48;
+    /** Y position where the player spawns when entering D1 (row 7). */
+    private static final double DUNGEON_SPAWN_Y    = 7 * 48;
 
     /*
      * =====================
@@ -267,17 +267,17 @@ public class WorldMap {
      * =====================
      */
 
-    /** Left edge of the dungeon exit trigger zone (col 1, just inside the west wall of D1). */
-    private static final double DUNGEON_EXIT_X = TileMap.MAP_OFFSET_X + 1 * 48; // col 1 = 64
+    /** Left edge of the dungeon exit trigger zone (col 0). */
+    private static final double DUNGEON_EXIT_X = TileMap.MAP_OFFSET_X + 0 * 48; // col 0 = 16
 
-    /** Top edge of the dungeon exit trigger zone (vertically centered in the room). */
-    private static final double DUNGEON_EXIT_Y = 6 * 48; // row 6 = 288
+    /** Top edge of the dungeon exit trigger zone (row 7). */
+    private static final double DUNGEON_EXIT_Y = 7 * 48; // row 7 = 336
 
-    /** Width of the exit trigger zone (2 tiles). */
-    private static final double DUNGEON_EXIT_W = 2 * 48; // = 96
+    /** Width of the exit trigger zone (1 tile). */
+    private static final double DUNGEON_EXIT_W = 1 * 48; // = 48
 
-    /** Height of the exit trigger zone (3 tiles). */
-    private static final double DUNGEON_EXIT_H = 3 * 48; // = 144
+    /** Height of the exit trigger zone (1 tile). */
+    private static final double DUNGEON_EXIT_H = 1 * 48; // = 48
 
     /**
      * X position where the player spawns on return to C3.

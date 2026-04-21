@@ -762,31 +762,145 @@ public class TileMap {
     }
 
     private void generateD1() {
-        // Combat room — exits: EAST gap rows 5-9 (to D2), WEST solid (exit via trigger zone)
         generateAllFloor();
-        wallRow(0);
-        wallRow(14);
-        wallCol(0);
-        wallColGap(25, 5, 9);
+        // --- border walls ---
+        wallRow(0);                    // top row, cols 0-25
+        wallRow(1);                    // second row, cols 0-25
+        wallColGap(0, 6, 8);           // left col — walls everything except rows 6-8 (exit)
+        wallColGap(25, 6, 8);          // right col — walls everything except rows 6-8 (east exit)
+        wallRow(13);                   // second-to-last row, cols 0-25
+        wallRow(14);                   // bottom row, cols 0-25
+        // --- interior walls (obstacles/furniture) ---
+        for (int c = 7; c <= 18; c++) tiles[7][c] = new Tile(Tile.TileType.WALL, c, 7, null); // row 7, cols 7-18
+        tiles[8][8]  = new Tile(Tile.TileType.WALL, 8,  8, null);
+        tiles[8][10] = new Tile(Tile.TileType.WALL, 10, 8, null);
+        tiles[8][12] = new Tile(Tile.TileType.WALL, 12, 8, null);
+        tiles[8][14] = new Tile(Tile.TileType.WALL, 14, 8, null);
+        tiles[8][16] = new Tile(Tile.TileType.WALL, 16, 8, null);
+        tiles[8][18] = new Tile(Tile.TileType.WALL, 18, 8, null);
+        tiles[6][8]  = new Tile(Tile.TileType.WALL, 8,  6, null);
+        tiles[6][10] = new Tile(Tile.TileType.WALL, 10, 6, null);
+        tiles[6][12] = new Tile(Tile.TileType.WALL, 12, 6, null);
+        tiles[6][14] = new Tile(Tile.TileType.WALL, 14, 6, null);
+        tiles[6][16] = new Tile(Tile.TileType.WALL, 16, 6, null);
+        tiles[6][18] = new Tile(Tile.TileType.WALL, 18, 6, null);
+        tiles[2][4]  = new Tile(Tile.TileType.WALL, 4,  2, null);
+        tiles[2][9]  = new Tile(Tile.TileType.WALL, 9,  2, null);
+        tiles[2][12] = new Tile(Tile.TileType.WALL, 12, 2, null);
+        tiles[2][16] = new Tile(Tile.TileType.WALL, 16, 2, null);
+        tiles[2][20] = new Tile(Tile.TileType.WALL, 20, 2, null);
+        tiles[12][4] = new Tile(Tile.TileType.WALL, 4,  12, null);
+        tiles[12][17]= new Tile(Tile.TileType.WALL, 17, 12, null);
+        // --- holes ---
+        tiles[5][4]  = new Tile(Tile.TileType.HOLE, 4,  5, "assets/visuals/png's/hole.png");
+        tiles[10][5] = new Tile(Tile.TileType.HOLE, 5,  10, "assets/visuals/png's/hole.png");
+        tiles[11][18]= new Tile(Tile.TileType.HOLE, 18, 11, "assets/visuals/png's/hole.png");
+        tiles[6][23] = new Tile(Tile.TileType.HOLE, 23, 6, "assets/visuals/png's/hole.png");
     }
 
     private void generateD2() {
-        // Puzzle + save room — exits: WEST gap rows 5-9 (from D1), EAST gap rows 5-9 (to D3)
         generateAllFloor();
-        wallRow(0);
-        wallRow(14);
-        wallColGap(0, 5, 9);
-        wallColGap(25, 5, 9);
-        wallRect(4, 10, 18, 18); // stop wall so push block can't slide past the button
+        // --- border walls ---
+        wallRow(0);                    // top row
+        wallRow(1);                    // second row
+        wallRow(13);                   // second-to-last row
+        wallRow(14);                   // bottom row
+        wallColGap(0, 0, 5);           // left col, rows 0-5 (west exit gap rows 6-8)
+        wallColGap(0, 9, 14);          // left col, rows 9-14
+        wallColGap(25, 0, 5);          // right col, rows 0-5 (east exit gap rows 6-8)
+        wallColGap(25, 9, 14);         // right col, rows 9-14
+        // --- interior walls ---
+        tiles[2][4]  = new Tile(Tile.TileType.WALL, 4,  2, null);
+        tiles[3][4]  = new Tile(Tile.TileType.WALL, 4,  3, null);
+        tiles[4][4]  = new Tile(Tile.TileType.WALL, 4,  4, null);
+        tiles[4][3]  = new Tile(Tile.TileType.WALL, 3,  4, null);
+        tiles[2][10] = new Tile(Tile.TileType.WALL, 10, 2, null);
+        tiles[2][13] = new Tile(Tile.TileType.WALL, 13, 2, null);
+        tiles[2][14] = new Tile(Tile.TileType.WALL, 14, 2, null);
+        tiles[3][13] = new Tile(Tile.TileType.WALL, 13, 3, null);
+        tiles[3][14] = new Tile(Tile.TileType.WALL, 14, 3, null);
+        tiles[2][16] = new Tile(Tile.TileType.WALL, 16, 2, null);
+        tiles[3][16] = new Tile(Tile.TileType.WALL, 16, 3, null);
+        tiles[3][17] = new Tile(Tile.TileType.WALL, 17, 3, null);
+        for (int r = 3; r <= 5; r++) tiles[r][19] = new Tile(Tile.TileType.WALL, 19, r, null); // col 19, rows 3-5
+        tiles[5][16] = new Tile(Tile.TileType.WALL, 16, 5, null);
+        tiles[5][17] = new Tile(Tile.TileType.WALL, 17, 5, null);
+        tiles[6][16] = new Tile(Tile.TileType.WALL, 16, 6, null);
+        tiles[6][17] = new Tile(Tile.TileType.WALL, 17, 6, null);
+        for (int c = 15; c <= 18; c++) tiles[8][c] = new Tile(Tile.TileType.WALL, c, 8, null); // row 8, cols 15-18
+        for (int c = 10; c <= 13; c++) tiles[7][c] = new Tile(Tile.TileType.WALL, c, 7, null); // row 7, cols 10-13
+        for (int c = 8;  c <= 14; c++) tiles[6][c] = new Tile(Tile.TileType.WALL, c, 6, null); // row 6, cols 8-14
+        for (int c = 11; c <= 13; c++) tiles[5][c] = new Tile(Tile.TileType.WALL, c, 5, null); // row 5, cols 11-13
+        tiles[4][8]  = new Tile(Tile.TileType.WALL, 8,  4, null);
+        tiles[5][8]  = new Tile(Tile.TileType.WALL, 8,  5, null);
+        tiles[6][5]  = new Tile(Tile.TileType.WALL, 5,  6, null);
+        tiles[6][6]  = new Tile(Tile.TileType.WALL, 6,  6, null);
+        for (int c = 4; c <= 6; c++) tiles[7][c] = new Tile(Tile.TileType.WALL, c, 7, null); // row 7, cols 4-6
+        for (int c = 1; c <= 3; c++) tiles[9][c] = new Tile(Tile.TileType.WALL, c, 9, null); // row 9, cols 1-3
+        tiles[9][4]  = new Tile(Tile.TileType.WALL, 4,  9, null);
+        tiles[10][4] = new Tile(Tile.TileType.WALL, 4,  10, null);
+        tiles[10][5] = new Tile(Tile.TileType.WALL, 5,  10, null);
+        for (int c = 6; c <= 8; c++)  tiles[10][c] = new Tile(Tile.TileType.WALL, c, 10, null); // row 10, cols 6-8
+        for (int c = 8; c <= 13; c++) tiles[9][c]  = new Tile(Tile.TileType.WALL, c, 9, null);  // row 9, cols 8-13
+        for (int c = 11; c <= 16; c++) tiles[10][c] = new Tile(Tile.TileType.WALL, c, 10, null); // row 10, cols 11-16
+        tiles[12][1] = new Tile(Tile.TileType.WALL, 1,  12, null);
+        tiles[12][2] = new Tile(Tile.TileType.WALL, 2,  12, null);
+        tiles[12][7] = new Tile(Tile.TileType.WALL, 7,  12, null);
+        tiles[12][8] = new Tile(Tile.TileType.WALL, 8,  12, null);
+        for (int c = 11; c <= 14; c++) tiles[12][c] = new Tile(Tile.TileType.WALL, c, 12, null); // row 12, cols 11-14
+        // --- holes (cols 21-22, rows 2-6 and rows 8-12) ---
+        for (int r = 2; r <= 6; r++) {
+            tiles[r][21] = new Tile(Tile.TileType.HOLE, 21, r, "assets/visuals/png's/hole.png");
+            tiles[r][22] = new Tile(Tile.TileType.HOLE, 22, r, "assets/visuals/png's/hole.png");
+        }
+        for (int r = 8; r <= 12; r++) {
+            tiles[r][21] = new Tile(Tile.TileType.HOLE, 21, r, "assets/visuals/png's/hole.png");
+            tiles[r][22] = new Tile(Tile.TileType.HOLE, 22, r, "assets/visuals/png's/hole.png");
+        }
     }
 
     private void generateD3() {
-        // Boss room — exit: WEST gap rows 5-9 (from D2)
         generateAllFloor();
-        wallRow(0);
-        wallRow(14);
-        wallColGap(0, 5, 9);
-        wallCol(25);
+        // --- border walls ---
+        wallRow(0);                    // top row
+        wallRow(1);                    // second row
+        wallColGap(0, 0, 5);           // left col, rows 0-5 (west exit gap rows 6-8)
+        wallColGap(0, 9, 14);          // left col, rows 9-14
+        wallRow(13);                   // second-to-last row
+        wallRow(14);                   // bottom row
+        wallCol(25);                   // right col, fully solid
+        // --- interior walls ---
+        tiles[2][1]  = new Tile(Tile.TileType.WALL, 1,  2, null);
+        tiles[3][1]  = new Tile(Tile.TileType.WALL, 1,  3, null);
+        tiles[12][1] = new Tile(Tile.TileType.WALL, 1,  12, null);
+        tiles[12][2] = new Tile(Tile.TileType.WALL, 2,  12, null);
+        tiles[2][13] = new Tile(Tile.TileType.WALL, 13, 2, null);
+        tiles[2][14] = new Tile(Tile.TileType.WALL, 14, 2, null);
+        for (int c = 20; c <= 24; c++) tiles[2][c] = new Tile(Tile.TileType.WALL, c, 2, null); // row 2, cols 20-24
+        tiles[3][23] = new Tile(Tile.TileType.WALL, 23, 3, null);
+        tiles[3][24] = new Tile(Tile.TileType.WALL, 24, 3, null);
+        tiles[4][24] = new Tile(Tile.TileType.WALL, 24, 4, null);
+        tiles[12][24]= new Tile(Tile.TileType.WALL, 24, 12, null);
+        tiles[12][23]= new Tile(Tile.TileType.WALL, 23, 12, null);
+        for (int c = 7; c <= 10; c++) tiles[2][c] = new Tile(Tile.TileType.WALL, c, 2, null); // row 2, cols 7-10
+        // --- holes ---
+        for (int r = 4; r <= 6; r++)  tiles[r][1]  = new Tile(Tile.TileType.HOLE, 1,  r, "assets/visuals/png's/hole.png");
+        for (int r = 8; r <= 11; r++) tiles[r][1]  = new Tile(Tile.TileType.HOLE, 1,  r, "assets/visuals/png's/hole.png");
+        for (int c = 2; c <= 6; c++)  tiles[2][c]  = new Tile(Tile.TileType.HOLE, c,  2, "assets/visuals/png's/hole.png");
+        tiles[2][11] = new Tile(Tile.TileType.HOLE, 11, 2, "assets/visuals/png's/hole.png");
+        tiles[2][12] = new Tile(Tile.TileType.HOLE, 12, 2, "assets/visuals/png's/hole.png");
+        for (int c = 15; c <= 19; c++) tiles[2][c] = new Tile(Tile.TileType.HOLE, c,  2, "assets/visuals/png's/hole.png");
+        for (int r = 5; r <= 11; r++) tiles[r][24] = new Tile(Tile.TileType.HOLE, 24, r, "assets/visuals/png's/hole.png");
+        for (int c = 3; c <= 23; c++) tiles[12][c] = new Tile(Tile.TileType.HOLE, c,  12, "assets/visuals/png's/hole.png");
+        tiles[5][4]  = new Tile(Tile.TileType.HOLE, 4,  5, "assets/visuals/png's/hole.png");
+        tiles[5][11] = new Tile(Tile.TileType.HOLE, 11, 5, "assets/visuals/png's/hole.png");
+        tiles[6][8]  = new Tile(Tile.TileType.HOLE, 8,  6, "assets/visuals/png's/hole.png");
+        tiles[6][16] = new Tile(Tile.TileType.HOLE, 16, 6, "assets/visuals/png's/hole.png");
+        tiles[5][21] = new Tile(Tile.TileType.HOLE, 21, 5, "assets/visuals/png's/hole.png");
+        tiles[9][22] = new Tile(Tile.TileType.HOLE, 22, 9, "assets/visuals/png's/hole.png");
+        tiles[10][8] = new Tile(Tile.TileType.HOLE, 8,  10, "assets/visuals/png's/hole.png");
+        tiles[9][13] = new Tile(Tile.TileType.HOLE, 13, 9, "assets/visuals/png's/hole.png");
+        tiles[11][16]= new Tile(Tile.TileType.HOLE, 16, 11, "assets/visuals/png's/hole.png");
     }
 
     /** Fills every cell in the tile grid with a FLOOR tile. No walls, no holes. */
