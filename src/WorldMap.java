@@ -1034,40 +1034,45 @@ public class WorldMap {
         });
     }
 
-    /** Places a save crystal in D2 mid-dungeon. */
+    /** Places a save crystal in D2 at col 24, row 5 (past the puzzle chokepoint). */
     private void installD2SavePoint() {
         Room d2 = dungeonRooms[1];
         if (d2 == null) return;
-        double saveX = TileMap.MAP_OFFSET_X + 4 * 48;
-        double saveY = 6 * 48;
-        d2.setSavePoint(new SavePoint(
+        double saveX = TileMap.MAP_OFFSET_X + 24 * 48;
+        double saveY = 5 * 48;
+        SavePoint sp = new SavePoint(
             saveX, saveY,
             d2.getRoomId(),
             SavePoint.SavePointType.SAVE_CRYSTAL,
             saveX, saveY
-        ));
+        );
+        sp.enableSprite();
+        d2.setSavePoint(sp);
     }
 
-    /** Places a push-block puzzle in D2: push the block onto the button to unlock the east exit. */
+    /** Places the 3-button push-block puzzle in D2. All 3 buttons pressed simultaneously opens the chokepoint. */
     private void installD2Puzzle() {
         Room d2 = dungeonRooms[1];
         if (d2 == null) return;
-        d2.addObject(new PushBlock(14, 7));
-        d2.addObject(new PressureButton(17, 7, false));
+        // Push blocks added first so pressure buttons draw on top of them
+        d2.addObject(new PushBlock(17, 10));
+        d2.addObject(new PushBlock(7, 4));
+        d2.addObject(new PressureButton(17, 2, false));
+        d2.addObject(new PressureButton(3, 10, false));
+        d2.addObject(new PressureButton(20, 8, false));
         d2.setPuzzleSolvedCallback(() -> {
             d2Solved = true;
             openExit("D2", Direction.RIGHT);
+            // Unblock the chokepoint tiles and remove the visual blocker at the same moment
             TileMap d2Map = dungeonRooms[1].getTileMap();
             d2Map.setTileType(21, 7, Tile.TileType.FLOOR, "assets/tile_floor.png");
             d2Map.setTileType(22, 7, Tile.TileType.FLOOR, "assets/tile_floor.png");
+            if (canvas != null && d2BlockerImage != null) canvas.remove(d2BlockerImage);
         });
     }
 
-    /** Seeds enemies into Dungeon Room 2 (puzzle + save). */
+    /** D2 is a puzzle-only room — no enemies. */
     private void populateD2() {
-        Room d2 = dungeonRooms[1];
-        d2.addRespawningEntity(() -> new MeleeEnemy(700, 300, d2.getTileMap()));
-        d2.addRespawningEntity(() -> new RangedEnemy(900, 500, d2.getTileMap()));
     }
 
     /**
@@ -1182,7 +1187,7 @@ public class WorldMap {
         if (activeRoom == dungeonRooms[1] && !d2Solved) {
             if (d2BlockerImage == null) {
                 d2BlockerImage = new GImage("assets/visuals/overworld rooms/purpleblocker.png");
-                d2BlockerImage.setLocation(TileMap.MAP_OFFSET_X + 21 * 48, 7 * 48);
+                d2BlockerImage.setLocation(TileMap.MAP_OFFSET_X + 19 * 48, 4.5 * 48);
             }
             canvas.add(d2BlockerImage);
         }

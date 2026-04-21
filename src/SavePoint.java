@@ -86,8 +86,8 @@ public class SavePoint {
 	/** Crystal art used for overworld save points. */
 	private static final String SAVE_CRYSTAL_SPRITE_PATH = "assets/visuals/png's/save_crystal.png";
 
-	/** Temporary art toggle: keep the save prompt text visible without drawing the crystal PNG. */
-	private static final boolean SHOW_SAVE_CRYSTAL_SPRITE = false;
+	/** When true, the crystal PNG is drawn instead of the placeholder rectangle. Set via enableSprite(). */
+	private boolean showSprite = false;
 
 	/** Interaction zone is larger than the visual so the player doesn't need pixel-perfect positioning. */
 	private static final int INTERACT_SIZE = 80;
@@ -207,9 +207,12 @@ public class SavePoint {
 	 *
 	 * @param canvas the game canvas
 	 */
+	/** Call once after constructing to show the crystal PNG instead of the placeholder rectangle. */
+	public void enableSprite() { this.showSprite = true; }
+
 	public void addTo(GCanvas canvas) {
 		resetVisualPosition();
-		if (SHOW_SAVE_CRYSTAL_SPRITE && crystalSprite != null) {
+		if (showSprite && crystalSprite != null) {
 			canvas.add(crystalSprite);
 		}
 		if (visualPlaceholder != null) {

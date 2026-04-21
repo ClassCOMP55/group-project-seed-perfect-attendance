@@ -793,6 +793,9 @@ public class Room {
                 block.tickCooldown();
                 if (facing != null && player.getHitbox().overlaps(block.getHitbox())) {
                     block.tryPush(facing, tileMap, pushBlocks);
+                    if (block.isFallen()) {
+                        block.removeFrom(canvas);
+                    }
                 }
                 block.updateButtonOverlap(pressureButtons);
             }

@@ -87,6 +87,9 @@ public class PushBlock extends WorldObject {
     /** Ticks remaining before another push is allowed (~0.2s cooldown). */
     private int pushCooldownTicks = 0;
 
+    /** True when this block has fallen into a hole and is gone for this room visit. */
+    private boolean fallen = false;
+
     /** Sprite image; non-null when push_block.png loads successfully. */
     private GImage blockSprite;
     /** Fallback colored rectangle when the sprite asset is unavailable. */
@@ -200,8 +203,18 @@ public class PushBlock extends WorldObject {
         syncVisualPosition();
         hitbox.updatePosition(x, y);
         pushCooldownTicks = 12;
+
+        // If the block landed on a hole, mark it as fallen — Room will remove it from canvas
+        if (destination.isHole()) {
+            fallen = true;
+            this.hide();
+        }
+
         return true;
     }
+
+    /** Returns true if this block has fallen into a hole this room visit. */
+    public boolean isFallen() { return fallen; }
 
     /**
      * Checks if this block is resting on any PressureButton and updates their pressed state.
@@ -224,6 +237,8 @@ public class PushBlock extends WorldObject {
 
     /** Returns this block to its starting position. Called by Room.reset(). */
     public void reset() {
+        fallen = false;
+        this.show();   // restores visible=true and hitbox to current position
         tileCol = startCol;
         tileRow = startRow;
         x = tileCol * 48 + TileMap.MAP_OFFSET_X;
