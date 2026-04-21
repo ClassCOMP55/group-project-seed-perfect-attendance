@@ -99,6 +99,7 @@ public class MainApplication extends GraphicsProgram{
 				// Repack so the canvas fills exactly 1280x720 with no extra chrome
 				getGCanvas().setPreferredSize(new java.awt.Dimension(WINDOW_WIDTH, WINDOW_HEIGHT));
 				frame.pack();
+				frame.setResizable(false);
 			}
 		});
 		pauseModal = new PauseModal(this);
