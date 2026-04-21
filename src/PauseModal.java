@@ -410,14 +410,14 @@ public class PauseModal extends GraphicsPane
     addBoth(pauseCoinsLabel);
 
     pauseLastSavedLabel = new GLabel(getInventoryLastSavedText(), 0, 0);
-    pauseLastSavedLabel.setFont("Courier New-BOLD-12");
+    pauseLastSavedLabel.setFont("Courier New-BOLD-14");
     pauseLastSavedLabel.setColor(Color.BLACK);
     double savedLabelY = iconY + INV_COIN_ICON_SIZE + 6 + pauseLastSavedLabel.getAscent();
     pauseLastSavedLabel.setLocation(iconX, savedLabelY);
     addBoth(pauseLastSavedLabel);
 
     pauseLastSavedValueLabel = new GLabel(getInventoryLastSavedValueText(), 0, 0);
-    pauseLastSavedValueLabel.setFont("Courier New-BOLD-12");
+    pauseLastSavedValueLabel.setFont("Courier New-BOLD-14");
     pauseLastSavedValueLabel.setColor(Color.BLACK);
     pauseLastSavedValueLabel.setLocation(
         iconX,
