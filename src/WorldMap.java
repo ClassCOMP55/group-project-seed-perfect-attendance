@@ -782,7 +782,7 @@ public class WorldMap {
             combinedMarkLines,
             CALUMUND_4TH_TALK_LINES,
             p -> p.hasMarkOfHero(),
-            p -> p.collectItem(new MarkOfHeroItem())
+            p -> { p.collectItem(new MarkOfHeroItem()); p.setHasMarkOfHero(true); }
         );
         a1.addObject(calumund);
     }
