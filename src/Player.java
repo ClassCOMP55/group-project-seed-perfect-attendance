@@ -265,10 +265,11 @@ public class Player extends Entity {
 
     /** Converts a hole fall into a real death so GameplayPane can play the normal respawn flow. */
     private void fallInHole() {
-        health = 0;
-        iframesTicks = 0;
-        isIntangibleActive = false;
-        intangibleActiveTicks = 0;
+        takeDamage(1);
+        x = respawnX;
+        y = respawnY;
+        hitbox.updatePosition(x - 22, y - 22);
+        syncVisualPosition();
     }
 
     // ==========================================================
