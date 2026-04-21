@@ -263,6 +263,15 @@ public class Player extends Entity {
         this.respawnY = ry;
     }
 
+    @Override
+    protected boolean isFullyOverHole() {
+        if (tileMap == null) return false;
+        return tileMap.isHole(x - 20, y)
+            && tileMap.isHole(x + 20, y)
+            && tileMap.isHole(x, y - 22)
+            && tileMap.isHole(x, y + 22);
+    }
+
     /** Converts a hole fall into a real death so GameplayPane can play the normal respawn flow. */
     private void fallInHole() {
         takeDamage(1);
