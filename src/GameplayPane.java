@@ -310,6 +310,8 @@ public class GameplayPane extends GraphicsPane {
         lastMusicRoomId = null;
         GameMusic.stopJourneyBeginsMusic();
         GameMusic.stopMysteriousDungeonMusic();
+        GameMusic.stopOverworldMusic();
+        GameMusic.stopBossMusic();
 
         // --- remove debug overlay ---
         clearDebugOverlay(canvas);
@@ -564,13 +566,17 @@ public class GameplayPane extends GraphicsPane {
             return;
         }
         lastMusicRoomId = roomId;
-        if (DUNGEON_FLOOR_ONE_ROOM_ID.equals(roomId)) {
+        if ("D3".equals(roomId)) {
+            GameMusic.startBossMusic();
+        } else if (roomId != null && roomId.startsWith("D")) {
             GameMusic.startMysteriousDungeonMusic();
-        } else if (roomId != null && !roomId.startsWith("D")) {
-            GameMusic.startJourneyBeginsMusic();
+        } else if (roomId != null) {
+            GameMusic.startOverworldMusic();
         } else {
             GameMusic.stopJourneyBeginsMusic();
             GameMusic.stopMysteriousDungeonMusic();
+            GameMusic.stopOverworldMusic();
+            GameMusic.stopBossMusic();
         }
     }
 
