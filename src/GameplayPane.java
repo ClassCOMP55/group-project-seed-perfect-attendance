@@ -178,6 +178,8 @@ public class GameplayPane extends GraphicsPane {
 
     /** True when the F6 debug overlay is visible. */
     private boolean debugOverlayOn = false;
+    /** Shared world-debug toggle for room objects like A2 blocker markers. */
+    private static boolean worldDebugMarkersVisible = false;
 
     // =========================================================
     // PLAYER DEATH
@@ -315,6 +317,7 @@ public class GameplayPane extends GraphicsPane {
 
         // --- remove debug overlay ---
         clearDebugOverlay(canvas);
+        worldDebugMarkersVisible = false;
     }
 
     /**
@@ -327,6 +330,7 @@ public class GameplayPane extends GraphicsPane {
         pendingSpawnY = PLAYER_START_Y;
         deathDelayTicks = 0;
         debugOverlayOn = false;
+        worldDebugMarkersVisible = false;
         controlsCardVisible = true;
         lastMusicRoomId = null;
     }
@@ -339,6 +343,7 @@ public class GameplayPane extends GraphicsPane {
         pendingSpawnY = PLAYER_START_Y;
         deathDelayTicks = 0;
         debugOverlayOn = false;
+        worldDebugMarkersVisible = false;
         controlsCardVisible = true;
         lastMusicRoomId = null;
         GamePlayState.setCurrent(GamePlayState.PLAYING);
@@ -362,6 +367,7 @@ public class GameplayPane extends GraphicsPane {
         pendingSpawnY = roomFound ? spawnY : PLAYER_START_Y;
         deathDelayTicks = 0;
         debugOverlayOn = false;
+        worldDebugMarkersVisible = false;
         controlsCardVisible = true;
         lastMusicRoomId = null;
         GamePlayState.setCurrent(GamePlayState.PLAYING);
@@ -648,6 +654,7 @@ public class GameplayPane extends GraphicsPane {
             // Debug: toggle combat overlay
             input.onPress(KeyEvent.VK_F6, () -> {
                 debugOverlayOn = !debugOverlayOn;
+                worldDebugMarkersVisible = debugOverlayOn;
                 if (!debugOverlayOn) clearDebugOverlay(mainScreen.getGCanvas());
             });
 
@@ -696,8 +703,14 @@ public class GameplayPane extends GraphicsPane {
         input.removeOnPress(KeyEvent.VK_F7);
         input.removeOnPress(KeyEvent.VK_F8);
         debugOverlayOn = false;
+        worldDebugMarkersVisible = false;
         clearDebugOverlay(mainScreen.getGCanvas());
         inputsWired = false;
+    }
+
+    /** Returns true when gameplay debug visuals that live inside rooms should be shown. */
+    public static boolean areWorldDebugMarkersVisible() {
+        return worldDebugMarkersVisible;
     }
 
     // =========================================================

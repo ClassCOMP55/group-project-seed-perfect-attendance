@@ -93,6 +93,12 @@ public class Chest extends WorldObject {
     /** True once the chest has been opened. Never resets. */
     private boolean isOpen;
 
+    /** When true the chest cannot be opened until unlocked via setLocked(false). */
+    private boolean locked = false;
+
+    /** Dialogue line shown when the player interacts while the chest is locked. */
+    private String lockedMessage = null;
+
     /** True if the contents are a PowerUp relic; false if a regular inventory item. */
     private final boolean givesRelic;
 
@@ -171,6 +177,19 @@ public class Chest extends WorldObject {
     @Override
     public void onInteract(Player p) {
         if (isOpen) return;
+
+        if (locked) {
+            if (dialogue != null && lockedMessage != null) {
+                GamePlayState.setCurrent(GamePlayState.DIALOGUE);
+                dialogue.open(
+                    new String[]{lockedMessage},
+                    "Chest",
+                    false,
+                    () -> GamePlayState.setCurrent(GamePlayState.PLAYING)
+                );
+            }
+            return;
+        }
 
         isOpen = true;
         GameSFX.play(GameSFX.SFX.CHEST_OPEN);
@@ -252,6 +271,8 @@ public class Chest extends WorldObject {
 
     public void    setDialogue(Dialogue d) { this.dialogue = d; }
     public void    setCollectedItemRecorder(Consumer<String> recorder) { this.collectedItemRecorder = recorder; }
+    public void    setLocked(boolean locked) { this.locked = locked; }
+    public void    setLockedMessage(String msg) { this.lockedMessage = msg; }
     public String  getChestId()            { return chestId; }
     public boolean isOpen()                { return isOpen; }
 

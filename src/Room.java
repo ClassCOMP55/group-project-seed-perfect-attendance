@@ -560,6 +560,12 @@ public class Room {
             canvas.add(foregroundImage);
         }
 
+        for (WorldObject obj : objects) {
+            if (obj instanceof DebugTileMarker) {
+                ((DebugTileMarker) obj).bringToFront();
+            }
+        }
+
         initialized = true;
     }
 
@@ -797,9 +803,16 @@ public class Room {
             for (PushBlock block : pushBlocks) {
                 block.tickCooldown();
                 if (facing != null && player.getHitbox().overlaps(block.getHitbox())) {
-                    block.tryPush(facing, tileMap, pushBlocks);
+                    boolean moved = block.tryPush(facing, tileMap, pushBlocks);
                     if (block.isFallen()) {
                         block.removeFrom(canvas);
+                    } else if (moved) {
+                        for (WorldObject obj : objects) {
+                            if (obj instanceof Grass && !((Grass) obj).isCut()
+                                    && obj.getHitbox().overlaps(block.getHitbox())) {
+                                ((Grass) obj).onHit();
+                            }
+                        }
                     }
                 }
                 block.updateButtonOverlap(pressureButtons);

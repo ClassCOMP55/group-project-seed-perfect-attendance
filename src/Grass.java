@@ -71,10 +71,10 @@ public class Grass extends WorldObject {
     private static final float DEFAULT_COIN_DROP_CHANCE = 0.5f;
 
     /** Minimum time in seconds before a cut grass tile becomes harvestable again. */
-    private static final double MIN_REGROW_DURATION_SECONDS = 3.0;
+    private static final double MIN_REGROW_DURATION_SECONDS = 0.12;
 
     /** Maximum time in seconds before a cut grass tile becomes harvestable again. */
-    private static final double MAX_REGROW_DURATION_SECONDS = 7.0;
+    private static final double MAX_REGROW_DURATION_SECONDS = 0.18;
 
     /** Placeholder grass color until real sprite is wired. */
     private static final Color GRASS_COLOR = new Color(60, 160, 60);
@@ -190,7 +190,6 @@ public class Grass extends WorldObject {
         } else {
             canvas.add(placeholder);
         }
-        canvas.add(debugLabel);
     }
 
     @Override
@@ -224,6 +223,9 @@ public class Grass extends WorldObject {
         GameSFX.play(GameSFX.SFX.GRASS_CUT);
         regrowTimerSeconds = randomRegrowDurationSeconds();
         hitbox.updatePosition(-99999, -99999);
+        if (grassSprite != null) {
+            grassSprite.setVisible(false);
+        }
         placeholder.setVisible(false);
         updateDebugLabel();
 
@@ -283,7 +285,7 @@ public class Grass extends WorldObject {
         }
         placeholder.setLocation(x, y);
         placeholder.setVisible(grassSprite == null && showVisual);
-        debugLabel.setVisible(visible);
+        debugLabel.setVisible(showVisual);
         updateDebugLabel();
     }
 

@@ -1,7 +1,9 @@
 import acm.graphics.*;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /*
 Person 2: TileMap — 2D grid of Tile objects for one Room.
@@ -53,6 +55,8 @@ public class TileMap {
     private int tileSize = 48;
     /** Player-only trigger strips (teleports, doors) that enemies must never enter. */
     private final List<Rectangle2D.Double> enemyBlockedZones = new ArrayList<>();
+    /** Optional room-specific forbidden tiles for push blocks. Empty means unrestricted. */
+    private final Set<Integer> pushBlockBlockedTiles = new HashSet<>();
 
     /**
      * Horizontal pixel offset that centers the 1248px-wide map inside the 1280px window.
@@ -266,6 +270,15 @@ public class TileMap {
         return tile != null && tile.isHole();
     }
 
+    /** Push-block-specific movement query with optional room-local safety barriers. */
+    public boolean isPushBlockPassable(int col, int row) {
+        Tile tile = getTileAt(col, row);
+        if (tile == null || !tile.isPassable()) {
+            return false;
+        }
+        return !pushBlockBlockedTiles.contains(encodeTile(col, row));
+    }
+
     /**
      * Marks a tile-aligned rectangle as blocked for enemies only.
      * Use this for teleport/door trigger strips that stay walkable for the player.
@@ -282,6 +295,24 @@ public class TileMap {
             widthTiles * tileSize,
             heightTiles * tileSize
         ));
+    }
+
+    /** Blocks push blocks from stepping onto a curated set of tiles for puzzle guard rails. */
+    public void blockPushBlocksOnTiles(int[][] blockedTiles) {
+        pushBlockBlockedTiles.clear();
+        if (blockedTiles == null) {
+            return;
+        }
+        for (int[] tile : blockedTiles) {
+            if (tile == null || tile.length < 2) {
+                continue;
+            }
+            int col = tile[0];
+            int row = tile[1];
+            if (getTileAt(col, row) != null) {
+                pushBlockBlockedTiles.add(encodeTile(col, row));
+            }
+        }
     }
 
     /** Replaces a tile in place. Used by drawbridge logic to toggle BRIDGE/Hole. */
@@ -571,6 +602,17 @@ public class TileMap {
         floorRect(4, 4, 1, 5);
         floorRect(3, 3, 6, 6);
         floorRect(3, 3, 7, 7);
+
+        // Match the A2 purple debug barrier layout: rocks cannot enter these tiles.
+        blockPushBlocksOnTiles(
+            new int[][]{
+                {1,1}, {2,1}, {3,1}, {4,1}, {5,1}, {6,1}, {7,1}, {8,1}, {9,1},
+                {1,2}, {1,3}, {1,4}, {1,5}, {1,6}, {1,7}, {1,8}, {1,9}, {1,10}, {1,11}, {1,12},
+                {2,12}, {3,12}, {4,12}, {5,12}, {6,12}, {7,12}, {8,12}, {9,12},
+                {8,2}, {8,3}, {8,4}, {8,5}, {8,6}, {8,7}, {9,8},
+                {10,9}, {10,10}, {10,11}
+            }
+        );
     }
 
     private void generateA3() {
@@ -994,6 +1036,10 @@ public class TileMap {
     /** Total height of the map in pixels (rows × tile size). */
     public double getHeightPixels() {
         return rows * (double) tileSize;
+    }
+
+    private int encodeTile(int col, int row) {
+        return row * cols + col;
     }
 }
 

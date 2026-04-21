@@ -447,6 +447,7 @@ public class WorldMap {
     private GImage d3BlockerImage;
     private boolean d1Cleared = false;
     private boolean d2Solved  = false;
+    private boolean a2Solved  = false;
 
     // =========================================================
     // CONSTRUCTOR
@@ -551,7 +552,9 @@ public class WorldMap {
         installHeroThickets();
         installDrawbridgeLever();
         installTrialChests();
+        installA2Puzzle();
         installA2Grass();
+        installA2DebugBlockers();
         syncPersistentWorldObjects();
 
         // --- wire exit callbacks: each room calls triggerTransition() when the player exits ---
@@ -830,23 +833,27 @@ public class WorldMap {
 
         int tileSize = a2.getTileMap().getTileSize();
         // Each entry is {col, row} for a single grass tile.
+        // Tiles occupied by push blocks or pressure buttons are excluded so objects spawn clean.
+        // Block A: (3,11)  Block B: (7,7)
+        // Button 1: (3,8)  Button 2: (7,11)  Button 3: (5,6)
         int[][] tiles = {
             // row 10, cols 1-3
             {1,10}, {2,10}, {3,10},
-            // row 11, cols 1-3
-            {1,11}, {2,11}, {3,11},
-            // row 8, cols 3-6
-            {3,8}, {4,8}, {5,8}, {6,8},
+            // row 11, cols 1-2 (3,11 removed — Block A spawn)
+            {1,11}, {2,11},
+            // row 8, cols 4-6 (3,8 removed — Button 1 spawn)
+            {4,8}, {5,8}, {6,8},
             // row 9, cols 8-9
             {8,9}, {9,9},
-            // row 11, cols 7-8
-            {7,11}, {8,11},
+            // row 11, col 8 (7,11 removed — Button 2 spawn)
+            {8,11},
             // row 12, cols 7-9
             {7,12}, {8,12}, {9,12},
             // single tiles
             {1,7}, {1,6}, {2,6}, {3,7}, {4,7},
-            // row 6, cols 6-8
+            // row 6, cols 6-8 (5,6 removed — Button 3 spawn)
             {6,6}, {7,6}, {8,6},
+            // row 7, col 7 (7,7 removed — Block B spawn)
             // row 4, cols 1-5
             {1,4}, {2,4}, {3,4}, {4,4}, {5,4},
             // row 3
@@ -868,6 +875,43 @@ public class WorldMap {
         oreNode.setDialogue(dialogue);
         oreNode.setCollectedItemRecorder(this::markCollectedItem);
         b2.addObject(oreNode);
+    }
+
+    /** Adds visible purple debug markers on the A2 tiles that push blocks are not allowed to enter. */
+    private void installA2DebugBlockers() {
+        Room a2 = overworldGrid[0][1];
+        if (a2 == null) return;
+
+        int tileSize = a2.getTileMap().getTileSize();
+        Color purpleBarrier = new Color(132, 70, 196, 190);
+        Color redBarrier = new Color(205, 62, 62, 210);
+
+        addDebugBarrierRange(a2, tileSize, purpleBarrier, 1, 9, 1, 1);
+        addDebugBarrierRange(a2, tileSize, purpleBarrier, 1, 1, 2, 12);
+        addDebugBarrierRange(a2, tileSize, purpleBarrier, 2, 9, 12, 12);
+        addDebugBarrierRange(a2, tileSize, purpleBarrier, 8, 8, 2, 7);
+        addDebugBarrierRange(a2, tileSize, purpleBarrier, 9, 9, 8, 8);
+        addDebugBarrierRange(a2, tileSize, purpleBarrier, 10, 10, 9, 11);
+
+        addDebugBarrierRange(a2, tileSize, redBarrier, 5, 6, 1, 1);
+    }
+
+    private void addDebugBarrierRange(Room room, int tileSize, Color fillColor,
+                                      int startCol, int endCol, int startRow, int endRow) {
+        if (room == null) return;
+
+        int minCol = Math.min(startCol, endCol);
+        int maxCol = Math.max(startCol, endCol);
+        int minRow = Math.min(startRow, endRow);
+        int maxRow = Math.max(startRow, endRow);
+
+        for (int col = minCol; col <= maxCol; col++) {
+            for (int row = minRow; row <= maxRow; row++) {
+                double worldX = TileMap.MAP_OFFSET_X + col * tileSize;
+                double worldY = row * tileSize;
+                room.addObject(new DebugTileMarker(worldX, worldY, fillColor));
+            }
+        }
     }
 
     /** Places the Mark-of-the-Hero tree barriers in A2, A3, and B3. */
@@ -1069,6 +1113,54 @@ public class WorldMap {
             d2Map.setTileType(21, 7, Tile.TileType.FLOOR, "assets/tile_floor.png");
             d2Map.setTileType(22, 7, Tile.TileType.FLOOR, "assets/tile_floor.png");
             if (canvas != null && d2BlockerImage != null) canvas.remove(d2BlockerImage);
+        });
+    }
+
+    /**
+     * A2 — Trial of Strength push-block puzzle.
+     *
+     * Layout (tile coords):
+     *   Button 1 at (3, 8)  — block-only
+     *   Button 2 at (7, 11) — block-only
+     *   Button 3 at (5, 6)  — requires player to stand on it
+     *   Block A starts at   (3, 11)
+     *   Block B starts at   (7, 7)
+     *
+     * Solution: push Block A left onto Button 1, push Block B down onto Button 2,
+     * then the player stands on Button 3. All three pressed → chest unlocks.
+     *
+     * The strengthChest starts locked and is unlocked by the solved callback.
+     */
+    private void installA2Puzzle() {
+        Room a2 = overworldGrid[0][1];
+        if (a2 == null) return;
+
+        if (strengthChest != null) {
+            strengthChest.setLocked(true);
+            strengthChest.setLockedMessage("The chest holds its secret still. Move the blocks to prove your strength.");
+        }
+
+        a2.addObject(new PressureButton(3, 8,  false));
+        a2.addObject(new PressureButton(7, 11, false));
+        a2.addObject(new PressureButton(5, 6,  false));
+        a2.addObject(new PushBlock(3, 11));
+        a2.addObject(new PushBlock(7, 7));
+
+        a2.setPuzzleSolvedCallback(() -> {
+            a2Solved = true;
+            if (strengthChest != null) strengthChest.setLocked(false);
+            if (dialogue != null && !dialogue.isOpen()) {
+                GamePlayState.setCurrent(GamePlayState.DIALOGUE);
+                dialogue.open(
+                    new String[]{
+                        "You hear a rumble in the distance.",
+                        "Somewhere nearby, a chest has opened."
+                    },
+                    "Trial of Strength",
+                    false,
+                    () -> GamePlayState.setCurrent(GamePlayState.PLAYING)
+                );
+            }
         });
     }
 
@@ -1582,7 +1674,11 @@ public class WorldMap {
             }
         }
         if (courageChest  != null && hasCollectedItem(courageChest.getChestId()))  courageChest.forceOpen();
-        if (strengthChest != null && hasCollectedItem(strengthChest.getChestId())) strengthChest.forceOpen();
+        if (strengthChest != null && hasCollectedItem(strengthChest.getChestId())) {
+            strengthChest.setLocked(false);
+            strengthChest.forceOpen();
+            a2Solved = true;
+        }
         if (wisdomChest   != null && hasCollectedItem(wisdomChest.getChestId()))   wisdomChest.forceOpen();
         Room c1 = overworldGrid[2][0];
         boolean bridgeRepaired = hasStoryFlag(DRAWBRIDGE_REPAIRED_FLAG)

@@ -183,7 +183,7 @@ public class PushBlock extends WorldObject {
         int destRow = tileRow + dRow;
 
         Tile destination = tileMap.getTileAt(destCol, destRow);
-        if (destination == null || !destination.isPassable()) {
+        if (destination == null || !tileMap.isPushBlockPassable(destCol, destRow)) {
             return false;
         }
 
