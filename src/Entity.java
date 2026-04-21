@@ -277,10 +277,10 @@ public abstract class Entity {
             return;
         }
 
-        double minX = TileMap.MAP_OFFSET_X + HITBOX_HALF;
-        double maxX = TileMap.MAP_OFFSET_X + tileMap.getWidthPixels() - HITBOX_HALF;
-        double minY = HITBOX_HALF;
-        double maxY = tileMap.getHeightPixels() - HITBOX_HALF;
+        double minX = TileMap.MAP_OFFSET_X + collisionHalf();
+        double maxX = TileMap.MAP_OFFSET_X + tileMap.getWidthPixels() - collisionHalf();
+        double minY = collisionHalf();
+        double maxY = tileMap.getHeightPixels() - collisionHalf();
 
         x = Math.max(minX, Math.min(maxX, x));
         y = Math.max(minY, Math.min(maxY, y));
@@ -314,7 +314,7 @@ public abstract class Entity {
         if (tileMap == null) {
             x += dx;
             y += dy;
-            hitbox.updatePosition(x - HITBOX_HALF, y - HITBOX_HALF);
+            hitbox.updatePosition(x - collisionHalf(), y - collisionHalf());
             hurtbox.updatePosition(x, y);
             syncVisualPosition();
             if (dx != 0 || dy != 0) {
@@ -330,15 +330,15 @@ public abstract class Entity {
         boolean xClear;
 
         if (dx > 0) {
-            // Moving right: probe the right edge (newX + 24) at top and bottom,
+            // Moving right: probe the right edge at top and bottom,
             // inset 1px from the hitbox corners to avoid tile-grid false positives.
-            xClear = isPassableForMovement(newX + HITBOX_HALF, y - HITBOX_HALF + 1)
-                  && isPassableForMovement(newX + HITBOX_HALF, y + HITBOX_HALF - 1);
+            xClear = isPassableForMovement(newX + collisionHalf(), y - collisionHalf() + 1)
+                  && isPassableForMovement(newX + collisionHalf(), y + collisionHalf() - 1);
 
         } else if (dx < 0) {
-            // Moving left: probe the left edge (newX - 24)
-            xClear = isPassableForMovement(newX - HITBOX_HALF, y - HITBOX_HALF + 1)
-                  && isPassableForMovement(newX - HITBOX_HALF, y + HITBOX_HALF - 1);
+            // Moving left: probe the left edge
+            xClear = isPassableForMovement(newX - collisionHalf(), y - collisionHalf() + 1)
+                  && isPassableForMovement(newX - collisionHalf(), y + collisionHalf() - 1);
 
         } else {
             xClear = true; // no horizontal movement — nothing to check
@@ -353,14 +353,14 @@ public abstract class Entity {
         boolean yClear;
 
         if (dy > 0) {
-            // Moving down: probe the bottom edge (newY + 24)
-            yClear = isPassableForMovement(x - HITBOX_HALF + 1, newY + HITBOX_HALF)
-                  && isPassableForMovement(x + HITBOX_HALF - 1, newY + HITBOX_HALF);
+            // Moving down: probe the bottom edge
+            yClear = isPassableForMovement(x - collisionHalf() + 1, newY + collisionHalf())
+                  && isPassableForMovement(x + collisionHalf() - 1, newY + collisionHalf());
 
         } else if (dy < 0) {
-            // Moving up: probe the top edge (newY - 24)
-            yClear = isPassableForMovement(x - HITBOX_HALF + 1, newY - HITBOX_HALF)
-                  && isPassableForMovement(x + HITBOX_HALF - 1, newY - HITBOX_HALF);
+            // Moving up: probe the top edge
+            yClear = isPassableForMovement(x - collisionHalf() + 1, newY - collisionHalf())
+                  && isPassableForMovement(x + collisionHalf() - 1, newY - collisionHalf());
 
         } else {
             yClear = true; // no vertical movement — nothing to check
@@ -373,7 +373,7 @@ public abstract class Entity {
         clampToTileBoundsIfNeeded();
 
         // Sync hitbox and hurtbox to new center
-        hitbox.updatePosition(x - HITBOX_HALF, y - HITBOX_HALF);
+        hitbox.updatePosition(x - collisionHalf(), y - collisionHalf());
         hurtbox.updatePosition(x, y);
 
         // Sync sprite and animator position to new center
@@ -483,7 +483,7 @@ public abstract class Entity {
         x += dx;
         y += dy;
         clampToTileBoundsIfNeeded();
-        hitbox.updatePosition(x - HITBOX_HALF, y - HITBOX_HALF);
+        hitbox.updatePosition(x - collisionHalf(), y - collisionHalf());
         hurtbox.updatePosition(x, y);
         syncVisualPosition();
     }
@@ -502,6 +502,13 @@ public abstract class Entity {
 
     /** @return direction this entity is currently facing */
     public Direction getFacing()    { return facing; }
+
+    /**
+     * Half-size of the collision hitbox used for wall probing and clamping.
+     * Subclasses can override to use a different movement collision size
+     * than the default 48px entity hitbox.
+     */
+    protected int collisionHalf() { return HITBOX_HALF; }
 
     /** @return this entity's axis-aligned bounding hitbox (used for solid collision) */
     public Hitbox getHitbox()       { return hitbox; }

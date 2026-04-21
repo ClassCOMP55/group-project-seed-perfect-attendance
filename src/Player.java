@@ -656,6 +656,10 @@ public class Player extends Entity {
     // POSITION — convenience setters for room transitions
     // ==========================================================
 
+    /** Uses 22px (half of 44) so wall probing matches the player's reduced hitbox. */
+    @Override
+    protected int collisionHalf() { return 22; }
+
     /** Sets the player's center position and syncs hitbox/sprite. */
     public void setPosition(double newX, double newY) {
         this.x = newX;
