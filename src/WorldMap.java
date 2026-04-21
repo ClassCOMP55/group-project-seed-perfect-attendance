@@ -351,8 +351,8 @@ public class WorldMap {
     /** Relic chest positions for trial rooms (center of each room, approximately). */
     private static final double TRIAL_CHEST_A3_X = TileMap.MAP_OFFSET_X + 17 * 48;
     private static final double TRIAL_CHEST_A3_Y = 8 * 48;
-    private static final double TRIAL_CHEST_A2_X = TileMap.MAP_OFFSET_X + 14 * 48;
-    private static final double TRIAL_CHEST_A2_Y = 12 * 48;
+    private static final double TRIAL_CHEST_A2_X = TileMap.MAP_OFFSET_X + 5 * 48;
+    private static final double TRIAL_CHEST_A2_Y = 1 * 48;
     private static final double TRIAL_CHEST_B3_X = TileMap.MAP_OFFSET_X + 8 * 48;
     private static final double TRIAL_CHEST_B3_Y = 7 * 48;
 
@@ -541,6 +541,7 @@ public class WorldMap {
         installHeroThickets();
         installDrawbridgeLever();
         installTrialChests();
+        installA2Grass();
         syncPersistentWorldObjects();
 
         // --- wire exit callbacks: each room calls triggerTransition() when the player exits ---
@@ -809,6 +810,43 @@ public class WorldMap {
             wisdomChest.setDialogue(dialogue);
             wisdomChest.setCollectedItemRecorder(this::markCollectedItem);
             b3.addObject(wisdomChest);
+        }
+    }
+
+    /** Seeds cuttable Grass objects into A2 at the floor tiles added to the room layout. */
+    private void installA2Grass() {
+        Room a2 = overworldGrid[0][1];
+        if (a2 == null) return;
+
+        int tileSize = a2.getTileMap().getTileSize();
+        // Each entry is {col, row} for a single grass tile.
+        int[][] tiles = {
+            // row 10, cols 1-3
+            {1,10}, {2,10}, {3,10},
+            // row 11, cols 1-3
+            {1,11}, {2,11}, {3,11},
+            // row 8, cols 3-6
+            {3,8}, {4,8}, {5,8}, {6,8},
+            // row 9, cols 8-9
+            {8,9}, {9,9},
+            // row 11, cols 7-8
+            {7,11}, {8,11},
+            // row 12, cols 7-9
+            {7,12}, {8,12}, {9,12},
+            // single tiles
+            {1,7}, {1,6}, {2,6}, {3,7}, {4,7},
+            // row 6, cols 6-8
+            {6,6}, {7,6}, {8,6},
+            // row 4, cols 1-5
+            {1,4}, {2,4}, {3,4}, {4,4}, {5,4},
+            // row 3
+            {6,3}, {7,3},
+        };
+
+        for (int[] tile : tiles) {
+            double worldX = TileMap.MAP_OFFSET_X + tile[0] * tileSize;
+            double worldY = tile[1] * tileSize;
+            a2.addObject(new Grass(worldX, worldY, 0.5f, a2::addDroppedItem, false));
         }
     }
 

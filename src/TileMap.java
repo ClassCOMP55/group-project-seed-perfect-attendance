@@ -554,6 +554,23 @@ public class TileMap {
         wallRect(13, 13, 1, 9);
         wallRect(13, 13, 14, 18);
         wallRect(13, 13, 21, 25);
+
+        // --- added grass ---
+        floorRect(10, 10, 1, 3);
+        floorRect(11, 11, 1, 3);
+        floorRect(8, 8, 3, 6);
+        floorRect(9, 9, 8, 9);
+        floorRect(11, 11, 7, 8);
+        floorRect(12, 12, 7, 9);
+        floorRect(7, 7, 1, 1);
+        floorRect(6, 6, 1, 1);
+        floorRect(6, 6, 2, 2);
+        floorRect(7, 7, 3, 3);
+        floorRect(7, 7, 4, 4);
+        floorRect(6, 6, 6, 8);
+        floorRect(4, 4, 1, 5);
+        floorRect(3, 3, 6, 6);
+        floorRect(3, 3, 7, 7);
     }
 
     private void generateA3() {
