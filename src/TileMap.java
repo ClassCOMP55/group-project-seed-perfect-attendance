@@ -805,10 +805,8 @@ public class TileMap {
         wallRow(1);                    // second row
         wallRow(13);                   // second-to-last row
         wallRow(14);                   // bottom row
-        wallColGap(0, 0, 5);           // left col, rows 0-5 (west exit gap rows 6-8)
-        wallColGap(0, 9, 14);          // left col, rows 9-14
-        wallColGap(25, 0, 5);          // right col, rows 0-5 (east exit gap rows 6-8)
-        wallColGap(25, 9, 14);         // right col, rows 9-14
+        wallColGap(0, 6, 8);           // left col — walls everything except rows 6-8 (west exit)
+        wallColGap(25, 6, 8);          // right col — walls everything except rows 6-8 (east exit)
         // --- interior walls ---
         tiles[2][4]  = new Tile(Tile.TileType.WALL, 4,  2, null);
         tiles[3][4]  = new Tile(Tile.TileType.WALL, 4,  3, null);
@@ -857,6 +855,9 @@ public class TileMap {
             tiles[r][21] = new Tile(Tile.TileType.HOLE, 21, r, "assets/visuals/png's/hole.png");
             tiles[r][22] = new Tile(Tile.TileType.HOLE, 22, r, "assets/visuals/png's/hole.png");
         }
+        // chokepoint walls at row 7 — flipped to floor when puzzle is solved
+        tiles[7][21] = new Tile(Tile.TileType.WALL, 21, 7, null);
+        tiles[7][22] = new Tile(Tile.TileType.WALL, 22, 7, null);
     }
 
     private void generateD3() {
@@ -864,8 +865,7 @@ public class TileMap {
         // --- border walls ---
         wallRow(0);                    // top row
         wallRow(1);                    // second row
-        wallColGap(0, 0, 5);           // left col, rows 0-5 (west exit gap rows 6-8)
-        wallColGap(0, 9, 14);          // left col, rows 9-14
+        wallCol(0);                    // left col fully walled — no exit from D3
         wallRow(13);                   // second-to-last row
         wallRow(14);                   // bottom row
         wallCol(25);                   // right col, fully solid

@@ -1018,11 +1018,13 @@ public class Room {
         }
 
         // --- push blocks and pressure buttons (puzzle rooms) ---
-        for (WorldObject obj : objects) {
-            if (obj instanceof PushBlock) ((PushBlock) obj).reset();
-            else if (obj instanceof PressureButton) ((PressureButton) obj).reset();
+        // Only reset if puzzle hasn't been solved — prevents D2 from resetting on backtrack.
+        if (!puzzleSolved) {
+            for (WorldObject obj : objects) {
+                if (obj instanceof PushBlock) ((PushBlock) obj).reset();
+                else if (obj instanceof PressureButton) ((PressureButton) obj).reset();
+            }
         }
-        puzzleSolved = false;
     }
 
     // =========================================================

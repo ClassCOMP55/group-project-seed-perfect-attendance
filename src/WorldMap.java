@@ -91,6 +91,7 @@ PLAN OF ACTION
 */
 
 import acm.graphics.GCanvas;
+import acm.graphics.GImage;
 import acm.graphics.GRect;
 import java.awt.Color;
 import java.util.ArrayList;
@@ -441,6 +442,11 @@ public class WorldMap {
      * // RIG POINT: Remove dungeonExitMarker and DUNGEON_EXIT_* constants once a real door is built.
      */
     private final GRect dungeonExitMarker;
+    private GImage d1BlockerImage;
+    private GImage d2BlockerImage;
+    private GImage d3BlockerImage;
+    private boolean d1Cleared = false;
+    private boolean d2Solved  = false;
 
     // =========================================================
     // CONSTRUCTOR
@@ -520,7 +526,11 @@ public class WorldMap {
         populateOverworldEnemyRooms();
         populateD1();
         dungeonRooms[0].setRoomLock(
-            new RoomLock(() -> openExit("D1", Direction.RIGHT)),
+            new RoomLock(() -> {
+                d1Cleared = true;
+                openExit("D1", Direction.RIGHT);
+                if (canvas != null && d1BlockerImage != null) canvas.remove(d1BlockerImage);
+            }),
             Direction.RIGHT
         );
 
@@ -1006,7 +1016,13 @@ public class WorldMap {
         if (d2 == null) return;
         d2.addObject(new PushBlock(14, 7));
         d2.addObject(new PressureButton(17, 7, false));
-        d2.setPuzzleSolvedCallback(() -> openExit("D2", Direction.RIGHT));
+        d2.setPuzzleSolvedCallback(() -> {
+            d2Solved = true;
+            openExit("D2", Direction.RIGHT);
+            TileMap d2Map = dungeonRooms[1].getTileMap();
+            d2Map.setTileType(21, 7, Tile.TileType.FLOOR, "assets/tile_floor.png");
+            d2Map.setTileType(22, 7, Tile.TileType.FLOOR, "assets/tile_floor.png");
+        });
     }
 
     /** Seeds enemies into Dungeon Room 2 (puzzle + save). */
@@ -1073,7 +1089,7 @@ public class WorldMap {
 
         // --- D2 ↔ D3 — D2 east starts CLOSED (locked by push-block puzzle) ---
         dungeonRooms[1].setExit(Direction.RIGHT, false);
-        dungeonRooms[2].setExit(Direction.LEFT,  true);
+        dungeonRooms[2].setExit(Direction.LEFT,  false);
     }
 
     /**
@@ -1099,10 +1115,14 @@ public class WorldMap {
     }
 
     /** Hides all tech-demo room markers from the canvas. */
+    /** Hides all tech-demo room markers from the canvas. */
     public void hideSpecialMarkers() {
         if (canvas == null) return;
         canvas.remove(dungeonEntranceMarker);
         canvas.remove(dungeonExitMarker);
+        if (d1BlockerImage != null) canvas.remove(d1BlockerImage);
+        if (d2BlockerImage != null) canvas.remove(d2BlockerImage);
+        if (d3BlockerImage != null) canvas.remove(d3BlockerImage);
     }
 
     /** Rebuilds marker visibility after room swaps, loads, and screen show/hide. */
@@ -1112,8 +1132,29 @@ public class WorldMap {
         if (activeRoom == roomC3) {
             //canvas.add(dungeonEntranceMarker);
         }
-        // dungeonExitMarker intentionally hidden — trigger zone is invisible, matching the entrance.
-        // if (activeRoom == dungeonRooms[0]) { canvas.add(dungeonExitMarker); }
+        // --- dungeon blockers: add on top when entering relevant room ---
+        if (activeRoom == dungeonRooms[0] && !d1Cleared) {
+            if (d1BlockerImage == null) {
+                d1BlockerImage = new GImage("assets/visuals/overworld rooms/purpleblocker.png");
+                d1BlockerImage.setSize(288, 288);
+                d1BlockerImage.setLocation(TileMap.MAP_OFFSET_X + 23 * 48, 5 * 48 - 24);
+            }
+            canvas.add(d1BlockerImage);
+        }
+        if (activeRoom == dungeonRooms[1] && !d2Solved) {
+            if (d2BlockerImage == null) {
+                d2BlockerImage = new GImage("assets/visuals/overworld rooms/purpleblocker.png");
+                d2BlockerImage.setLocation(TileMap.MAP_OFFSET_X + 21 * 48, 7 * 48);
+            }
+            canvas.add(d2BlockerImage);
+        }
+        if (activeRoom == dungeonRooms[2]) {
+            if (d3BlockerImage == null) {
+                d3BlockerImage = new GImage("assets/visuals/overworld rooms/purpleblocker.png");
+                d3BlockerImage.setLocation(TileMap.MAP_OFFSET_X + 0 * 48, 6 * 48);
+            }
+            canvas.add(d3BlockerImage);
+        }
     }
 
     // =========================================================
@@ -1193,6 +1234,10 @@ public class WorldMap {
     private void prepareRoomForEntry(Room room) {
         if (room != null) {
             room.reset();
+            // If re-entering D1, reset the cleared flag so the blocker reappears
+            if (room == dungeonRooms[0]) {
+                d1Cleared = false;
+            }
         }
     }
 
