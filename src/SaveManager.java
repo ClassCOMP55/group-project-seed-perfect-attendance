@@ -374,6 +374,9 @@ public final class SaveManager {
 		if (lb < 0) return out;
 		int j = lb + 1;
 		while (j < json.length()) {
+			int nextBracket = json.indexOf(']', j);
+			int nextQuote   = json.indexOf('"', j);
+			if (nextBracket >= 0 && (nextQuote < 0 || nextBracket < nextQuote)) break;
 			int q = json.indexOf('"', j);
 			if (q < 0) break;
 			q++;
@@ -399,10 +402,6 @@ public final class SaveManager {
 			}
 			out.add(value);
 			j = q + 1;
-			// Stop if we hit the closing bracket
-			int nextBracket = json.indexOf(']', j);
-			int nextQuote   = json.indexOf('"', j);
-			if (nextBracket >= 0 && (nextQuote < 0 || nextBracket < nextQuote)) break;
 		}
 		return out;
 	}
