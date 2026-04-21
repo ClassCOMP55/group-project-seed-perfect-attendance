@@ -944,6 +944,7 @@ public class TileMap {
         for (int c = 7; c <= 10; c++) tiles[2][c] = new Tile(Tile.TileType.WALL, c, 2, null); // row 2, cols 7-10
         // --- holes ---
         for (int r = 4; r <= 6; r++)  tiles[r][1]  = new Tile(Tile.TileType.HOLE, 1,  r, "assets/visuals/png's/hole.png");
+        tiles[7][1] = new Tile(Tile.TileType.WALL, 1, 7, null);
         for (int r = 8; r <= 11; r++) tiles[r][1]  = new Tile(Tile.TileType.HOLE, 1,  r, "assets/visuals/png's/hole.png");
         for (int c = 2; c <= 6; c++)  tiles[2][c]  = new Tile(Tile.TileType.HOLE, c,  2, "assets/visuals/png's/hole.png");
         tiles[2][11] = new Tile(Tile.TileType.HOLE, 11, 2, "assets/visuals/png's/hole.png");

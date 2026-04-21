@@ -181,12 +181,12 @@ public class SavePoint {
 		this.visualPlaceholder =
 			(crystalSprite == null) ? createPlaceholderVisual(fill, targetVisualSize) : null;
 
-		this.markerPlate = new GRect(x - 43, y + visualHeight / 2.0 + 8, 86, 20);
+		this.markerPlate = new GRect(x - 43, y + visualHeight / 2.0 - 64, 86, 20);
 		this.markerPlate.setFilled(true);
 		this.markerPlate.setFillColor(MARKER_BG);
 		this.markerPlate.setColor(MARKER_BORDER);
 
-		this.markerLabel = new GLabel("[E] SAVE", x - 24, y + visualHeight / 2.0 + 23);
+		this.markerLabel = new GLabel("[E] SAVE", x - 24, y + visualHeight / 2.0 - 49);
 		this.markerLabel.setFont("SansSerif-BOLD-11");
 		this.markerLabel.setColor(MARKER_TEXT);
 
@@ -313,14 +313,14 @@ public class SavePoint {
 		if (visualPlaceholder != null) {
 			visualPlaceholder.setLocation(x - halfWidth, y - halfHeight);
 		}
-		markerPlate.setLocation(x - markerPlate.getWidth() / 2.0, y + halfHeight + 8);
+		markerPlate.setLocation(x - markerPlate.getWidth() / 2.0, y + halfHeight - 64);
 		centerMarkerLabel();
 		centerSavedLabel();
 	}
 
 	/** Centers the static SAVE label over its plate once ACM knows the rendered label width. */
 	private void centerMarkerLabel() {
-		markerLabel.setLocation(x - markerLabel.getWidth() / 2.0, y + visualHeight / 2.0 + 23);
+		markerLabel.setLocation(x - markerLabel.getWidth() / 2.0, y + visualHeight / 2.0 - 49);
 	}
 
 	/** Keeps the save-confirm label centered above the save point. */

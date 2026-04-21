@@ -1287,7 +1287,7 @@ public class WorldMap {
         if (activeRoom == dungeonRooms[2]) {
             if (d3BlockerImage == null) {
                 d3BlockerImage = new GImage("assets/visuals/overworld rooms/purpleblocker.png");
-                d3BlockerImage.setLocation(TileMap.MAP_OFFSET_X + 0 * 48, 6 * 48);
+                d3BlockerImage.setLocation(TileMap.MAP_OFFSET_X - 2 * 48, 6 * 48 - (int)(1.5 * 48));
             }
             canvas.add(d3BlockerImage);
         }
@@ -1418,6 +1418,10 @@ public class WorldMap {
             case LEFT:  newX = player.getX() + ROOM_WIDTH_PX;  break;
             case UP:    newY = player.getY() + ROOM_HEIGHT_PX; break;
             case DOWN:  newY = player.getY() - ROOM_HEIGHT_PX; break;
+        }
+        if (toRoom == dungeonRooms[2] && fromRoom == dungeonRooms[1]) {
+            newX = TileMap.MAP_OFFSET_X + 2 * 48;
+            newY = 7 * 48;
         }
         player.setPosition(newX, newY);
         player.setSpawnPosition(newX, newY);
@@ -1689,6 +1693,14 @@ public class WorldMap {
                 drawbridgeLever.forceFixed();
             }
             markDrawbridgeRepaired();
+        }
+        if (dungeonRooms[1] != null && dungeonRooms[1].getExitAt(Direction.RIGHT)) {
+            d2Solved = true;
+            TileMap d2Map = dungeonRooms[1].getTileMap();
+            if (d2Map != null) {
+                d2Map.setTileType(21, 7, Tile.TileType.FLOOR, "assets/tile_floor.png");
+                d2Map.setTileType(22, 7, Tile.TileType.FLOOR, "assets/tile_floor.png");
+            }
         }
     }
 
