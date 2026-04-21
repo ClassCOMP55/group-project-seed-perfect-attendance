@@ -211,6 +211,7 @@ public class Player extends Entity {
         super(0, 0, PLAYER_SPRITE, null, DEFAULT_MAX_HEALTH, PLAYER_SPEED);
         this.respawnX = x;
         this.respawnY = y;
+        hitbox = new Hitbox(x - 22, y - 22, 44, 44);
         setSpriteRenderSize(58, 58);
         initializeDirectionalSprites();
     }
@@ -226,6 +227,7 @@ public class Player extends Entity {
         super(startX, startY, PLAYER_SPRITE, tileMap, DEFAULT_MAX_HEALTH, PLAYER_SPEED);
         this.respawnX = startX;
         this.respawnY = startY;
+        hitbox = new Hitbox(startX - 22, startY - 22, 44, 44);
         setSpriteRenderSize(58, 58);
         initializeDirectionalSprites();
     }
@@ -658,7 +660,7 @@ public class Player extends Entity {
     public void setPosition(double newX, double newY) {
         this.x = newX;
         this.y = newY;
-        hitbox.updatePosition(x - 24, y - 24);
+        hitbox.updatePosition(x - 22, y - 22);
         syncVisualPosition();
     }
 
@@ -937,7 +939,7 @@ public class Player extends Entity {
         initializeDirectionalSprites(); // rebuild direction frames wiped by clearFrames()
         x = respawnX;
         y = respawnY;
-        hitbox.updatePosition(x - 24, y - 24);
+        hitbox.updatePosition(x - 22, y - 22);
         syncVisualPosition();
     }
 }
