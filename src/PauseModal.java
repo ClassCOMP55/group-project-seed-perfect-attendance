@@ -192,6 +192,7 @@ public class PauseModal extends GraphicsPane
   private GImage       pauseCoinIconImage;
   private GLabel       pauseCoinsLabel;
   private GLabel       pauseLastSavedLabel;
+  private GLabel       pauseLastSavedValueLabel;
   private GLabel[]     pauseDescriptionLines;
 
   // Settings tab:
@@ -411,10 +412,17 @@ public class PauseModal extends GraphicsPane
     pauseLastSavedLabel = new GLabel(getInventoryLastSavedText(), 0, 0);
     pauseLastSavedLabel.setFont("Courier New-BOLD-12");
     pauseLastSavedLabel.setColor(Color.BLACK);
-    pauseLastSavedLabel.setLocation(
-        iconX,
-        iconY + INV_COIN_ICON_SIZE + 6 + pauseLastSavedLabel.getAscent());
+    double savedLabelY = iconY + INV_COIN_ICON_SIZE + 6 + pauseLastSavedLabel.getAscent();
+    pauseLastSavedLabel.setLocation(iconX, savedLabelY);
     addBoth(pauseLastSavedLabel);
+
+    pauseLastSavedValueLabel = new GLabel(getInventoryLastSavedValueText(), 0, 0);
+    pauseLastSavedValueLabel.setFont("Courier New-BOLD-12");
+    pauseLastSavedValueLabel.setColor(Color.BLACK);
+    pauseLastSavedValueLabel.setLocation(
+        iconX,
+        savedLabelY + pauseLastSavedLabel.getHeight() + 2);
+    addBoth(pauseLastSavedValueLabel);
   }
 
   private void buildItemGrid()
@@ -973,7 +981,8 @@ public class PauseModal extends GraphicsPane
     pauseGridHighlight    = null;
     pauseCoinIconImage    = null;
     pauseCoinsLabel       = null;
-    pauseLastSavedLabel   = null;
+    pauseLastSavedLabel       = null;
+    pauseLastSavedValueLabel  = null;
     pauseDescriptionLines = null;
     pauseMusicThumb       = null;
     pauseSfxThumb         = null;
@@ -1023,9 +1032,14 @@ public class PauseModal extends GraphicsPane
 
   private String getInventoryLastSavedText()
   {
+    return "Last saved:";
+  }
+
+  private String getInventoryLastSavedValueText()
+  {
     long ts = mainScreen == null ? 0L : mainScreen.getLastSavedAtMillis();
-    if (ts <= 0L) return "Last saved: Never";
-    return "Last saved: " + LAST_SAVED_FMT.format(Instant.ofEpochMilli(ts));
+    if (ts <= 0L) return "Never";
+    return LAST_SAVED_FMT.format(Instant.ofEpochMilli(ts));
   }
 
   private static int clampVolume(int v)
