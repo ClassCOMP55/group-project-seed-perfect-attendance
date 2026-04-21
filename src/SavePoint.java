@@ -80,8 +80,8 @@ public class SavePoint {
 	/** Placeholder save-object size in pixels (centered on x, y). */
 	private static final double PLACEHOLDER_VISUAL_SIZE = 48.0;
 
-	/** Save crystal occupies a 2x2 tile footprint. */
-	private static final double CRYSTAL_VISUAL_SIZE = 96.0;
+	/** Save crystal occupies a 6x6 tile footprint. */
+	private static final double CRYSTAL_VISUAL_SIZE = 288.0;
 
 	/** Crystal art used for overworld save points. */
 	private static final String SAVE_CRYSTAL_SPRITE_PATH = "assets/visuals/png's/save_crystal.png";

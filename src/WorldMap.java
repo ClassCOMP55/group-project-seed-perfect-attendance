@@ -1054,12 +1054,13 @@ public class WorldMap {
     private void installD2Puzzle() {
         Room d2 = dungeonRooms[1];
         if (d2 == null) return;
-        // Push blocks added first so pressure buttons draw on top of them
-        d2.addObject(new PushBlock(17, 10));
-        d2.addObject(new PushBlock(7, 4));
+        // Buttons added first (drawn behind); blocks added last (drawn on top)
+        // so the rock visually sits on top of the button when occupying the same tile
         d2.addObject(new PressureButton(17, 2, false));
         d2.addObject(new PressureButton(3, 10, false));
         d2.addObject(new PressureButton(20, 8, false));
+        d2.addObject(new PushBlock(17, 10));
+        d2.addObject(new PushBlock(7, 4));
         d2.setPuzzleSolvedCallback(() -> {
             d2Solved = true;
             openExit("D2", Direction.RIGHT);

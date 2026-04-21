@@ -787,6 +787,11 @@ public class Room {
         // --- push block and pressure button logic ---
         java.util.List<PushBlock> pushBlocks = getPushBlocks();
         java.util.List<PressureButton> pressureButtons = getPressureButtons();
+        // Reset all block-pressed states before any block checks so multiple blocks
+        // don't overwrite each other's results.
+        for (PressureButton button : pressureButtons) {
+            button.setPressedByBlock(false);
+        }
         if (!pushBlocks.isEmpty()) {
             Direction facing = player.getFacing();
             for (PushBlock block : pushBlocks) {
@@ -798,6 +803,10 @@ public class Room {
                     }
                 }
                 block.updateButtonOverlap(pressureButtons);
+            }
+            // Resolve any remaining player-block overlap so the player can't walk through blocks
+            for (PushBlock block : pushBlocks) {
+                if (!block.isFallen()) resolvePlayerBlockOverlap(player, block);
             }
         }
         if (!pressureButtons.isEmpty()) {
@@ -1036,6 +1045,32 @@ public class Room {
 
     /** Sets the callback fired once when all PressureButtons in this room are pressed. */
     public void setPuzzleSolvedCallback(Runnable r) { this.puzzleSolvedCallback = r; }
+
+    /**
+     * Resolves overlap between the player and a push block using AABB separation.
+     * Moves the player the minimum distance needed to no longer overlap the block.
+     */
+    private void resolvePlayerBlockOverlap(Player player, PushBlock block) {
+        Hitbox ph = player.getHitbox();
+        Hitbox bh = block.getHitbox();
+        if (!ph.overlaps(bh)) return;
+
+        double overlapLeft   = (ph.x + ph.width)  - bh.x;
+        double overlapRight  = (bh.x + bh.width)  - ph.x;
+        double overlapTop    = (ph.y + ph.height)  - bh.y;
+        double overlapBottom = (bh.y + bh.height)  - ph.y;
+
+        double minX = Math.min(overlapLeft, overlapRight);
+        double minY = Math.min(overlapTop,  overlapBottom);
+
+        if (minX <= minY) {
+            if (overlapLeft <= overlapRight) player.nudge(-overlapLeft, 0);
+            else                             player.nudge(overlapRight,  0);
+        } else {
+            if (overlapTop <= overlapBottom) player.nudge(0, -overlapTop);
+            else                             player.nudge(0,  overlapBottom);
+        }
+    }
 
     private java.util.List<PushBlock> getPushBlocks() {
         java.util.List<PushBlock> result = new java.util.ArrayList<>();

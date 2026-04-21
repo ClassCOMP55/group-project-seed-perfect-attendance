@@ -223,11 +223,12 @@ public class PushBlock extends WorldObject {
      * @param buttons all PressureButtons in this room
      */
     public void updateButtonOverlap(List<PressureButton> buttons) {
-        if (buttons == null) return;
+        if (buttons == null || fallen) return;
         for (PressureButton button : buttons) {
             if (button == null) continue;
-            boolean overlappingTile = button.getTileCol() == tileCol && button.getTileRow() == tileRow;
-            button.setPressedByBlock(overlappingTile);
+            if (button.getTileCol() == tileCol && button.getTileRow() == tileRow) {
+                button.setPressedByBlock(true);
+            }
         }
     }
 
