@@ -560,6 +560,10 @@ public class Player extends Entity {
         }
 
         inventory.add(item);
+
+        if (item instanceof HalfDamageRelicItem) {
+            hasHalfDamage = true;
+        }
     }
 
     /** Removes one unit from the given inventory item reference. */
