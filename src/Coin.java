@@ -49,7 +49,6 @@ import java.awt.Color;
 import java.io.File;
 import java.io.IOException;
 import javax.imageio.ImageIO;
-import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * A dropped coin that auto-collects when the player walks over it.
@@ -68,10 +67,6 @@ public class Coin extends Item {
     /** Default coin value. Economy amounts TBD per design doc. */
     private static final int DEFAULT_VALUE = 1;
     private static final double DROP_HALF = DROP_SIZE / 2.0;
-    private static final double MAX_SPAWN_SPEED = 220.0;
-    private static final double BOUNCE_DAMPING = 0.60;
-    private static final double DRAG_PER_SECOND = 0.88;
-    private static final double STOP_SPEED = 8.0;
 
     // =========================================================
     // FIELDS
@@ -85,9 +80,6 @@ public class Coin extends Item {
 
     /** Optional coin sprite loaded from assets. */
     private final GImage worldSpriteImage;
-    /** World-space coin drift velocity (px/sec). */
-    private double velocityX;
-    private double velocityY;
 
     // =========================================================
     // CONSTRUCTOR
@@ -122,7 +114,6 @@ public class Coin extends Item {
         this.worldSprite.setFilled(true);
         this.worldSprite.setFillColor(COIN_COLOR);
         this.worldSprite.setColor(Color.BLACK);
-        randomizeInitialVelocity();
     }
 
     // =========================================================
@@ -187,65 +178,57 @@ public class Coin extends Item {
         }
     }
 
-    /**
-     * Simulates coin drift and bounces off non-walkable/out-of-bounds walls.
-     * Called each room tick while the coin is on the ground.
-     */
-    public void updatePhysics(double dt, TileMap tileMap) {
-        if (!inWorld || tileMap == null || dt <= 0) {
-            return;
-        }
-        if (Math.abs(velocityX) < STOP_SPEED && Math.abs(velocityY) < STOP_SPEED) {
-            velocityX = 0;
-            velocityY = 0;
-            return;
-        }
-
-        double centerX = worldX + DROP_HALF;
-        double centerY = worldY + DROP_HALF;
-
-        double nextCenterX = centerX + velocityX * dt;
-        if (!canOccupy(tileMap, nextCenterX, centerY)) {
-            velocityX = -velocityX * BOUNCE_DAMPING;
-            nextCenterX = centerX + velocityX * dt;
-            if (!canOccupy(tileMap, nextCenterX, centerY)) {
-                nextCenterX = centerX;
-                velocityX = 0;
-            }
-        }
-        centerX = nextCenterX;
-
-        double nextCenterY = centerY + velocityY * dt;
-        if (!canOccupy(tileMap, centerX, nextCenterY)) {
-            velocityY = -velocityY * BOUNCE_DAMPING;
-            nextCenterY = centerY + velocityY * dt;
-            if (!canOccupy(tileMap, centerX, nextCenterY)) {
-                nextCenterY = centerY;
-                velocityY = 0;
-            }
-        }
-        centerY = nextCenterY;
-
-        worldX = centerX - DROP_HALF;
-        worldY = centerY - DROP_HALF;
-        resetVisualPosition();
-
-        double dragFactor = Math.pow(DRAG_PER_SECOND, dt);
-        velocityX *= dragFactor;
-        velocityY *= dragFactor;
-    }
-
     // =========================================================
     // GETTERS
     // =========================================================
 
     public int getValue() { return value; }
 
-    private void randomizeInitialVelocity() {
-        double angle = ThreadLocalRandom.current().nextDouble(0.0, Math.PI * 2.0);
-        double speed = ThreadLocalRandom.current().nextDouble(90.0, MAX_SPAWN_SPEED);
-        velocityX = Math.cos(angle) * speed;
-        velocityY = Math.sin(angle) * speed;
+    /**
+     * Ensures this dropped coin starts on a walkable tile.
+     * If spawn is invalid, place it on the tile in front of that invalid tile.
+     */
+    public void snapToValidSpawn(TileMap map) {
+        if (!inWorld || map == null) return;
+        double centerX = worldX + DROP_HALF;
+        double centerY = worldY + DROP_HALF;
+        if (canOccupy(map, centerX, centerY)) return;
+
+        int tileSize = map.getTileSize();
+        int blockedCol = (int) ((centerX - TileMap.MAP_OFFSET_X) / tileSize);
+        int blockedRow = (int) (centerY / tileSize);
+
+        double blockedCenterX = TileMap.MAP_OFFSET_X + blockedCol * tileSize + tileSize / 2.0;
+        double blockedCenterY = blockedRow * tileSize + tileSize / 2.0;
+        double dx = centerX - blockedCenterX;
+        double dy = centerY - blockedCenterY;
+
+        int[][] directionPriority = buildDirectionPriority(dx, dy);
+        for (int[] dir : directionPriority) {
+            int col = blockedCol + dir[0];
+            int row = blockedRow + dir[1];
+            double candidateCenterX = TileMap.MAP_OFFSET_X + col * tileSize + tileSize / 2.0;
+            double candidateCenterY = row * tileSize + tileSize / 2.0;
+            if (canOccupy(map, candidateCenterX, candidateCenterY)) {
+                worldX = candidateCenterX - DROP_HALF;
+                worldY = candidateCenterY - DROP_HALF;
+                resetVisualPosition();
+                return;
+            }
+        }
+    }
+
+    private int[][] buildDirectionPriority(double dx, double dy) {
+        int[] primary;
+        if (Math.abs(dx) >= Math.abs(dy)) {
+            primary = dx >= 0 ? new int[] {1, 0} : new int[] {-1, 0};
+        } else {
+            primary = dy >= 0 ? new int[] {0, 1} : new int[] {0, -1};
+        }
+        if (primary[0] != 0) {
+            return new int[][] { primary, {0, -1}, {0, 1}, {-primary[0], 0} };
+        }
+        return new int[][] { primary, {-1, 0}, {1, 0}, {0, -primary[1]} };
     }
 
     private boolean canOccupy(TileMap map, double centerX, double centerY) {

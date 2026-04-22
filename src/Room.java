@@ -757,13 +757,6 @@ public class Room {
             obj.update(dt);
         }
 
-        // --- dropped coin wall collision + bounce ---
-        for (Item item : droppedItems) {
-            if (item instanceof Coin) {
-                ((Coin) item).updatePhysics(dt, tileMap);
-            }
-        }
-
         if (savePoint != null) {
             savePoint.update(dt);
         }
@@ -1289,6 +1282,9 @@ public class Room {
     /** Adds a dropped Item (coin, etc.) to this room's ground-item list. */
     public void addDroppedItem(Item item) {
         if (item == null) return;
+        if (item instanceof Coin) {
+            ((Coin) item).snapToValidSpawn(tileMap);
+        }
         droppedItems.add(item);
         if (initialized && canvas != null) {
             item.draw(canvas);
