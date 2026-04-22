@@ -491,10 +491,6 @@ public class Player extends Entity {
         // Relic ability: full invulnerability for projectile/enemy/contact damage paths that use takeDamage.
         if (isIntangibleActive) return;
 
-        if (hasHalfDamage) {
-            amount = Math.max(1, amount / 2);
-        }
-
         health = Math.max(0, health - amount);
         iframesTicks = IFRAMES_DURATION;
         GameSFX.play(GameSFX.SFX.PLAYER_HURT);
@@ -690,7 +686,10 @@ public class Player extends Entity {
     public boolean hasMarkOfHero()  { return hasMarkOfHero; }
     public Direction getFacing()    { return facing; }
 
-    public void setHasHalfDamage(boolean v)  { this.hasHalfDamage = v; }
+    public void setHasHalfDamage(boolean v) {
+        this.hasHalfDamage = v;
+        setMaxHealth(v ? DEFAULT_MAX_HEALTH * 2 : DEFAULT_MAX_HEALTH);
+    }
     public void setHasReflect(boolean v)     { this.hasReflect = v; }
     public void setHasIntangible(boolean v)  { this.hasIntangible = v; }
     public void setHasMarkOfHero(boolean v)  { this.hasMarkOfHero = v; }

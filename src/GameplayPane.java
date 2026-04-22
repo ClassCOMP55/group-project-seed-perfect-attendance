@@ -132,6 +132,12 @@ public class GameplayPane extends GraphicsPane {
      */
     private boolean hudBuiltWithIntangibleOwned;
 
+    /**
+     * Mirrors {@link Player#hasHalfDamage()} so the HUD switches to the upgraded heart bar
+     * (quarter-step art) when the Strength relic is picked up mid-session.
+     */
+    private boolean hudBuiltWithHalfDamageOwned;
+
     // =========================================================
     // CONTROLS CARD OVERLAY
     // =========================================================
@@ -293,6 +299,7 @@ public class GameplayPane extends GraphicsPane {
         // showPlayerHUD(player); // OLD: temp HUD from GraphicsPane — kept as fallback
         hud.showAll(this, buildHudSnapshot(player));
         hudBuiltWithIntangibleOwned = player.hasIntangible();
+        hudBuiltWithHalfDamageOwned = player.hasHalfDamage();
         if (controlsCardVisible) {
             showControlsCard();
         }
@@ -517,6 +524,7 @@ public class GameplayPane extends GraphicsPane {
         // --- world update (always runs; WorldMap handles state internally) ---
         worldMap.update(dt, player);
         syncHudIntangibleOwnershipIfChanged(player);
+        syncHudHalfDamageOwnershipIfChanged(player);
         syncActiveRoomMusic();
         bringActiveRoomForegroundToFront();
 
@@ -973,6 +981,19 @@ public class GameplayPane extends GraphicsPane {
             return;
         }
         hudBuiltWithIntangibleOwned = owned;
+        hud.showAll(this, buildHudSnapshot(player));
+        if (controlsCardVisible) {
+            showControlsCard();
+        }
+    }
+
+    /** Rebuilds the HUD to switch to the upgraded quarter-heart bar when the Strength relic is picked up. */
+    private void syncHudHalfDamageOwnershipIfChanged(Player player) {
+        boolean owned = player.hasHalfDamage();
+        if (owned == hudBuiltWithHalfDamageOwned) {
+            return;
+        }
+        hudBuiltWithHalfDamageOwned = owned;
         hud.showAll(this, buildHudSnapshot(player));
         if (controlsCardVisible) {
             showControlsCard();

@@ -292,6 +292,10 @@ public class GraphicsPane {
 	private GImage hudPortrait;
 	private GLabel hudPortraitFallbackLabel;
 	private HeartDisplay hudHeartDisplay;
+	private double hudHeartX;
+	private double hudHeartY;
+	private double hudHeartScale;
+	private int    hudHeartCount;
 	private GRect[] hudBarTracks;
 	private GRect[] hudBarFills;
 	/** Top-right wallet total (persistent during gameplay). */
@@ -437,19 +441,29 @@ public class GraphicsPane {
 		double heartCellSize = Math.max(2.0, Math.ceil(HUD_HEART_CELL_SIZE * scale));
 		double heartX = barX + HUD_HEART_LEFT_PAD * sx;
 
+		int heartCount = (player != null)
+			? player.getMaxHealth() / Player.HALF_HEARTS_PER_HEART
+			: Player.DEFAULT_HEART_COUNT;
+
 		// Configure the display fully before asking for its height,
 		// so image-mode overrides are in place for the Y centering calculation.
-		hudHeartDisplay = new HeartDisplay(Player.DEFAULT_HEART_COUNT, heartCellSize);
+		hudHeartDisplay = new HeartDisplay(heartCount, heartCellSize);
 		hudHeartDisplay.setImages(
 			"assets/visuals/hearts/pixel heart full single.png",
 			"assets/visuals/hearts/pixel heart half.png",
 			"assets/visuals/hearts/pixel heart empty.png"
 		);
-		hudHeartDisplay.setImageSize(HUD_HEART_IMAGE_SIZE * scale, HUD_HEART_IMAGE_SIZE * scale);
-		hudHeartDisplay.setImageGap(HUD_HEART_IMAGE_GAP * scale);
+		double[] heartSizes = computeHeartImageSizes(heartCount, scale);
+		hudHeartDisplay.setImageSize(heartSizes[0], heartSizes[0]);
+		hudHeartDisplay.setImageGap(heartSizes[1]);
 		double heartHeight = hudHeartDisplay.getHeight();  // actual image height, not pixel-art estimate
 		double heartY = barY + Math.max(0.0, (topBarH - heartHeight) / 2.0);
 		hudHeartDisplay.show(this, heartX, heartY);
+
+		this.hudHeartX     = heartX;
+		this.hudHeartY     = heartY;
+		this.hudHeartScale = scale;
+		this.hudHeartCount = heartCount;
 
 		setupHudCoinCluster(player);
 
@@ -525,10 +539,54 @@ public class GraphicsPane {
 	}
 
 	/**
+	 * Returns {imageSize, imageGap} scaled so that {@code heartCount} hearts fit
+	 * within the available bar width. For 3 hearts the original 44 px size is used;
+	 * more hearts shrink proportionally.
+	 */
+	private double[] computeHeartImageSizes(int heartCount, double scale) {
+		double availableW = (HUD_BAR_W - HUD_HEART_LEFT_PAD) * scale;
+		double gap        = HUD_HEART_IMAGE_GAP * scale;
+		double imageSize  = (availableW - (heartCount - 1) * gap) / heartCount;
+		imageSize = Math.min(HUD_HEART_IMAGE_SIZE * scale, imageSize);
+		imageSize = Math.max(8.0 * scale, imageSize);
+		return new double[]{imageSize, gap};
+	}
+
+	/**
+	 * Tears down the current heart display and rebuilds it for the player's
+	 * current max-health heart count. Called when a relic changes max HP mid-game.
+	 */
+	private void rebuildHeartDisplay(Player player) {
+		if (hudHeartDisplay != null) {
+			hudHeartDisplay.remove();
+		}
+		int newCount = player.getMaxHealth() / Player.HALF_HEARTS_PER_HEART;
+		double heartCellSize = Math.max(2.0, Math.ceil(HUD_HEART_CELL_SIZE * hudHeartScale));
+		hudHeartDisplay = new HeartDisplay(newCount, heartCellSize);
+		hudHeartDisplay.setImages(
+			"assets/visuals/hearts/pixel heart full single.png",
+			"assets/visuals/hearts/pixel heart half.png",
+			"assets/visuals/hearts/pixel heart empty.png"
+		);
+		double[] heartSizes = computeHeartImageSizes(newCount, hudHeartScale);
+		hudHeartDisplay.setImageSize(heartSizes[0], heartSizes[0]);
+		hudHeartDisplay.setImageGap(heartSizes[1]);
+		hudHeartDisplay.show(this, hudHeartX, hudHeartY);
+		hudHeartDisplay.setFilledHalfHearts(player.getHP());
+		hudHeartCount = newCount;
+		bringPlayerHudToFront();
+	}
+
+	/**
 	 * Refreshes the three bars without recreating HUD objects.
 	 */
 	protected void updatePlayerHUD(Player player) {
 		if (player == null) {
+			return;
+		}
+		int currentHeartCount = player.getMaxHealth() / Player.HALF_HEARTS_PER_HEART;
+		if (hudHeartDisplay != null && currentHeartCount != hudHeartCount) {
+			rebuildHeartDisplay(player);
 			return;
 		}
 		if (hudHeartDisplay != null) {
