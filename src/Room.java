@@ -757,6 +757,13 @@ public class Room {
             obj.update(dt);
         }
 
+        // --- dropped coin wall collision + bounce ---
+        for (Item item : droppedItems) {
+            if (item instanceof Coin) {
+                ((Coin) item).updatePhysics(dt, tileMap);
+            }
+        }
+
         if (savePoint != null) {
             savePoint.update(dt);
         }

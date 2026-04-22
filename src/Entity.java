@@ -480,8 +480,30 @@ public abstract class Entity {
      * Raw position shift without tile collision — used for separation pushes.
      */
     public void nudge(double dx, double dy) {
-        x += dx;
-        y += dy;
+        // Use the same leading-edge probes as move() so separation pushes cannot shove
+        // enemies or players into wall tiles.
+        double newX = x + dx;
+        if (dx > 0) {
+            boolean clear = isPassableForMovement(newX + collisionHalf(), y - collisionHalf() + 1)
+                         && isPassableForMovement(newX + collisionHalf(), y + collisionHalf() - 1);
+            if (clear) x = newX;
+        } else if (dx < 0) {
+            boolean clear = isPassableForMovement(newX - collisionHalf(), y - collisionHalf() + 1)
+                         && isPassableForMovement(newX - collisionHalf(), y + collisionHalf() - 1);
+            if (clear) x = newX;
+        }
+
+        double newY = y + dy;
+        if (dy > 0) {
+            boolean clear = isPassableForMovement(x - collisionHalf() + 1, newY + collisionHalf())
+                         && isPassableForMovement(x + collisionHalf() - 1, newY + collisionHalf());
+            if (clear) y = newY;
+        } else if (dy < 0) {
+            boolean clear = isPassableForMovement(x - collisionHalf() + 1, newY - collisionHalf())
+                         && isPassableForMovement(x + collisionHalf() - 1, newY - collisionHalf());
+            if (clear) y = newY;
+        }
+
         clampToTileBoundsIfNeeded();
         hitbox.updatePosition(x - collisionHalf(), y - collisionHalf());
         hurtbox.updatePosition(x, y);

@@ -610,7 +610,7 @@ public class WorldMap {
         installTrialChests();
         installA3Trial();
         installA2Puzzle();
-        installA2Grass();
+        installSparseOverworldGrass();
         installA2DebugBlockers();
         syncPersistentWorldObjects();
 
@@ -896,44 +896,46 @@ public class WorldMap {
         resetA3TrialState(false);
     }
 
-    /** Seeds cuttable Grass objects into A2 at the floor tiles added to the room layout. */
-    private void installA2Grass() {
-        Room a2 = overworldGrid[0][1];
-        if (a2 == null) return;
+    /** Seeds sparse cuttable Grass across overworld rooms (excluding A2). */
+    private void installSparseOverworldGrass() {
+        // Keep coverage light and deterministic so the world feels greener without clutter.
+        addGrassTiles(overworldGrid[2][0], new int[][] { // C1
+            {3, 4}, {6, 8}, {9, 10}
+        });
 
-        int tileSize = a2.getTileMap().getTileSize();
-        // Each entry is {col, row} for a single grass tile.
-        // Tiles occupied by push blocks or pressure buttons are excluded so objects spawn clean.
-        // Block A: (3,11)  Block B: (7,7)
-        // Button 1: (3,8)  Button 2: (7,11)  Button 3: (5,6)
-        int[][] tiles = {
-            // row 10, cols 1-3
-            {1,10}, {2,10}, {3,10},
-            // row 11, cols 1-2 (3,11 removed — Block A spawn)
-            {1,11}, {2,11},
-            // row 8, cols 4-6 (3,8 removed — Button 1 spawn)
-            {4,8}, {5,8}, {6,8},
-            // row 9, cols 8-9
-            {8,9}, {9,9},
-            // row 11, col 8 (7,11 removed — Button 2 spawn)
-            {8,11},
-            // row 12, cols 7-9
-            {7,12}, {8,12}, {9,12},
-            // single tiles
-            {1,7}, {1,6}, {2,6}, {3,7}, {4,7},
-            // row 6, cols 6-8 (5,6 removed — Button 3 spawn)
-            {6,6}, {7,6}, {8,6},
-            // row 7, col 7 (7,7 removed — Block B spawn)
-            // row 4, cols 1-5
-            {1,4}, {2,4}, {3,4}, {4,4}, {5,4},
-            // row 3
-            {6,3}, {7,3},
-        };
+        // A2 intentionally excluded per design requirement.
 
+        addGrassTiles(overworldGrid[1][1], new int[][] { // B2
+            {2, 6}, {8, 6}, {5, 10}, {9, 3}
+        });
+        addGrassTiles(overworldGrid[2][1], new int[][] { // C2
+            {2, 4}, {6, 5}, {4, 9}, {8, 10}
+        });
+
+        addGrassTiles(overworldGrid[0][2], new int[][] { // A3
+            {2, 5}, {6, 3}, {8, 9}
+        });
+        addGrassTiles(overworldGrid[1][2], new int[][] { // B3
+            {3, 4}, {5, 8}, {9, 6}
+        });
+        addGrassTiles(overworldGrid[2][2], new int[][] { // C3
+            {2, 10}, {4, 6}, {8, 4}, {9, 9}
+        });
+    }
+
+    /** Adds grass at tile coordinates for the supplied room. */
+    private void addGrassTiles(Room room, int[][] tiles) {
+        if (room == null || tiles == null || tiles.length == 0) return;
+        int tileSize = room.getTileMap().getTileSize();
         for (int[] tile : tiles) {
+            if (tile == null || tile.length < 2) continue;
             double worldX = TileMap.MAP_OFFSET_X + tile[0] * tileSize;
             double worldY = tile[1] * tileSize;
-            a2.addObject(new Grass(worldX, worldY, 0.5f, a2::addDroppedItem, false));
+            // Only place grass on walkable floor tiles (skip walls/non-walkable areas).
+            double centerX = worldX + tileSize / 2.0;
+            double centerY = worldY + tileSize / 2.0;
+            if (!room.getTileMap().isPassable(centerX, centerY)) continue;
+            room.addObject(new Grass(worldX, worldY, 0.5f, room::addDroppedItem, false));
         }
     }
 
