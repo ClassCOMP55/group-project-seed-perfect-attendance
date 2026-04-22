@@ -97,6 +97,9 @@ public class Dialogue extends GraphicsPane
 	private static final int OPTION_Y     = PANEL_Y + 100;
 	private static final int OPTION0_X    = PANEL_X + 500;
 	private static final int OPTION1_X    = PANEL_X + 620;
+	private static final int CHOICE_OPTION_X = PANEL_X + 165;
+	private static final int CHOICE_OPTION_START_Y = PANEL_Y + 92;
+	private static final int CHOICE_OPTION_GAP_Y = 19;
 
 	// =========================================================
 	// COLORS
@@ -131,8 +134,17 @@ public class Dialogue extends GraphicsPane
 	/** True when this is a Yes/No save confirmation instead of normal lines. */
 	private boolean isSavePrompt;
 
+	/** True when this is a generic multi-choice prompt (used by the Trial of Wisdom riddles). */
+	private boolean isChoicePrompt;
+
 	/** For save prompt: 0 = Yes highlighted, 1 = No highlighted. */
 	private int selectedOption;
+
+	/** Prompt question shown above the selectable choices. */
+	private String choiceQuestion;
+
+	/** Choice labels presented for the current prompt (supports up to 3 answers). */
+	private String[] choiceOptions;
 
 	/** Fired when the last line is dismissed (or save option confirmed). */
 	private Runnable onComplete;
@@ -160,6 +172,9 @@ public class Dialogue extends GraphicsPane
 
 	/** "No" label — save prompt only. */
 	private GLabel option1Label;
+
+	/** Third answer label — choice prompt only. */
+	private GLabel option2Label;
 
 	// =========================================================
 	// CONSTRUCTOR
@@ -206,9 +221,27 @@ public class Dialogue extends GraphicsPane
 	{
 		close();
 		this.isSavePrompt   = true;
+		this.isChoicePrompt = false;
 		this.selectedOption = 0;
 		this.onComplete     = onComplete;
 		buildPanel(null, false);
+	}
+
+	/**
+	 * Opens the dialogue box in 3-choice prompt mode.
+	 * The selected option index is available through {@link #getSelectedOption()} when confirmed.
+	 */
+	public void openChoicePrompt(String speakerName, String question, String[] options, Runnable onComplete)
+	{
+		if (question == null || options == null || options.length < 2 || options.length > 3) return;
+		close();
+		this.isSavePrompt   = false;
+		this.isChoicePrompt = true;
+		this.selectedOption = 0;
+		this.choiceQuestion = question;
+		this.choiceOptions  = options.clone();
+		this.onComplete     = onComplete;
+		buildPanel(speakerName, false);
 	}
 
 	// =========================================================
@@ -232,7 +265,10 @@ public class Dialogue extends GraphicsPane
 		charIndex     = 0;
 		isTyping      = false;
 		isSavePrompt  = false;
+		isChoicePrompt = false;
 		selectedOption = 0;
+		choiceQuestion = null;
+		choiceOptions = null;
 		onComplete    = null;
 
 		panel         = null;
@@ -243,6 +279,7 @@ public class Dialogue extends GraphicsPane
 		continueHint  = null;
 		option0Label  = null;
 		option1Label  = null;
+		option2Label  = null;
 	}
 
 	// =========================================================
@@ -275,14 +312,17 @@ public class Dialogue extends GraphicsPane
 			return;
 		}
 
-		if (isSavePrompt)
+		if (isSavePrompt || isChoicePrompt)
 		{
 			// Confirm the highlighted choice and close
-			if (onComplete != null)
-			{
-				onComplete.run();
-			}
+			Runnable callback = onComplete;
+			int confirmedOption = selectedOption;
 			close();
+			selectedOption = confirmedOption;
+			if (callback != null)
+			{
+				callback.run();
+			}
 			return;
 		}
 
@@ -290,11 +330,12 @@ public class Dialogue extends GraphicsPane
 		currentLine++;
 		if (currentLine >= lines.length)
 		{
-			if (onComplete != null)
-			{
-				onComplete.run();
-			}
+			Runnable callback = onComplete;
 			close();
+			if (callback != null)
+			{
+				callback.run();
+			}
 			return;
 		}
 
@@ -321,7 +362,7 @@ public class Dialogue extends GraphicsPane
 	public void update(double dt)
 	{
 		if (!isOpen()) return;
-		if (isSavePrompt) return;
+		if (isSavePrompt || isChoicePrompt) return;
 		if (!isTyping) return;
 		if (lines == null) return;
 
@@ -402,6 +443,21 @@ public class Dialogue extends GraphicsPane
 			{
 				setSelectedOption(1);
 			}
+			return;
+		}
+
+		if (isChoicePrompt)
+		{
+			int optionCount = choiceOptions == null ? 0 : choiceOptions.length;
+			if (optionCount <= 0) return;
+			if (key == KeyEvent.VK_LEFT || key == KeyEvent.VK_A)
+			{
+				setSelectedOption((selectedOption - 1 + optionCount) % optionCount);
+			}
+			else if (key == KeyEvent.VK_RIGHT || key == KeyEvent.VK_D)
+			{
+				setSelectedOption((selectedOption + 1) % optionCount);
+			}
 		}
 	}
 
@@ -413,7 +469,7 @@ public class Dialogue extends GraphicsPane
 		double x = e.getX();
 		double y = e.getY();
 
-		if (isSavePrompt)
+		if (isSavePrompt || isChoicePrompt)
 		{
 			// Click on an option label selects it and confirms immediately
 			if (option0Label != null && option0Label.contains(x, y))
@@ -425,6 +481,12 @@ public class Dialogue extends GraphicsPane
 			if (option1Label != null && option1Label.contains(x, y))
 			{
 				setSelectedOption(1);
+				advance();
+				return;
+			}
+			if (option2Label != null && option2Label.contains(x, y))
+			{
+				setSelectedOption(2);
 				advance();
 				return;
 			}
@@ -449,7 +511,7 @@ public class Dialogue extends GraphicsPane
 		// Background panel
 		panel = new GRect(PANEL_X, PANEL_Y, PANEL_W, PANEL_H);
 		panel.setFilled(true);
-		panel.setFillColor(PANEL_BG);
+		panel.setFillColor(isChoicePrompt ? new Color(10, 8, 20, 242) : PANEL_BG);
 		panel.setColor(PANEL_BORDER);
 		place(panel);
 
@@ -491,6 +553,35 @@ public class Dialogue extends GraphicsPane
 			option1Label.setFont("Monospaced-BOLD-18");
 			option1Label.setColor(OPTION_NORMAL);
 			place(option1Label);
+		}
+		else if (isChoicePrompt)
+		{
+			textRows = new ArrayList<>();
+			List<String> rows = wrapText(choiceQuestion, 74);
+			for (int i = 0; i < rows.size(); i++)
+			{
+				GLabel lbl = new GLabel(rows.get(i), textX, TEXT_Y + i * LINE_HEIGHT);
+				lbl.setFont("Monospaced-PLAIN-18");
+				lbl.setColor(TEXT_COLOR);
+				place(lbl);
+				textRows.add(lbl);
+			}
+
+			int optionY = Math.max(
+				CHOICE_OPTION_START_Y,
+				TEXT_Y + rows.size() * LINE_HEIGHT + 2
+			);
+
+			option0Label = buildChoiceLabel(choiceOptions[0], CHOICE_OPTION_X, optionY);
+			option1Label = buildChoiceLabel(choiceOptions[1], CHOICE_OPTION_X, optionY + CHOICE_OPTION_GAP_Y);
+			place(option0Label);
+			place(option1Label);
+			if (choiceOptions.length > 2)
+			{
+				option2Label = buildChoiceLabel(choiceOptions[2], CHOICE_OPTION_X, optionY + CHOICE_OPTION_GAP_Y * 2);
+				place(option2Label);
+			}
+			setSelectedOption(0);
 		}
 		else
 		{
@@ -617,6 +708,18 @@ public class Dialogue extends GraphicsPane
 		{
 			option1Label.setColor(option == 1 ? OPTION_SELECTED : OPTION_NORMAL);
 		}
+		if (option2Label != null)
+		{
+			option2Label.setColor(option == 2 ? OPTION_SELECTED : OPTION_NORMAL);
+		}
+	}
+
+	private GLabel buildChoiceLabel(String text, double x, double y)
+	{
+		GLabel label = new GLabel(text, x, y);
+		label.setFont("Monospaced-BOLD-18");
+		label.setColor(OPTION_NORMAL);
+		return label;
 	}
 
 	// =========================================================

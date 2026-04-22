@@ -236,7 +236,7 @@ public class WorldMap {
     private final List<HeroThicket> heroThickets = new ArrayList<>();
     private Chest courageChest;
     private Chest strengthChest;
-    private Chest wisdomChest;
+    private WisdomTrialChest wisdomChest;
 
     // =========================================================
     // DUNGEON ENTRANCE MARKER (tech-demo placeholder)
@@ -785,7 +785,7 @@ public class WorldMap {
 
     private static final String[] LITTLE_GIRL_HINT3_LINES = {
         "One time I met this guy with really crazy yellow hair. He told me that real heroes don't give up.",
-        "They go beyond even when things seem impossible. He kept shouting... \"plus extra\" really loud. I think that's what he said."
+        "They go beyond even when things seem impossible. He kept shouting, \"Plus Ultra!\" It sounded important."
     };
 
     private static final String LITTLE_GIRL_HINT1_FLAG = "little_girl_hint1_seen";
@@ -873,9 +873,9 @@ public class WorldMap {
 
         Room b3 = overworldGrid[1][2];
         if (b3 != null) {
-            wisdomChest = new Chest(
+            wisdomChest = new WisdomTrialChest(
                 TRIAL_CHEST_B3_X, TRIAL_CHEST_B3_Y,
-                "chest_b3_wisdom", Chest.RELIC_REFLECT, true
+                "chest_b3_wisdom"
             );
             wisdomChest.setDialogue(dialogue);
             wisdomChest.setCollectedItemRecorder(this::markCollectedItem);
