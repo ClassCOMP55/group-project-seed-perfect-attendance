@@ -233,13 +233,25 @@ public class GameSavesPane extends NightScenePane {
             if (itemId == null || itemId.trim().isEmpty()) continue;
             if (HealingBread.ITEM_ID.equals(itemId)) continue;
             if (player.findInventoryItem(itemId) != null) continue;
-            player.collectItem(new Item(itemId, formatInventoryDisplayName(itemId), false));
+            player.collectItem(createItemById(itemId));
         }
         return player;
     }
 
     private int clampInt(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
+    }
+
+    private Item createItemById(String itemId) {
+        if (Pickaxe.ITEM_ID.equals(itemId))               return new Pickaxe();
+        if (MinersHat.ITEM_ID.equals(itemId))             return new MinersHat();
+        if (RawOre.ITEM_ID.equals(itemId))                return new RawOre();
+        if (HalfDamageRelicItem.ITEM_ID.equals(itemId))  return new HalfDamageRelicItem();
+        if (ReflectRelicItem.ITEM_ID.equals(itemId))      return new ReflectRelicItem();
+        if (IntangibleRelicItem.ITEM_ID.equals(itemId))   return new IntangibleRelicItem();
+        if (MarkOfHeroItem.ITEM_ID.equals(itemId))        return new MarkOfHeroItem();
+        if (FixedLeverItem.ITEM_ID.equals(itemId))        return new FixedLeverItem();
+        return new Item(itemId, formatInventoryDisplayName(itemId), false);
     }
 
     private String formatInventoryDisplayName(String itemId) {
