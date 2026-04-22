@@ -33,7 +33,8 @@ CLIP POOLS (why they exist)
 ADDING A NEW SOUND (checklist)
 1. Add a new entry to the SFX enum below.
 2. Add a matching loadPool(...) line inside init().
-3. Drop the matching .wav file into assets/audio/sfx/ (or classpath /audio/sfx/).
+3. Drop the matching .wav file into assets/audio/ui sfx/, assets/audio/combat/, or assets/audio/mobs/.
+   openSFXStream() searches all three folders automatically.
 4. Call GameSFX.play(SFX.YOUR_NEW_SOUND) from wherever it should fire.
 
 FILE FORMAT
@@ -88,11 +89,27 @@ public final class GameSFX
    */
   public enum SFX
   {
+    // ---- Combat ----
+
     /** Player swings their sword. Rapid — pool of 3. */
     SWORD_SWING,
 
+    /** Player's sword connects with an enemy. Moderate — pool of 2. */
+    SWORD_HIT,
+
     /** Player takes damage. Infrequent — pool of 1. */
     PLAYER_HURT,
+
+    /** Enemy melee attack lands. Moderate — pool of 2. */
+    ENEMY_ATTACK,
+
+    /** Player fires their intangible relic ability (K key). Infrequent — pool of 1. */
+    ABILITY,
+
+    /** Ranged enemy fires a projectile. Moderate — pool of 2. */
+    RANGED_ATTACK,
+
+    // ---- World / UI ----
 
     /** Player picks up a coin. Moderate frequency — pool of 2. */
     COIN_PICKUP,
@@ -100,19 +117,10 @@ public final class GameSFX
     /** Player cuts grass. Rapid — pool of 3. */
     GRASS_CUT,
 
-    /** Pause menu opens. Infrequent — pool of 1. */
-    PAUSE_OPEN,
-
-    /** One character "tick" as dialogue text types onto screen. Rapid — pool of 4. */
-    DIALOGUE_TICK,
-
-    /** Enemy melee attack lands. Moderate — pool of 2. */
-    ENEMY_ATTACK,
-
     /** Player uses a healing item (e.g. HealingBread). Infrequent — pool of 1. */
     ITEM_USE,
 
-    /** Coin or item lands in a chest / chest opens. Infrequent — pool of 1. */
+    /** Chest opens. Infrequent — pool of 1. */
     CHEST_OPEN,
 
     /** Dialogue box appears on screen. Infrequent — pool of 1. */
@@ -127,8 +135,40 @@ public final class GameSFX
     /** Player confirms a save at a save point. Infrequent — pool of 1. */
     SAVE_POINT,
 
-    /** Calumund's per-line voice blip. Infrequent — pool of 1. */
+    /** Mouse click in the settings screen. Infrequent — pool of 1. */
+    CLICKING,
+
+    // ---- Dialogue voices ----
+    // Used as the per-character typing tick in Dialogue.java (set via setVoiceSound).
+
+    /** Female NPC voice tick (BreadMerchant, LittleGirl, etc.). Rapid — pool of 4. */
+    FEMALE_SPEAK,
+
+    /** Male NPC voice tick (Blacksmith, DrunkNpc). Rapid — pool of 4. */
+    MALE_SPEAK,
+
+    /** Calumund's voice blip. Infrequent — pool of 1. */
     GOAT_SFX,
+
+    // ---- Mob sounds ----
+
+    /** Lizard enemy death sound. Infrequent — pool of 1. */
+    LIZARD_DEATH,
+
+    /** Lizard enemy ambient/alert noise. Infrequent — pool of 1. */
+    LIZARD_NOISE,
+
+    /** Tree monster death sound. Infrequent — pool of 1. */
+    TREE_DEATH,
+
+    /** Tree monster ambient/alert noise. Infrequent — pool of 1. */
+    TREE_NOISE,
+
+    /** Mushroom enemy death sound. Infrequent — pool of 1. */
+    MUSHROOM_DEATH,
+
+    /** Mushroom enemy ambient/alert noise. Infrequent — pool of 1. */
+    MUSHROOM_NOISE,
   }
 
   // =========================================================
@@ -140,7 +180,7 @@ public final class GameSFX
   /** Rapid-fire sounds that can stack 3 times (e.g. fast sword combos, grass cutting). */
   private static final int POOL_RAPID   = 3;
 
-  /** Dialogue tick fires very fast — needs a slightly larger pool. */
+  /** Voice tick sounds fire very fast as letters appear — needs a slightly larger pool. */
   private static final int POOL_TICK    = 4;
 
   /** Moderate sounds that might fire twice close together. */
@@ -182,20 +222,37 @@ public final class GameSFX
     pools       = new EnumMap<>(SFX.class);
     poolCursors = new EnumMap<>(SFX.class);
 
-    pools.put(SFX.SWORD_SWING,   loadPool("sword-swing.wav",   POOL_RAPID));
-    pools.put(SFX.PLAYER_HURT,   loadPool("player-hurt.wav",   POOL_SMALL));
-    pools.put(SFX.COIN_PICKUP,   loadPool("coin-pickup.wav",   POOL_MEDIUM));
-    pools.put(SFX.GRASS_CUT,     loadPool("grass-cut.wav",     POOL_RAPID));
-    pools.put(SFX.PAUSE_OPEN,    loadPool("pause-open.wav",    POOL_SMALL));
-    pools.put(SFX.DIALOGUE_TICK, loadPool("dialogue-tick.wav", POOL_TICK));
-    pools.put(SFX.ENEMY_ATTACK,  loadPool("enemy-attack.wav",  POOL_MEDIUM));
-    pools.put(SFX.ITEM_USE,      loadPool("item-use.wav",      POOL_SMALL));
-    pools.put(SFX.CHEST_OPEN,    loadPool("chest_open.wav",    POOL_SMALL));
-    pools.put(SFX.DIALOGUE_OPEN, loadPool("dialogue_open.wav", POOL_SMALL));
-    pools.put(SFX.DIALOGUE_CLOSE,loadPool("dialogue_close.wav",POOL_SMALL));
-    pools.put(SFX.BLOCK_MOVED,   loadPool("block_moved.wav",   POOL_MEDIUM));
-    pools.put(SFX.SAVE_POINT,    loadPool("save_point.wav",    POOL_SMALL));
-    pools.put(SFX.GOAT_SFX,      loadPool("goat_sfx.wav",      POOL_SMALL));
+    // Combat
+    pools.put(SFX.SWORD_SWING,    loadPool("sword_attack.wav",              POOL_RAPID));
+    pools.put(SFX.SWORD_HIT,      loadPool("sword_attack_hit.wav",          POOL_MEDIUM));
+    pools.put(SFX.PLAYER_HURT,    loadPool("damage_taken.wav",              POOL_SMALL));
+    pools.put(SFX.ENEMY_ATTACK,   loadPool("sword_attack_hit.wav",          POOL_MEDIUM));
+    pools.put(SFX.ABILITY,        loadPool("ability.wav",                   POOL_SMALL));
+    pools.put(SFX.RANGED_ATTACK,  loadPool("long_ranged_attack.wav",        POOL_MEDIUM));
+
+    // World / UI
+    pools.put(SFX.COIN_PICKUP,    loadPool("collecting_coin.wav",           POOL_MEDIUM));
+    pools.put(SFX.GRASS_CUT,      loadPool("grass_cut.wav",                 POOL_RAPID));
+    pools.put(SFX.ITEM_USE,       loadPool("grabbing_and_item action.wav",  POOL_SMALL));
+    pools.put(SFX.CHEST_OPEN,     loadPool("chest_open.wav",                POOL_SMALL));
+    pools.put(SFX.DIALOGUE_OPEN,  loadPool("dialogue_open.wav",             POOL_SMALL));
+    pools.put(SFX.DIALOGUE_CLOSE, loadPool("dialogue_close.wav",            POOL_SMALL));
+    pools.put(SFX.BLOCK_MOVED,    loadPool("block_moved.wav",               POOL_MEDIUM));
+    pools.put(SFX.SAVE_POINT,     loadPool("save_point.wav",                POOL_SMALL));
+    pools.put(SFX.CLICKING,       loadPool("clicking_for_settings.wav",     POOL_SMALL));
+
+    // Dialogue voices
+    pools.put(SFX.FEMALE_SPEAK,   loadPool("female_speak.wav",              POOL_TICK));
+    pools.put(SFX.MALE_SPEAK,     loadPool("male_speak.wav",                POOL_TICK));
+    pools.put(SFX.GOAT_SFX,       loadPool("goat_sfx.wav",                  POOL_SMALL));
+
+    // Mob sounds
+    pools.put(SFX.LIZARD_DEATH,   loadPool("lizzard_dying.wav",             POOL_SMALL));
+    pools.put(SFX.LIZARD_NOISE,   loadPool("lizzard_mob_noises.wav",        POOL_SMALL));
+    pools.put(SFX.TREE_DEATH,     loadPool("monster_tree_death.wav",        POOL_SMALL));
+    pools.put(SFX.TREE_NOISE,     loadPool("monster_tree_noises.wav",       POOL_SMALL));
+    pools.put(SFX.MUSHROOM_DEATH, loadPool("mushroom_death.wav",            POOL_SMALL));
+    pools.put(SFX.MUSHROOM_NOISE, loadPool("mushroom_mob_noises.wav",       POOL_SMALL));
 
     // Each cursor starts at 0 — it advances each time that sound plays.
     for (SFX sfx : SFX.values()) {
@@ -273,7 +330,7 @@ public final class GameSFX
       if (raw == null) {
         // Only log once — if the first open fails, the file simply isn't there yet.
         if (i == 0) {
-          System.err.println("GameSFX: could not find audio/sfx/" + fileName + " — skipped");
+          System.err.println("GameSFX: could not find " + fileName + " in any audio subfolder — skipped");
         }
         break;
       }
@@ -340,25 +397,30 @@ public final class GameSFX
   }
 
   /**
-   * Finds a .wav file for an SFX, first on the classpath ({@code /audio/sfx/fileName}),
-   * then on disk ({@code assets/audio/sfx/fileName}).
-   * Returns null if neither location has the file.
+   * Finds a .wav file for an SFX by searching each audio subfolder in order:
+   * {@code ui sfx/}, {@code combat/}, {@code mobs/}.
+   * Checks the classpath first (for packaged jars), then the local assets folder
+   * (for development). Returns null if the file is not found anywhere.
    *
-   * @param fileName the file name only (e.g. {@code "coin-pickup.wav"})
+   * @param fileName the file name only (e.g. {@code "sword_attack.wav"})
    * @return an open {@link InputStream}, or null if not found
    */
   private static InputStream openSFXStream(String fileName)
   {
-    // Check the classpath first (works when the project is built/packaged as a jar).
-    InputStream fromClasspath = GameSFX.class.getResourceAsStream("/audio/ui sfx/" + fileName);
-    if (fromClasspath != null) return fromClasspath;
+    String[] subfolders = { "ui sfx", "combat", "mobs" };
 
-    // Fall back to the local assets folder (useful during development).
-    Path p = Paths.get("assets", "audio", "ui sfx", fileName);
-    try {
-      if (Files.isRegularFile(p)) return Files.newInputStream(p);
-    } catch (IOException e) {
-      return null;
+    for (String sub : subfolders) {
+      // Classpath check (works when packaged as a jar).
+      InputStream fromClasspath = GameSFX.class.getResourceAsStream("/audio/" + sub + "/" + fileName);
+      if (fromClasspath != null) return fromClasspath;
+
+      // Disk fallback (works during development).
+      Path p = Paths.get("assets", "audio", sub, fileName);
+      try {
+        if (Files.isRegularFile(p)) return Files.newInputStream(p);
+      } catch (IOException e) {
+        // try next subfolder
+      }
     }
     return null;
   }

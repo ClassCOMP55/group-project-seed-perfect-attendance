@@ -168,7 +168,7 @@ public class RangedEnemy extends Enemy {
         if (projectiles == null) return;
 
         projectiles.add(new Projectile(x, y, target.getX(), target.getY(), tileMap, this));
-        // # rig — play GameSFX.SFX.RANGED_FIRE here once a projectile-fire sound is added to the catalog
+        GameSFX.play(GameSFX.SFX.RANGED_ATTACK);
         attackCooldownTicks = fireRate;
         setAnimState(AnimState.ATTACK);
         animTimer = attackAnimDuration;
@@ -179,4 +179,26 @@ public class RangedEnemy extends Enemy {
 
     /** @return cooldown between shots in ticks */
     public int getFireRate() { return fireRate; }
+
+    // ==========================================================
+    // SOUNDS
+    // ==========================================================
+
+    /** Ticks until the next ambient noise plays. Randomized so enemies don't sync up. */
+    private int noiseCooldownTicks = 60 + (int)(Math.random() * 180);
+
+    @Override
+    public void update(double dt, Entity target) {
+        super.update(dt, target);
+        if (animState != AnimState.DEATH && --noiseCooldownTicks <= 0) {
+            GameSFX.play(GameSFX.SFX.TREE_NOISE);
+            noiseCooldownTicks = 180 + (int)(Math.random() * 120); // 3–5s between sounds
+        }
+    }
+
+    @Override
+    public boolean onDeath() {
+        GameSFX.play(GameSFX.SFX.TREE_DEATH);
+        return super.onDeath();
+    }
 }

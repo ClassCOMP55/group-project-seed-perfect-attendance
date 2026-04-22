@@ -135,6 +135,9 @@ public class ArmorEnemy extends Enemy {
      * @param dt     Delta-time in seconds
      * @param target Entity to face and pursue (typically the Player)
      */
+    /** Ticks until the next ambient noise plays. Randomized so enemies don't sync up. */
+    private int noiseCooldownTicks = 60 + (int)(Math.random() * 180);
+
     @Override
     public void update(double dt, Entity target) {
         super.update(dt, target); // patrol / chase / tryAttack / hole check
@@ -154,6 +157,17 @@ public class ArmorEnemy extends Enemy {
                 turnCooldownTicks = TURN_INTERVAL_TICKS;
             }
         }
+
+        if (animState != AnimState.DEATH && --noiseCooldownTicks <= 0) {
+            GameSFX.play(GameSFX.SFX.MUSHROOM_NOISE);
+            noiseCooldownTicks = 180 + (int)(Math.random() * 120); // 3–5s between sounds
+        }
+    }
+
+    @Override
+    public boolean onDeath() {
+        GameSFX.play(GameSFX.SFX.MUSHROOM_DEATH);
+        return super.onDeath();
     }
 
     /**

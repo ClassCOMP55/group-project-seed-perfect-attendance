@@ -637,6 +637,7 @@ public class WorldMap {
         drunkNpc.setRewardUnlockCondition(
             p -> p.findInventoryItem(MinersHat.ITEM_ID) != null
         );
+        drunkNpc.setVoiceSound(GameSFX.SFX.MALE_SPEAK);
         startRoom.addObject(drunkNpc);
     }
 
@@ -756,6 +757,7 @@ public class WorldMap {
             null,
             null
         );
+        littleGirl.setVoiceSound(GameSFX.SFX.FEMALE_SPEAK);
         b1.addObject(littleGirl);
     }
 

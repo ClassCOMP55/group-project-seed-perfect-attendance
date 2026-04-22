@@ -111,6 +111,7 @@ public class BreadMerchant extends WorldObject {
         }
         if (dialogue != null && !dialogue.isOpen()) {
             GamePlayState.setCurrent(GamePlayState.DIALOGUE);
+            dialogue.setVoiceSound(GameSFX.SFX.FEMALE_SPEAK);
             dialogue.open(
                 new String[]{
                     "Oh, hello there, friend! Isn't it just the loveliest day?",
@@ -124,6 +125,7 @@ public class BreadMerchant extends WorldObject {
                     shopMenu.openFor(p, merchantName, () -> {
                         if (dialogue != null && !dialogue.isOpen()) {
                             GamePlayState.setCurrent(GamePlayState.DIALOGUE);
+                            dialogue.setVoiceSound(GameSFX.SFX.FEMALE_SPEAK);
                             dialogue.open(
                                 new String[]{
                                     "You take care now, friend!",

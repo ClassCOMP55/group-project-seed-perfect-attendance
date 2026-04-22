@@ -159,6 +159,7 @@ public class SwordSwing {
                         && hitbox.overlapsHurtbox(e.getHurtbox())
                         && !alreadyHit.contains(e)) {
                     e.takeDamage(1, this.facing);
+                    GameSFX.play(GameSFX.SFX.SWORD_HIT);
                     alreadyHit.add(e);
                 }
             }

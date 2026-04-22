@@ -354,7 +354,6 @@ public class MainApplication extends GraphicsProgram{
 	/** Shows pause overlay. Driven by ESC in gameplay. */
 	public void showPauseModal() {
 		if (pauseModal != null) {
-			GameSFX.play(GameSFX.SFX.PAUSE_OPEN);
 			pauseModal.showPause();
 		}
 	}

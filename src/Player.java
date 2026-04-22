@@ -418,7 +418,7 @@ public class Player extends Entity {
         isIntangibleActive = true;
         intangibleActiveTicks = INTANGIBLE_DURATION;
         intangibleCooldownTicks = INTANGIBLE_COOLDOWN;
-        // # rig — play GameSFX.SFX.INTANGIBLE_ACTIVATE here once a sound is added to the catalog
+        GameSFX.play(GameSFX.SFX.ABILITY);
         return true;
     }
 

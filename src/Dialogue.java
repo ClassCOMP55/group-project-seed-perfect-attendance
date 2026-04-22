@@ -336,7 +336,10 @@ public class Dialogue extends GraphicsPane
 
 		String current = lines[currentLine];
 		charIndex = Math.min(charIndex + CHARS_PER_TICK, current.length());
-		GameSFX.play(GameSFX.SFX.DIALOGUE_TICK);
+		// TYPING SOUND — plays voiceSound on every letter (rapid "typewriter" effect, gendered per NPC).
+		// To switch to once-per-line only: remove this line and keep the play() call
+		// in the line-advance block above (search for "voiceSound" a few lines up).
+		if (voiceSound != null) GameSFX.play(voiceSound);
 		rebuildTextRows(current.substring(0, charIndex));
 
 		if (charIndex >= current.length())

@@ -112,6 +112,7 @@ public class Blacksmith extends WorldObject {
 
         if (p.findInventoryItem(FIXED_LEVER_ID) != null) {
             GamePlayState.setCurrent(GamePlayState.DIALOGUE);
+            dialogue.setVoiceSound(GameSFX.SFX.MALE_SPEAK);
             dialogue.open(
                 new String[]{
                     "I feel better now that I've had a chance to work.",
@@ -127,6 +128,7 @@ public class Blacksmith extends WorldObject {
                 p.collectItem(new FixedLeverItem());
 
                 GamePlayState.setCurrent(GamePlayState.DIALOGUE);
+                dialogue.setVoiceSound(GameSFX.SFX.MALE_SPEAK);
                 dialogue.open(
                     new String[]{
                         "Ah, perfect! Thank you. Now, if you'll excuse me, I need to work.",
@@ -139,6 +141,7 @@ public class Blacksmith extends WorldObject {
                 );
             } else {
                 GamePlayState.setCurrent(GamePlayState.DIALOGUE);
+                dialogue.setVoiceSound(GameSFX.SFX.MALE_SPEAK);
                 dialogue.open(
                     new String[]{
                         "Wait, the bridge lever is broken? Oh no, oh no...",
@@ -152,6 +155,7 @@ public class Blacksmith extends WorldObject {
             }
         } else {
             GamePlayState.setCurrent(GamePlayState.DIALOGUE);
+            dialogue.setVoiceSound(GameSFX.SFX.MALE_SPEAK);
             dialogue.open(
                 new String[]{
                     "This stall... it's too heavy to move, too anchored to flee. I'm stuck here while everyone else escaped.",

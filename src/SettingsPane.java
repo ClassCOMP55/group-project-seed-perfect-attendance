@@ -228,21 +228,25 @@ public class SettingsPane extends NightScenePane {
     public void mouseClicked(MouseEvent e) {
         GObject hit = mainScreen.getElementAtLocation(e.getX(), e.getY());
         if (hit == backLabel || hit == backFrame) {
+            GameSFX.play(GameSFX.SFX.CLICKING);
             mainScreen.switchToStartMenuScreen();
             return;
         }
         if (hit == graphicsValueLabel) {
+            GameSFX.play(GameSFX.SFX.CLICKING);
             GameSettings.cycleGraphicsTemplate();
             graphicsValueLabel.setLabel(graphicsAngleText());
             return;
         }
         if (hit == arrowLeft) {
+            GameSFX.play(GameSFX.SFX.CLICKING);
             GameSettings.setVolumePercent(GameSettings.getVolumePercent() - 5);
             positionKnobFromVolume();
             SettingsIO.persist();
             return;
         }
         if (hit == arrowRight) {
+            GameSFX.play(GameSFX.SFX.CLICKING);
             GameSettings.setVolumePercent(GameSettings.getVolumePercent() + 5);
             positionKnobFromVolume();
             SettingsIO.persist();

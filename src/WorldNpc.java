@@ -32,6 +32,7 @@ public class WorldNpc extends WorldObject {
     private String[] postRewardDialogueLines = new String[0];
 
     private Dialogue dialogue;
+    private GameSFX.SFX voiceSound = null;
     private Predicate<String> hasStoryFlag;
     private Consumer<String> addStoryFlag;
     private String introCompleteFlag;
@@ -204,12 +205,18 @@ public class WorldNpc extends WorldObject {
         if (linesToShow.length == 0) return;
 
         GamePlayState.setCurrent(GamePlayState.DIALOGUE);
+        if (voiceSound != null) dialogue.setVoiceSound(voiceSound);
         dialogue.open(
             linesToShow,
             speakerName,
             true,
             onComplete
         );
+    }
+
+    /** Sets the voice sound played on each character tick while this NPC speaks. */
+    public void setVoiceSound(GameSFX.SFX sfx) {
+        this.voiceSound = sfx;
     }
 
     public void setDialogue(Dialogue dialogue) {
