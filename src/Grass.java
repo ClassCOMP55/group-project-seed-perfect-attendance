@@ -156,7 +156,7 @@ public class Grass extends WorldObject {
      */
     public Grass(double x, double y, float coinDropChance, Consumer<Item> dropCallback,
                  boolean repeatCoinDrops) {
-        super(x, y, 48, 48);
+        super(x, y, 100, 100);
         this.isCut             = false;
         this.coinDropChance    = Math.max(0.0f, Math.min(1.0f, coinDropChance));
         this.dropCallback      = dropCallback;
@@ -325,7 +325,7 @@ public class Grass extends WorldObject {
             if (source == null) return null;
             BufferedImage trimmed = trimTransparentBounds(source);
             GImage image = new GImage(trimmed);
-            image.setSize(48, 48);
+            image.setSize(100, 100);
             image.setLocation(x, y);
             return image;
         } catch (IOException | RuntimeException ignored) {
