@@ -341,7 +341,7 @@ public final class GameSFX
         applyVolume(clip);
         clips[loaded++] = clip;
       } catch (IOException | UnsupportedAudioFileException | LineUnavailableException e) {
-        System.err.println("GameSFX: failed to load copy " + i + " of " + fileName);
+        System.err.println("GameSFX: failed to load copy " + i + " of " + fileName + " — " + e.getClass().getSimpleName() + ": " + e.getMessage());
         break;
       }
     }
