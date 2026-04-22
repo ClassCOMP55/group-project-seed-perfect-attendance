@@ -125,10 +125,14 @@ public class OpeningNarrativePane extends GraphicsPane {
         String line = textLines.get(cursor);
         double y    = yPositions.get(cursor);
 
-        GLabel lbl = new GLabel("", scaleX(80), scaleY(y));
+        // Place with full text so font metrics are available for centering,
+        // then reset to empty so the typewriter fills it in from the correct position.
+        GLabel lbl = new GLabel(line, 0, 0);
         lbl.setFont(italicFont(FONT_SIZE));
         lbl.setColor(Color.WHITE);
         place(lbl);
+        lbl.setLocation(centeredX(lbl), scaleY(y));
+        lbl.setLabel("");
 
         typingLabel = lbl;
         charsShown  = 0;
