@@ -20,7 +20,7 @@ public class MainApplication extends GraphicsProgram{
 	 * relic so {@code K} works without opening a chest. Set {@code false} when the relic is only awarded in-world.
 	 * Save loads override this in {@link GameSavesPane} via {@link SaveData#isHasIntangible()}.
 	 */
-	public static final boolean DEV_GRANT_INTANGIBLE_RELIC_ON_NEW_GAME = true;
+	public static final boolean DEV_GRANT_INTANGIBLE_RELIC_ON_NEW_GAME = false;
 	/** Extra starter consumables for developer smoke tests. */
 	public static final int NEW_GAME_STARTING_HEALING_BREAD = 0;
 	/** Enables gameplay-only debug shortcuts like F5/F7/F8 warps and saves. */

@@ -47,17 +47,15 @@ public class Player extends Entity {
     /**
      * Intangible ability: active window length in game ticks.
      * Tuned for {@code GameLoop} default 16 ms/tick (~62.5 ticks/s).
-     * Debug: if duration feels wrong, verify {@link GameLoop#getTickRate()} (ms per tick) and retune with
-     * {@code Math.round(seconds * 1000.0 / tickRateMs)}.
      */
     private static final int INTANGIBLE_DURATION = 312;
 
     /**
-     * Intangible ability: ticks until {@link #activateIntangible()} can succeed again (~60 s at 16 ms/tick).
+     * Intangible ability: ticks until {@link #activateIntangible()} can succeed again.
      * Set equal to full cooldown on each activation; decrements every tick alongside
-     * {@link #intangibleActiveTicks}, so the ability stays locked out until this reaches 0.
+     * {@link #intangibleActiveTicks}.
      */
-    private static final int INTANGIBLE_COOLDOWN = 938; // 938 ticks = 15.6333 seconds at 60fps
+    private static final int INTANGIBLE_COOLDOWN = 938;
 
     // ==========================================================
     // FIELDS — identity
@@ -399,10 +397,10 @@ public class Player extends Entity {
     // ==========================================================
 
     /**
-     * Relic-gated invulnerability (bound to K from gameplay panes). No-ops silently if gated;
+     * Relic-gated invulnerability shield (bound to K from gameplay panes). No-ops silently if gated;
      * callers that need user feedback should branch on the return value or query getters.
      *
-     * @return true only if this call started a new intangible window
+     * @return true only if this call started a new shield window
      */
     public boolean activateIntangible() {
         if (!hasIntangible) {

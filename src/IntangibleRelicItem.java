@@ -26,7 +26,7 @@ public class IntangibleRelicItem extends Item {
 
     @Override
     public String getDescription() {
-        return "A glowing keepsake earned through the Trial of Courage. For a brief moment, nothing can stop you, enemies pass through you like you're made of wind. Recharges every ten seconds.";
+        return "A glowing keepsake earned through the Trial of Courage. Press K to raise a brief invulnerability shield.";
     }
 
     private static BufferedImage loadTrimmed(String path) {
