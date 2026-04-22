@@ -137,6 +137,9 @@ public class Dialogue extends GraphicsPane
 	/** Fired when the last line is dismissed (or save option confirmed). */
 	private Runnable onComplete;
 
+	/** Optional SFX played each time the player advances to the next line (voice blip). Null = silent. */
+	private GameSFX.SFX voiceSound = null;
+
 	/** The visible dialogue box. */
 	private GRect panel;
 
@@ -193,6 +196,7 @@ public class Dialogue extends GraphicsPane
 		this.isSavePrompt = false;
 		this.onComplete  = onComplete;
 		buildPanel(speakerName, hasPortrait);
+		GameSFX.play(GameSFX.SFX.DIALOGUE_OPEN);
 	}
 
 	/**
@@ -209,6 +213,7 @@ public class Dialogue extends GraphicsPane
 		this.selectedOption = 0;
 		this.onComplete     = onComplete;
 		buildPanel(null, false);
+		GameSFX.play(GameSFX.SFX.DIALOGUE_OPEN);
 	}
 
 	// =========================================================
@@ -221,6 +226,8 @@ public class Dialogue extends GraphicsPane
 	 */
 	public void close()
 	{
+		if (isOpen()) GameSFX.play(GameSFX.SFX.DIALOGUE_CLOSE);
+
 		for (GObject obj : contents)
 		{
 			mainScreen.remove(obj);
@@ -234,6 +241,7 @@ public class Dialogue extends GraphicsPane
 		isSavePrompt  = false;
 		selectedOption = 0;
 		onComplete    = null;
+		voiceSound    = null;
 
 		panel         = null;
 		speakerLabel  = null;
@@ -287,6 +295,7 @@ public class Dialogue extends GraphicsPane
 		}
 
 		// Move to the next line
+		if (voiceSound != null) GameSFX.play(voiceSound);
 		currentLine++;
 		if (currentLine >= lines.length)
 		{
@@ -581,6 +590,17 @@ public class Dialogue extends GraphicsPane
 	{
 		return !contents.isEmpty();
 	}
+
+	/**
+	 * Sets a per-line voice sound that plays each time the player advances to the next line.
+	 * Call before {@link #open} to give a specific NPC a voice blip. Cleared automatically on close.
+	 *
+	 * @param sfx the sound to play on each line advance; null disables it
+	 */
+	public void setVoiceSound(GameSFX.SFX sfx) { voiceSound = sfx; }
+
+	/** Removes any voice sound set by {@link #setVoiceSound}. Called automatically on close. */
+	public void clearVoiceSound() { voiceSound = null; }
 
 	/**
 	 * Returns the currently selected save-prompt option (0 = Yes, 1 = No).

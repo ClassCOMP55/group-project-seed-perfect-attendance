@@ -210,6 +210,7 @@ public class PushBlock extends WorldObject {
             this.hide();
         }
 
+        GameSFX.play(GameSFX.SFX.BLOCK_MOVED);
         return true;
     }
 

@@ -293,7 +293,7 @@ public class SavePoint {
 			if (saved) {
 				savedFeedbackTicks = SAVED_DISPLAY_TICKS;
 				savedLabel.setVisible(true);
-				// # rig — play GameSFX.SFX.SAVE_CONFIRM here once a save-confirm sound is added to the catalog
+				GameSFX.play(GameSFX.SFX.SAVE_POINT);
 			}
 			GamePlayState.setCurrent(GamePlayState.PLAYING);
 		});

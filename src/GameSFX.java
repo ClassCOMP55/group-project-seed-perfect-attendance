@@ -114,6 +114,21 @@ public final class GameSFX
 
     /** Coin or item lands in a chest / chest opens. Infrequent — pool of 1. */
     CHEST_OPEN,
+
+    /** Dialogue box appears on screen. Infrequent — pool of 1. */
+    DIALOGUE_OPEN,
+
+    /** Dialogue box is dismissed. Infrequent — pool of 1. */
+    DIALOGUE_CLOSE,
+
+    /** A push block successfully slides one tile. Moderate — pool of 2. */
+    BLOCK_MOVED,
+
+    /** Player confirms a save at a save point. Infrequent — pool of 1. */
+    SAVE_POINT,
+
+    /** Calumund's per-line voice blip. Infrequent — pool of 1. */
+    GOAT_SFX,
   }
 
   // =========================================================
@@ -175,7 +190,12 @@ public final class GameSFX
     pools.put(SFX.DIALOGUE_TICK, loadPool("dialogue-tick.wav", POOL_TICK));
     pools.put(SFX.ENEMY_ATTACK,  loadPool("enemy-attack.wav",  POOL_MEDIUM));
     pools.put(SFX.ITEM_USE,      loadPool("item-use.wav",      POOL_SMALL));
-    pools.put(SFX.CHEST_OPEN,    loadPool("chest-open.wav",    POOL_SMALL));
+    pools.put(SFX.CHEST_OPEN,    loadPool("chest_open.wav",    POOL_SMALL));
+    pools.put(SFX.DIALOGUE_OPEN, loadPool("dialogue_open.wav", POOL_SMALL));
+    pools.put(SFX.DIALOGUE_CLOSE,loadPool("dialogue_close.wav",POOL_SMALL));
+    pools.put(SFX.BLOCK_MOVED,   loadPool("block_moved.wav",   POOL_MEDIUM));
+    pools.put(SFX.SAVE_POINT,    loadPool("save_point.wav",    POOL_SMALL));
+    pools.put(SFX.GOAT_SFX,      loadPool("goat_sfx.wav",      POOL_SMALL));
 
     // Each cursor starts at 0 — it advances each time that sound plays.
     for (SFX sfx : SFX.values()) {
@@ -330,11 +350,11 @@ public final class GameSFX
   private static InputStream openSFXStream(String fileName)
   {
     // Check the classpath first (works when the project is built/packaged as a jar).
-    InputStream fromClasspath = GameSFX.class.getResourceAsStream("/audio/sfx/" + fileName);
+    InputStream fromClasspath = GameSFX.class.getResourceAsStream("/audio/ui sfx/" + fileName);
     if (fromClasspath != null) return fromClasspath;
 
     // Fall back to the local assets folder (useful during development).
-    Path p = Paths.get("assets", "audio", "sfx", fileName);
+    Path p = Paths.get("assets", "audio", "ui sfx", fileName);
     try {
       if (Files.isRegularFile(p)) return Files.newInputStream(p);
     } catch (IOException e) {

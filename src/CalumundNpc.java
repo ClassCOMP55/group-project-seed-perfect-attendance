@@ -179,6 +179,7 @@ public class CalumundNpc extends WorldObject {
 
         if (linesToShow.length == 0) return;
         GamePlayState.setCurrent(GamePlayState.DIALOGUE);
+        dialogue.setVoiceSound(GameSFX.SFX.GOAT_SFX);
         dialogue.open(linesToShow, SPEAKER_NAME, true, onComplete);
     }
 
