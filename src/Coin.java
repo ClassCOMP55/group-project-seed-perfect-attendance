@@ -49,6 +49,7 @@ import java.awt.Color;
 import java.io.File;
 import java.io.IOException;
 import javax.imageio.ImageIO;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * A dropped coin that auto-collects when the player walks over it.
@@ -66,6 +67,11 @@ public class Coin extends Item {
 
     /** Default coin value. Economy amounts TBD per design doc. */
     private static final int DEFAULT_VALUE = 1;
+    private static final double DROP_HALF = DROP_SIZE / 2.0;
+    private static final double MAX_SPAWN_SPEED = 220.0;
+    private static final double BOUNCE_DAMPING = 0.60;
+    private static final double DRAG_PER_SECOND = 0.88;
+    private static final double STOP_SPEED = 8.0;
 
     // =========================================================
     // FIELDS
@@ -79,6 +85,9 @@ public class Coin extends Item {
 
     /** Optional coin sprite loaded from assets. */
     private final GImage worldSpriteImage;
+    /** World-space coin drift velocity (px/sec). */
+    private double velocityX;
+    private double velocityY;
 
     // =========================================================
     // CONSTRUCTOR
@@ -113,6 +122,7 @@ public class Coin extends Item {
         this.worldSprite.setFilled(true);
         this.worldSprite.setFillColor(COIN_COLOR);
         this.worldSprite.setColor(Color.BLACK);
+        randomizeInitialVelocity();
     }
 
     // =========================================================
@@ -177,11 +187,79 @@ public class Coin extends Item {
         }
     }
 
+    /**
+     * Simulates coin drift and bounces off non-walkable/out-of-bounds walls.
+     * Called each room tick while the coin is on the ground.
+     */
+    public void updatePhysics(double dt, TileMap tileMap) {
+        if (!inWorld || tileMap == null || dt <= 0) {
+            return;
+        }
+        if (Math.abs(velocityX) < STOP_SPEED && Math.abs(velocityY) < STOP_SPEED) {
+            velocityX = 0;
+            velocityY = 0;
+            return;
+        }
+
+        double centerX = worldX + DROP_HALF;
+        double centerY = worldY + DROP_HALF;
+
+        double nextCenterX = centerX + velocityX * dt;
+        if (!canOccupy(tileMap, nextCenterX, centerY)) {
+            velocityX = -velocityX * BOUNCE_DAMPING;
+            nextCenterX = centerX + velocityX * dt;
+            if (!canOccupy(tileMap, nextCenterX, centerY)) {
+                nextCenterX = centerX;
+                velocityX = 0;
+            }
+        }
+        centerX = nextCenterX;
+
+        double nextCenterY = centerY + velocityY * dt;
+        if (!canOccupy(tileMap, centerX, nextCenterY)) {
+            velocityY = -velocityY * BOUNCE_DAMPING;
+            nextCenterY = centerY + velocityY * dt;
+            if (!canOccupy(tileMap, centerX, nextCenterY)) {
+                nextCenterY = centerY;
+                velocityY = 0;
+            }
+        }
+        centerY = nextCenterY;
+
+        worldX = centerX - DROP_HALF;
+        worldY = centerY - DROP_HALF;
+        resetVisualPosition();
+
+        double dragFactor = Math.pow(DRAG_PER_SECOND, dt);
+        velocityX *= dragFactor;
+        velocityY *= dragFactor;
+    }
+
     // =========================================================
     // GETTERS
     // =========================================================
 
     public int getValue() { return value; }
+
+    private void randomizeInitialVelocity() {
+        double angle = ThreadLocalRandom.current().nextDouble(0.0, Math.PI * 2.0);
+        double speed = ThreadLocalRandom.current().nextDouble(90.0, MAX_SPAWN_SPEED);
+        velocityX = Math.cos(angle) * speed;
+        velocityY = Math.sin(angle) * speed;
+    }
+
+    private boolean canOccupy(TileMap map, double centerX, double centerY) {
+        double probe = DROP_HALF - 2.0;
+        return isPassableProbe(map, centerX, centerY)
+            && isPassableProbe(map, centerX - probe, centerY - probe)
+            && isPassableProbe(map, centerX + probe, centerY - probe)
+            && isPassableProbe(map, centerX - probe, centerY + probe)
+            && isPassableProbe(map, centerX + probe, centerY + probe);
+    }
+
+    private boolean isPassableProbe(TileMap map, double px, double py) {
+        return map.containsPixel(px, py) && map.isPassable(px, py);
+    }
 
     private GImage loadSprite(String path) {
         try {
