@@ -71,10 +71,10 @@ public class Grass extends WorldObject {
     private static final float DEFAULT_COIN_DROP_CHANCE = 0.5f;
 
     /** Minimum time in seconds before a cut grass tile becomes harvestable again. */
-    private static final double MIN_REGROW_DURATION_SECONDS = 0.12;
+    private static final double MIN_REGROW_DURATION_SECONDS = 20.0;
 
     /** Maximum time in seconds before a cut grass tile becomes harvestable again. */
-    private static final double MAX_REGROW_DURATION_SECONDS = 0.18;
+    private static final double MAX_REGROW_DURATION_SECONDS = 25.5;
 
     /** Placeholder grass color until real sprite is wired. */
     private static final Color GRASS_COLOR = new Color(60, 160, 60);
