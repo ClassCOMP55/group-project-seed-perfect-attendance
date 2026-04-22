@@ -45,6 +45,9 @@ public class MainApplication extends GraphicsProgram{
 	private GameSavesPane gameSavesPane;
 	private MarketCharacterDebug marketDebugPane;
 	private P1GameplayPane gameplayPane;
+	private OpeningNarrativePane openingNarrativePane;
+	private TutorialPane tutorialPane;
+	private EndingNarrativePane endingNarrativePane;
 	/** Room-based gameplay screen — drives WorldMap, Room transitions, and player movement. */
 	private GameplayPane worldMapGameplayPane;
 	private GraphicsPane currentScreen;
@@ -116,6 +119,9 @@ public class MainApplication extends GraphicsProgram{
 		marketDebugPane = new MarketCharacterDebug(this);
 		gameplayPane = new P1GameplayPane(this);
 		worldMapGameplayPane = new GameplayPane(this);
+		openingNarrativePane = new OpeningNarrativePane(this);
+		tutorialPane = new TutorialPane(this);
+		endingNarrativePane = new EndingNarrativePane(this);
 
 		syncLayoutToWindow();
 		switchToScreen(landingPane);
@@ -165,6 +171,21 @@ public class MainApplication extends GraphicsProgram{
 		switchToScreen(titleCardPane);
 	}
 
+	/** Shows opening narrative screen (first of the new-game intro sequence). */
+	public void switchToTutorialScreen() {
+		switchToScreen(tutorialPane);
+	}
+
+	/** Called by TutorialPane when the player is ready to enter the world. */
+	public void beginGameplay() {
+		switchToScreen(worldMapGameplayPane);
+	}
+
+	/** Shows the post-boss epilogue screen. */
+	public void switchToEndingNarrativeScreen() {
+		switchToScreen(endingNarrativePane);
+	}
+
 	public void switchToStartMenuScreen() {
 		switchToScreen(startMenuPane);
 	}
@@ -206,7 +227,7 @@ public class MainApplication extends GraphicsProgram{
 		setPlayer(sessionPlayer);
 		lastSavedAtMillis = 0L;
 		worldMapGameplayPane.prepareNewSession();
-		switchToScreen(worldMapGameplayPane);
+		switchToScreen(openingNarrativePane);
 	}
 
 	/** Starts gameplay from a loaded save bound to the selected slot. */
@@ -461,7 +482,10 @@ public class MainApplication extends GraphicsProgram{
 				|| currentScreen instanceof StartMenuPane
 				|| currentScreen instanceof SettingsPane
 				|| currentScreen instanceof TitleCardPane
-				|| currentScreen instanceof GameSavesPane;
+				|| currentScreen instanceof GameSavesPane
+				|| currentScreen instanceof OpeningNarrativePane
+				|| currentScreen instanceof TutorialPane
+				|| currentScreen instanceof EndingNarrativePane;
 	}
 
 	@Override

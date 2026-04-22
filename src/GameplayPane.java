@@ -234,7 +234,7 @@ public class GameplayPane extends GraphicsPane {
             ENDING_DIALOGUE_LINES,
             "Calumund Vaen Solmare",
             true,
-            () -> mainScreen.switchToStartMenuScreen()
+            () -> mainScreen.switchToEndingNarrativeScreen()
         );
     }
 
