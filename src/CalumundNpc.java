@@ -141,9 +141,9 @@ public class CalumundNpc extends WorldObject {
         double dx = p.getX() - x;
         double dy = p.getY() - y;
         if (Math.abs(dx) >= Math.abs(dy)) {
-            currentDir = (dx >= 0) ? Direction.RIGHT : Direction.LEFT;
+            currentDir = Direction.LEFT;
         } else {
-            currentDir = (dy >= 0) ? Direction.DOWN : Direction.UP;
+            currentDir = Direction.LEFT;
         }
     }
 

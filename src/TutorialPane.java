@@ -30,34 +30,29 @@ public class TutorialPane extends GraphicsPane {
         place(bg);
 
         Color ink = Color.WHITE;
-        double leftPad = scaleX(80);
         double y = scaleY(70);
 
         // Header
-        GLabel header = new GLabel("Controls", leftPad, y);
+        GLabel header = new GLabel("Controls", 0, 0);
         header.setFont(monoFont(HEADER_SIZE, true));
         header.setColor(ink);
         place(header);
+        header.setLocation(centeredX(header), y);
         y += scaleY(LINE_STEP + 8);
 
-        // Control lines — key bold, description plain
-        String[][] controls = {
-            { "WASD",  "\u2014 Move" },
-            { "SHIFT", "\u2014 Strafe (keep facing the same direction while moving)" },
-            { "J",     "\u2014 Attack" },
-            { "K",     "\u2014 Use ability (if you have one)" }
+        // Control lines — merged into one label per line so they center as a unit
+        String[] controls = {
+            "WASD   \u2014 Move",
+            "SHIFT  \u2014 Strafe (keep facing the same direction while moving)",
+            "J      \u2014 Attack",
+            "K      \u2014 Use ability (if you have one)"
         };
-        for (String[] pair : controls) {
-            GLabel keyLbl = new GLabel(pair[0], leftPad, y);
-            keyLbl.setFont(monoFont(CONTROL_SIZE, true));
-            keyLbl.setColor(ink);
-            place(keyLbl);
-
-            GLabel descLbl = new GLabel(pair[1], leftPad + scaleX(80), y);
-            descLbl.setFont(monoFont(CONTROL_SIZE, false));
-            descLbl.setColor(ink);
-            place(descLbl);
-
+        for (String line : controls) {
+            GLabel lbl = new GLabel(line, 0, 0);
+            lbl.setFont(monoFont(CONTROL_SIZE, false));
+            lbl.setColor(ink);
+            place(lbl);
+            lbl.setLocation(centeredX(lbl), y);
             y += scaleY(LINE_STEP);
         }
 
@@ -71,10 +66,11 @@ public class TutorialPane extends GraphicsPane {
         };
         for (String line : prose) {
             for (String wrapped : wrapText(line, 62)) {
-                GLabel lbl = new GLabel(wrapped, leftPad, y);
+                GLabel lbl = new GLabel(wrapped, 0, 0);
                 lbl.setFont(monoFont(PROSE_SIZE, false));
                 lbl.setColor(ink);
                 place(lbl);
+                lbl.setLocation(centeredX(lbl), y);
                 y += scaleY(LINE_STEP);
             }
             y += scaleY(8);
