@@ -1117,9 +1117,9 @@ public class WorldMap {
         Room d1 = dungeonRooms[0];
 
         // Register D1's enemy wave so Room.reset() can rebuild it on every re-entry.
-        d1.addRespawningEntity(() -> new MeleeEnemy(300, 250, d1.getTileMap()));
+        d1.addRespawningEntity(() -> new LizardEnemy(300, 250, d1.getTileMap()));
         d1.addRespawningEntity(() -> new RangedEnemy(940, 260, d1.getTileMap()));
-        d1.addRespawningEntity(() -> new MeleeEnemy(640, 500, d1.getTileMap()));
+        d1.addRespawningEntity(() -> new LizardEnemy(640, 500, d1.getTileMap()));
     }
 
     /** Sets the callback fired when the Boss in D3 is defeated. */

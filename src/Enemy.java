@@ -693,7 +693,7 @@ public class Enemy extends Entity {
      * Called every tick while dying. Counts down the GIF play time,
      * then swaps to the static final-frame PNG.
      */
-    private void tickDeathAnimation(double dt) {
+    protected void tickDeathAnimation(double dt) {
         if (deathFrozen) return;
         deathFrameTimer -= dt;
         while (deathFrameTimer <= 0 && !deathFrozen) {

@@ -27,6 +27,16 @@ public class MeleeEnemy extends Enemy {
     // ==========================================================
 
     private static final String SPRITE_DIR = "assets/visuals/lizard mobs/";
+
+    // Lizard GIFs are multi-frame strips on large shared canvases — must scale the
+    // whole canvas so each 64px source frame lands at TARGET_FRAME_SIZE on screen.
+    private static final double SOURCE_FRAME_SIZE    = 64.0;
+    private static final double TARGET_FRAME_SIZE    = 72.0;
+    private static final double RUN_CANVAS_WIDTH     = 512.0;
+    private static final double ACTION_CANVAS_WIDTH  = 448.0;
+    private static final double DAMAGE_CANVAS_WIDTH  = 320.0;
+    private static final double CANVAS_HEIGHT        = 256.0;
+
     /** Matches the player's 3-heart scale in half-heart health units. */
     private static final int MAX_HEALTH = Player.DEFAULT_HEART_COUNT * Player.HALF_HEARTS_PER_HEART;
 
@@ -64,7 +74,24 @@ public class MeleeEnemy extends Enemy {
         this.meleeDamage = 1;
         this.meleeRange  = 48.0;
         loadAllSprites();
-        setSpriteRenderSize(72, 72);
+        applyRenderSizeForState(animState);
+    }
+
+    private void applyRenderSizeForState(AnimState state) {
+        double canvasWidth = RUN_CANVAS_WIDTH;
+        if (state == AnimState.ATTACK || state == AnimState.DEATH) {
+            canvasWidth = ACTION_CANVAS_WIDTH;
+        } else if (state == AnimState.DAMAGE) {
+            canvasWidth = DAMAGE_CANVAS_WIDTH;
+        }
+        double scale = TARGET_FRAME_SIZE / SOURCE_FRAME_SIZE;
+        setSpriteRenderSize(canvasWidth * scale, CANVAS_HEIGHT * scale);
+    }
+
+    @Override
+    protected void setAnimState(AnimState state) {
+        super.setAnimState(state);
+        applyRenderSizeForState(state);
     }
 
     private void loadAllSprites() {
@@ -87,9 +114,7 @@ public class MeleeEnemy extends Enemy {
         animSprites = new GImage[4][4];
         for (int state = 0; state < 4; state++) {
             for (int dir = 0; dir < 4; dir++) {
-                GImage img = new GImage(SPRITE_DIR + names[state][dir]);
-                img.setSize(72, 72); // pre-size before canvas.add() so ACM imageUpdate won't reset
-                animSprites[state][dir] = img;
+                animSprites[state][dir] = new GImage(SPRITE_DIR + names[state][dir]);
             }
         }
 

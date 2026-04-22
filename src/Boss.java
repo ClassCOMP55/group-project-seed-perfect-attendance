@@ -137,8 +137,16 @@ public class Boss extends Enemy {
      * @param y       Spawn center Y in world pixels
      * @param tileMap Tile map for collision and line-of-sight
      */
+    private static final String SPRITE_DIR = "assets/visuals/boss/";
+
+    /** Render size in pixels — 4× the player's 58×58. */
+    private static final int RENDER_SIZE  = 232;
+
+    /** Half of RENDER_SIZE — used for hitbox/hurtbox sizing and collisionHalf(). */
+    private static final int RENDER_HALF  = RENDER_SIZE / 2; // 116
+
     public Boss(double x, double y, TileMap tileMap) {
-        super(x, y, "assets/boss.png", tileMap,
+        super(x, y, SPRITE_DIR + "boss_run_front.gif", tileMap,
               10,               // maxHealth
               PHASE1_SPEED,     // patrolSpeed  (unused — Boss doesn't patrol)
               PHASE1_SPEED,     // chaseSpeed   (updated on phase flip)
@@ -156,7 +164,59 @@ public class Boss extends Enemy {
         this.lungeDurationTimer = 0;
         this.lungeCooldownTicks = 0;
         this.projectiles       = null; // wired by Room via setProjectileList()
-        setSpriteRenderSize(96, 96);
+
+        // Resize hitbox and hurtbox to match 232×232 visual body
+        hitbox.width  = RENDER_SIZE;
+        hitbox.height = RENDER_SIZE;
+        hitbox.updatePosition(x - RENDER_HALF, y - RENDER_HALF);
+        hurtbox = new Hurtbox(x, y, 80.0, 88.0); // 4× the default 20/22 radii
+
+        loadAllSprites();
+        setSpriteRenderSize(RENDER_SIZE, RENDER_SIZE);
+    }
+
+    @Override
+    protected int collisionHalf() { return RENDER_HALF; }
+
+    private void loadAllSprites() {
+        String[][] names = {
+            // IDLE — reuse run sprites
+            { "boss_run_front.gif",   "boss_run_back.gif",
+              "boss_run_left.gif",    "boss_run_right.gif"   },
+            // ATTACK
+            { "boss_attack_front.gif","boss_attack_back.gif",
+              "boss_attack_left.gif", "boss_attack_right.gif" },
+            // HURT
+            { "boss_hurt_front.gif",  "boss_hurt_back.gif",
+              "boss_hurt_left.gif",   "boss_hurt_right.gif"   },
+            // DEATH
+            { "boss_death_front.gif", "boss_death_back.gif",
+              "boss_death_left.gif",  "boss_death_right.gif"  },
+        };
+
+        animSprites = new GImage[4][4];
+        for (int state = 0; state < 4; state++) {
+            for (int dir = 0; dir < 4; dir++) {
+                GImage img = new GImage(SPRITE_DIR + names[state][dir]);
+                img.setSize(RENDER_SIZE, RENDER_SIZE);
+                animSprites[state][dir] = img;
+            }
+        }
+
+        SpriteAnimator anim = getAnimator();
+        Direction[] dirs = { Direction.DOWN, Direction.UP, Direction.LEFT, Direction.RIGHT };
+        for (int d = 0; d < dirs.length; d++) {
+            anim.addFrames(dirs[d], java.util.Collections.singletonList(animSprites[0][d]));
+        }
+
+        String[] deathFiles = {
+            "boss_death_front.gif", "boss_death_back.gif",
+            "boss_death_left.gif",  "boss_death_right.gif"
+        };
+        deathFramePathsByDirection = new String[4][1];
+        for (int dir = 0; dir < 4; dir++) {
+            deathFramePathsByDirection[dir][0] = SPRITE_DIR + deathFiles[dir];
+        }
     }
 
     // ==========================================================
@@ -200,6 +260,13 @@ public class Boss extends Enemy {
      */
     @Override
     public void update(double dt, Entity target) {
+        // Terminal state: tick death animation and do nothing else
+        if (animState == AnimState.DEATH) {
+            if (animTimer > 0) animTimer -= dt;
+            tickDeathAnimation(dt);
+            return;
+        }
+
         // 1. Tick down all cooldowns
         if (attackCooldownTicks > 0) attackCooldownTicks--;
         if (meleeCooldownTicks  > 0) meleeCooldownTicks--;
@@ -208,7 +275,7 @@ public class Boss extends Enemy {
         // 2. Check for phase transition
         checkPhaseFlip();
 
-        if (target != null && isAlive()) {
+        if (target != null && health > 0) {
             if (isLunging) {
                 // 3a. Lunge sequence takes priority over normal attacks
                 doLunge(dt, target);
