@@ -126,6 +126,12 @@ public class GameplayPane extends GraphicsPane {
     /** Last room ID that audio sync logic observed while gameplay was active. */
     private String lastMusicRoomId;
 
+    /**
+     * Mirrors {@link Player#hasIntangible()} for HUD / controls-card rows. When the Courage relic
+     * is granted mid-session (chest), this flips so we can rebuild the HUD without re-entering the pane.
+     */
+    private boolean hudBuiltWithIntangibleOwned;
+
     // =========================================================
     // CONTROLS CARD OVERLAY
     // =========================================================
@@ -138,6 +144,14 @@ public class GameplayPane extends GraphicsPane {
     /** Small close button in the card header. */
     private acm.graphics.GRoundRect controlsCardCloseFrame;
     private acm.graphics.GLabel controlsCardCloseLabel;
+
+    /** Shown before the Courage relic is awarded (no K row). */
+    private static final String[][] BASE_CONTROLS_CARD_ROWS_NO_ABILITY = {
+        { "MOVE", "WASD" },
+        { "ATTACK", "J" },
+        { "SAVE / USE", "E" },
+        { "PAUSE", "ESC" }
+    };
 
     private static final String[][] BASE_CONTROLS_CARD_ROWS = {
         { "MOVE", "WASD" },
@@ -278,6 +292,7 @@ public class GameplayPane extends GraphicsPane {
         // --- player HUD ---
         // showPlayerHUD(player); // OLD: temp HUD from GraphicsPane — kept as fallback
         hud.showAll(this, buildHudSnapshot(player));
+        hudBuiltWithIntangibleOwned = player.hasIntangible();
         if (controlsCardVisible) {
             showControlsCard();
         }
@@ -501,6 +516,7 @@ public class GameplayPane extends GraphicsPane {
 
         // --- world update (always runs; WorldMap handles state internally) ---
         worldMap.update(dt, player);
+        syncHudIntangibleOwnershipIfChanged(player);
         syncActiveRoomMusic();
         bringActiveRoomForegroundToFront();
 
@@ -555,6 +571,9 @@ public class GameplayPane extends GraphicsPane {
         if (player == null || player.isAlive() || player.isDying() || deathDelayTicks > 0) {
             return;
         }
+        if (worldMap != null) {
+            worldMap.handlePlayerDeath(player);
+        }
         player.removeSwingFrom(canvas);
         player.triggerDeathAnimation();
         deathDelayTicks = DEATH_DELAY;
@@ -603,7 +622,7 @@ public class GameplayPane extends GraphicsPane {
     /**
      * Binds discrete-action keys (attack, use / talk, ability) via InputHandler.onPress().
      * WASD movement is already handled inside Player.update() via isHeld().
-     * K → {@link Player#activateIntangible()} (relic + cooldown gated inside Player; no on-screen hint here).
+     * K → {@link Player#activateIntangible()} (Courage relic shield + cooldown gated inside Player).
      * Called from showContent(); safe to call multiple times (no-ops after first).
      */
     private void wireInputOnce() {
@@ -622,7 +641,7 @@ public class GameplayPane extends GraphicsPane {
         input.onPress(KeyEvent.VK_K, () -> {
             if (!mainScreen.isPauseModalOpen() && GamePlayState.PLAYING.is()) {
                 Player p = mainScreen.getPlayer();
-                if (p != null) {
+                if (p != null && p.hasIntangible()) {
                     p.activateIntangible();
                 }
             }
@@ -655,6 +674,9 @@ public class GameplayPane extends GraphicsPane {
             input.onPress(KeyEvent.VK_F6, () -> {
                 debugOverlayOn = !debugOverlayOn;
                 worldDebugMarkersVisible = debugOverlayOn;
+                if (debugOverlayOn) {
+                    logTrialDebugSnapshot(mainScreen.getPlayer());
+                }
                 if (!debugOverlayOn) clearDebugOverlay(mainScreen.getGCanvas());
             });
 
@@ -720,7 +742,7 @@ public class GameplayPane extends GraphicsPane {
     private void showControlsCard() {
         clearControlsCardVisuals();
         controlsCardVisible = true;
-        String[][] rows = getControlsCardRows();
+        String[][] rows = getControlsCardRows(mainScreen.getPlayer());
 
         double scale = uniformScale();
         double marginRight = 34.0 * scale;
@@ -923,21 +945,38 @@ public class GameplayPane extends GraphicsPane {
         }
     }
 
-    private String[][] getControlsCardRows() {
+    private String[][] getControlsCardRows(Player player) {
+        String[][] base = (player != null && player.hasIntangible())
+            ? BASE_CONTROLS_CARD_ROWS
+            : BASE_CONTROLS_CARD_ROWS_NO_ABILITY;
+
         if (!MainApplication.DEBUG_SHORTCUTS_ENABLED) {
-            return BASE_CONTROLS_CARD_ROWS;
+            return base;
         }
 
-        String[][] rows = new String[BASE_CONTROLS_CARD_ROWS.length + DEBUG_CONTROLS_CARD_ROWS.length][];
-        System.arraycopy(BASE_CONTROLS_CARD_ROWS, 0, rows, 0, BASE_CONTROLS_CARD_ROWS.length);
+        String[][] rows = new String[base.length + DEBUG_CONTROLS_CARD_ROWS.length][];
+        System.arraycopy(base, 0, rows, 0, base.length);
         System.arraycopy(
             DEBUG_CONTROLS_CARD_ROWS,
             0,
             rows,
-            BASE_CONTROLS_CARD_ROWS.length,
+            base.length,
             DEBUG_CONTROLS_CARD_ROWS.length
         );
         return rows;
+    }
+
+    /** Rebuilds relic HUD + optional controls row when {@link Player#hasIntangible()} changes in-world. */
+    private void syncHudIntangibleOwnershipIfChanged(Player player) {
+        boolean owned = player.hasIntangible();
+        if (owned == hudBuiltWithIntangibleOwned) {
+            return;
+        }
+        hudBuiltWithIntangibleOwned = owned;
+        hud.showAll(this, buildHudSnapshot(player));
+        if (controlsCardVisible) {
+            showControlsCard();
+        }
     }
 
     private void centerControlsCardLabel(
@@ -1002,15 +1041,15 @@ public class GameplayPane extends GraphicsPane {
             java.awt.Color.YELLOW, "iFRM");
         pBarY -= 10;
 
-        // Intangible active (blue glow)
+        // Courage shield active (blue glow)
         if (player.isIntangibleActive()) {
             drawCooldownBar(canvas, pBarX, pBarY, pBarW, pBarH,
                 player.getIntangibleActiveTicks(), player.getIntangibleActiveMax(),
-                new java.awt.Color(100, 150, 255), "INTG");
+                new java.awt.Color(100, 150, 255), "SHLD");
             pBarY -= 10;
         }
 
-        // Intangible cooldown (dark blue)
+        // Courage shield cooldown (dark blue)
         if (player.getIntangibleCooldownTicks() > 0) {
             drawCooldownBar(canvas, pBarX, pBarY, pBarW, pBarH,
                 player.getIntangibleCooldownTicks(), player.getIntangibleCooldownMax(),
@@ -1047,6 +1086,7 @@ public class GameplayPane extends GraphicsPane {
         posLabel.setColor(java.awt.Color.WHITE);
         canvas.add(posLabel);
         debugObjects.add(posLabel);
+        drawTrialDebugPanel(canvas, activeRoom, player);
 
         // --- sword swing hitbox (magenta) ---
         SwordSwing swing = player.getActiveSwing();
@@ -1338,6 +1378,47 @@ public class GameplayPane extends GraphicsPane {
         lbl.setColor(color);
         canvas.add(lbl);
         debugObjects.add(lbl);
+    }
+
+    /** Trial-chamber F6 panel: condensed room-specific state for A2/A3/B3 plus console snapshot on toggle. */
+    private void drawTrialDebugPanel(acm.graphics.GCanvas canvas, Room activeRoom, Player player) {
+        java.util.List<String> lines = worldMap.getTrialDebugLines(activeRoom, player);
+        if (lines == null || lines.isEmpty()) {
+            return;
+        }
+
+        double panelX = 10.0;
+        double panelY = 22.0;
+        double panelW = 430.0;
+        double lineH = 15.0;
+        double panelH = 10.0 + lines.size() * lineH;
+
+        acm.graphics.GRect panel = new acm.graphics.GRect(panelX, panelY, panelW, panelH);
+        panel.setFilled(true);
+        panel.setFillColor(new java.awt.Color(15, 18, 28, 195));
+        panel.setColor(new java.awt.Color(115, 180, 255, 210));
+        canvas.add(panel);
+        debugObjects.add(panel);
+
+        for (int i = 0; i < lines.size(); i++) {
+            acm.graphics.GLabel line = new acm.graphics.GLabel(lines.get(i), panelX + 8.0, panelY + 16.0 + i * lineH);
+            line.setFont("SansSerif-BOLD-11");
+            line.setColor(i == 0 ? new java.awt.Color(150, 220, 255) : java.awt.Color.WHITE);
+            canvas.add(line);
+            debugObjects.add(line);
+        }
+    }
+
+    private void logTrialDebugSnapshot(Player player) {
+        Room activeRoom = worldMap == null ? null : worldMap.getActiveRoom();
+        java.util.List<String> lines = worldMap == null ? null : worldMap.getTrialDebugLines(activeRoom, player);
+        if (lines == null || lines.isEmpty()) {
+            System.out.println("[TRIAL DEBUG] F6 enabled outside a trial chamber.");
+            return;
+        }
+        for (String line : lines) {
+            System.out.println("[TRIAL DEBUG] " + line);
+        }
     }
 
     /** Removes all debug overlay GObjects from the canvas. */

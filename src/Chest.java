@@ -274,6 +274,7 @@ public class Chest extends WorldObject {
     public void    setLocked(boolean locked) { this.locked = locked; }
     public void    setLockedMessage(String msg) { this.lockedMessage = msg; }
     public String  getChestId()            { return chestId; }
+    public boolean isLocked()              { return locked; }
     public boolean isOpen()                { return isOpen; }
 
     /** Converts "broken_lever" → "Broken Lever", "pickaxe" → "Pickaxe", etc. */

@@ -97,6 +97,7 @@ import java.awt.Color;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 
 /**
@@ -235,7 +236,7 @@ public class WorldMap {
     private final List<HeroThicket> heroThickets = new ArrayList<>();
     private Chest courageChest;
     private Chest strengthChest;
-    private Chest wisdomChest;
+    private WisdomTrialChest wisdomChest;
 
     // =========================================================
     // DUNGEON ENTRANCE MARKER (tech-demo placeholder)
@@ -408,7 +409,13 @@ public class WorldMap {
     private static final String A2_HERO_THICKET_FLAG = "hero_thicket_a2_cleared";
     private static final String A3_HERO_THICKET_FLAG = "hero_thicket_a3_cleared";
     private static final String B3_HERO_THICKET_FLAG = "hero_thicket_b3_cleared";
+    private static final String A3_TRIAL_SOLVED_FLAG = "trial_of_courage_cleared";
     private static final String DRAWBRIDGE_REPAIRED_FLAG = "drawbridge_c1_repaired";
+
+    private static final double A3_TRIAL_TRIGGER_RADIUS_PX = 96.0;
+    private static final double A3_TRIAL_DURATION_SECONDS = 30.0;
+    private static final double A3_TRIAL_INITIAL_SPAWN_INTERVAL = 0.85;
+    private static final double A3_TRIAL_MIN_SPAWN_INTERVAL = 0.22;
 
     private static final int[][] A2_HERO_THICKET_TILES = {
         {11, 9}, {12, 9}, {13, 9},
@@ -420,6 +427,46 @@ public class WorldMap {
         {10, 9}, {11, 9}, {12, 9},
         {10, 10}, {11, 10}, {12, 10},
         {10, 11}, {11, 11}, {12, 11}
+    };
+
+    /** Temporary retreat blocker used only while the A3 courage storm is active. */
+    private static final int[][] A3_TRIAL_ACTIVE_BLOCK_TILES = {
+        {12, 9}, {12, 10}, {12, 11}
+    };
+
+    /**
+     * Fixed Courage-trial projectile emitters in A3, expressed as tile col,row pairs.
+     * Built from design notes:
+     * 1,1 -> 16,1
+     * 1,1 -> 1,13
+     * 1,13 -> 9,13
+     * 9,7 -> 9,8
+     * 10,5 -> 10,6
+     * 11,5
+     * 12,4
+     * 13,4
+     * 14,3
+     * 15,3
+     * 16,3
+     * 17,1
+     * 17,2
+     */
+    private static final int[][] A3_TRIAL_PROJECTILE_SPAWN_TILES = {
+        {1, 1}, {2, 1}, {3, 1}, {4, 1}, {5, 1}, {6, 1}, {7, 1}, {8, 1},
+        {9, 1}, {10, 1}, {11, 1}, {12, 1}, {13, 1}, {14, 1}, {15, 1}, {16, 1},
+        {1, 2}, {1, 3}, {1, 4}, {1, 5}, {1, 6}, {1, 7}, {1, 8}, {1, 9},
+        {1, 10}, {1, 11}, {1, 12}, {1, 13},
+        {2, 13}, {3, 13}, {4, 13}, {5, 13}, {6, 13}, {7, 13}, {8, 13}, {9, 13},
+        {9, 7}, {9, 8},
+        {10, 5}, {10, 6},
+        {11, 5},
+        {12, 4},
+        {13, 4},
+        {14, 3},
+        {15, 3},
+        {16, 3},
+        {17, 1},
+        {17, 2}
     };
 
     private static final int[][] B3_HERO_THICKET_TILES = {
@@ -448,6 +495,15 @@ public class WorldMap {
     private boolean d1Cleared = false;
     private boolean d2Solved  = false;
     private boolean a2Solved  = false;
+    private boolean a3Solved  = false;
+    private boolean a3TrialWarned = false;
+    private boolean a3WaitingForRetreat = false;
+    private boolean a3TrialActive = false;
+    private double a3TrialTimeRemaining = 0.0;
+    private double a3TrialSpawnTimer = 0.0;
+    private int a3TrialLastSpawnIndex = -1;
+    private boolean a3RetreatWarningLatched = false;
+    private final Random a3TrialRandom = new Random();
 
     // =========================================================
     // CONSTRUCTOR
@@ -552,6 +608,7 @@ public class WorldMap {
         installHeroThickets();
         installDrawbridgeLever();
         installTrialChests();
+        installA3Trial();
         installA2Puzzle();
         installA2Grass();
         installA2DebugBlockers();
@@ -729,7 +786,7 @@ public class WorldMap {
 
     private static final String[] LITTLE_GIRL_HINT3_LINES = {
         "One time I met this guy with really crazy yellow hair. He told me that real heroes don't give up.",
-        "They go beyond even when things seem impossible. He kept shouting... \"plus extra\" really loud. I think that's what he said."
+        "They go beyond even when things seem impossible. He kept shouting, \"Plus Ultra!\" It sounded important."
     };
 
     private static final String LITTLE_GIRL_HINT1_FLAG = "little_girl_hint1_seen";
@@ -818,14 +875,25 @@ public class WorldMap {
 
         Room b3 = overworldGrid[1][2];
         if (b3 != null) {
-            wisdomChest = new Chest(
+            wisdomChest = new WisdomTrialChest(
                 TRIAL_CHEST_B3_X, TRIAL_CHEST_B3_Y,
-                "chest_b3_wisdom", Chest.RELIC_REFLECT, true
+                "chest_b3_wisdom"
             );
             wisdomChest.setDialogue(dialogue);
             wisdomChest.setCollectedItemRecorder(this::markCollectedItem);
             b3.addObject(wisdomChest);
         }
+    }
+
+    /** Locks the A3 courage chest until the player survives the dodge gauntlet. */
+    private void installA3Trial() {
+        if (courageChest != null) {
+            courageChest.setLocked(true);
+            courageChest.setLockedMessage(
+                "A storm of magic coils around the relic. Step closer to begin the Trial of Courage."
+            );
+        }
+        resetA3TrialState(false);
     }
 
     /** Seeds cuttable Grass objects into A2 at the floor tiles added to the room layout. */
@@ -991,11 +1059,8 @@ public class WorldMap {
         a2.addRespawningEntity(() -> new RangedEnemy(800, 400, a2.getTileMap()));
     }
 
-    /** Timed Gauntlet room — mixed patrol. */
+    /** Timed Gauntlet room — projectile survival trial, so no roaming enemies. */
     private void populateA3() {
-        Room a3 = overworldGrid[0][2];
-        a3.addRespawningEntity(() -> new LizardEnemy(400, 300, a3.getTileMap()));
-        a3.addRespawningEntity(() -> new RangedEnemy(780, 280, a3.getTileMap()));
     }
 
     /** Inn (B1) — single lizard. */
@@ -1151,6 +1216,7 @@ public class WorldMap {
         a2.setPuzzleSolvedCallback(() -> {
             a2Solved = true;
             if (strengthChest != null) strengthChest.setLocked(false);
+            debugTrialLog("A2 solved: all pressure buttons are pressed; strength chest unlocked.");
             if (dialogue != null && !dialogue.isOpen()) {
                 GamePlayState.setCurrent(GamePlayState.DIALOGUE);
                 dialogue.open(
@@ -1164,6 +1230,398 @@ public class WorldMap {
                 );
             }
         });
+    }
+
+    /** Drives the A3 dodge gauntlet: warning, retreat check, projectile storm, then chest unlock. */
+    private void updateA3Trial(double dt, Player player) {
+        if (player == null || courageChest == null || a3Solved) {
+            return;
+        }
+        if (!GamePlayState.PLAYING.is()) {
+            return;
+        }
+
+        boolean nearChest = isPlayerNearA3Chest(player);
+
+        if (!a3TrialWarned && !a3TrialActive && nearChest) {
+            a3TrialWarned = true;
+            a3WaitingForRetreat = true;
+            debugTrialLog("A3 warned: player entered the courage chest trigger radius.");
+            if (dialogue != null && !dialogue.isOpen()) {
+                GamePlayState.setCurrent(GamePlayState.DIALOGUE);
+                dialogue.open(
+                    new String[]{
+                        "A chill runs through the air around the relic.",
+                        "Back up. Survive the storm for thirty seconds, and the chest will open."
+                    },
+                    "Trial of Courage",
+                    false,
+                    () -> GamePlayState.setCurrent(GamePlayState.PLAYING)
+                );
+            }
+            return;
+        }
+
+        if (a3WaitingForRetreat && !nearChest) {
+            startA3Trial();
+        }
+
+        if (!a3TrialActive) {
+            return;
+        }
+
+        a3TrialTimeRemaining -= dt;
+        a3TrialSpawnTimer -= dt;
+        while (a3TrialSpawnTimer <= 0.0 && a3TrialActive) {
+            spawnA3GauntletVolley(player);
+            a3TrialSpawnTimer += computeA3SpawnInterval();
+        }
+        maybeWarnA3RetreatAttempt(player);
+
+        if (a3TrialTimeRemaining <= 0.0) {
+            completeA3Trial();
+        }
+    }
+
+    private void startA3Trial() {
+        Room a3 = overworldGrid[0][2];
+        if (a3 == null) return;
+        a3WaitingForRetreat = false;
+        a3TrialActive = true;
+        a3TrialTimeRemaining = A3_TRIAL_DURATION_SECONDS;
+        a3TrialSpawnTimer = 0.15;
+        a3TrialLastSpawnIndex = -1;
+        a3RetreatWarningLatched = false;
+        setA3TrialRetreatBarrier(true);
+        clearRoomProjectiles(a3);
+        debugTrialLog("A3 started: courage storm active for 30.0 seconds.");
+    }
+
+    private void completeA3Trial() {
+        a3TrialActive = false;
+        a3TrialTimeRemaining = 0.0;
+        a3TrialSpawnTimer = 0.0;
+        a3RetreatWarningLatched = false;
+        setA3TrialRetreatBarrier(false);
+        a3Solved = true;
+        addStoryFlag(A3_TRIAL_SOLVED_FLAG);
+        if (courageChest != null) {
+            courageChest.setLocked(false);
+        }
+        debugTrialLog("A3 cleared: courage chest unlocked.");
+        Room a3 = overworldGrid[0][2];
+        if (a3 != null) {
+            clearRoomProjectiles(a3);
+        }
+        if (dialogue != null && !dialogue.isOpen()) {
+            GamePlayState.setCurrent(GamePlayState.DIALOGUE);
+            dialogue.open(
+                new String[]{
+                    "The storm breaks.",
+                    "The chest unlocks."
+                },
+                "Trial of Courage",
+                false,
+                () -> GamePlayState.setCurrent(GamePlayState.PLAYING)
+            );
+        }
+    }
+
+    private void resetA3TrialState(boolean clearProjectiles) {
+        a3TrialWarned = false;
+        a3WaitingForRetreat = false;
+        a3TrialActive = false;
+        a3TrialTimeRemaining = 0.0;
+        a3TrialSpawnTimer = 0.0;
+        a3TrialLastSpawnIndex = -1;
+        a3RetreatWarningLatched = false;
+        setA3TrialRetreatBarrier(false);
+        if (clearProjectiles) {
+            Room a3 = overworldGrid[0][2];
+            if (a3 != null) {
+                clearRoomProjectiles(a3);
+            }
+        }
+    }
+
+    private boolean isPlayerNearA3Chest(Player player) {
+        if (player == null || courageChest == null) {
+            return false;
+        }
+        double chestCenterX = courageChest.getX() + 24.0;
+        double chestCenterY = courageChest.getY() + 24.0;
+        double dx = player.getX() - chestCenterX;
+        double dy = player.getY() - chestCenterY;
+        return dx * dx + dy * dy <= A3_TRIAL_TRIGGER_RADIUS_PX * A3_TRIAL_TRIGGER_RADIUS_PX;
+    }
+
+    private void spawnA3GauntletVolley(Player player) {
+        Room a3 = overworldGrid[0][2];
+        if (a3 == null || player == null) return;
+
+        int volleyCount = 1;
+        double elapsed = A3_TRIAL_DURATION_SECONDS - a3TrialTimeRemaining;
+        if (elapsed >= 10.0) volleyCount++;
+        if (elapsed >= 20.0) volleyCount++;
+
+        for (int i = 0; i < volleyCount; i++) {
+            double[] spawn = nextA3TrialSpawn(a3.getTileMap());
+            double targetX = player.getX() + (a3TrialRandom.nextDouble() - 0.5) * 80.0;
+            double targetY = player.getY() + (a3TrialRandom.nextDouble() - 0.5) * 80.0;
+            a3.getProjectiles().add(new Projectile(
+                spawn[0], spawn[1],
+                targetX, targetY,
+                a3.getTileMap(),
+                null
+            ));
+        }
+    }
+
+    private double[] nextA3TrialSpawn(TileMap tileMap) {
+        if (tileMap == null) {
+            return new double[]{ TileMap.MAP_OFFSET_X + 48, 48 };
+        }
+
+        for (int attempts = 0; attempts < A3_TRIAL_PROJECTILE_SPAWN_TILES.length; attempts++) {
+            int randomIndex = a3TrialRandom.nextInt(A3_TRIAL_PROJECTILE_SPAWN_TILES.length);
+            int[] tile = A3_TRIAL_PROJECTILE_SPAWN_TILES[randomIndex];
+            int col = tile[0];
+            int row = tile[1];
+            Tile spawnTile = tileMap.getTileAt(col, row);
+            if (spawnTile != null && spawnTile.isPassable()) {
+                a3TrialLastSpawnIndex = randomIndex;
+                return new double[]{
+                    TileMap.MAP_OFFSET_X + col * 48 + 24.0,
+                    row * 48 + 24.0
+                };
+            }
+        }
+
+        return new double[]{ TileMap.MAP_OFFSET_X + 24 * 48, 24.0 + 13 * 48 };
+    }
+
+    private double computeA3SpawnInterval() {
+        double progress = 1.0 - Math.max(0.0, a3TrialTimeRemaining) / A3_TRIAL_DURATION_SECONDS;
+        return A3_TRIAL_INITIAL_SPAWN_INTERVAL
+            - (A3_TRIAL_INITIAL_SPAWN_INTERVAL - A3_TRIAL_MIN_SPAWN_INTERVAL) * progress;
+    }
+
+    private void setA3TrialRetreatBarrier(boolean blocked) {
+        Room a3 = overworldGrid[0][2];
+        if (a3 == null) {
+            return;
+        }
+        TileMap tileMap = a3.getTileMap();
+        if (tileMap == null) {
+            return;
+        }
+        Tile.TileType type = blocked ? Tile.TileType.WALL : Tile.TileType.FLOOR;
+        String spritePath = blocked ? "assets/tile_wall.png" : "assets/tile_floor.png";
+        for (int[] tile : A3_TRIAL_ACTIVE_BLOCK_TILES) {
+            tileMap.setTileType(tile[0], tile[1], type, spritePath);
+        }
+    }
+
+    private void maybeWarnA3RetreatAttempt(Player player) {
+        if (!a3TrialActive || player == null) {
+            return;
+        }
+
+        boolean inWarningLane = isPlayerInA3RetreatWarningLane(player);
+        if (!inWarningLane) {
+            a3RetreatWarningLatched = false;
+            return;
+        }
+        if (a3RetreatWarningLatched) {
+            return;
+        }
+
+        a3RetreatWarningLatched = true;
+        debugTrialLog("A3 retreat blocked: player tried to leave during the active storm.");
+        if (dialogue != null && !dialogue.isOpen()) {
+            GamePlayState.setCurrent(GamePlayState.DIALOGUE);
+            dialogue.open(
+                new String[]{
+                    "The trial is still active.",
+                    "Push forward!"
+                },
+                "Trial of Courage",
+                false,
+                () -> GamePlayState.setCurrent(GamePlayState.PLAYING)
+            );
+        }
+    }
+
+    /**
+     * Detects the exact A3 retreat warning strip requested by design:
+     * trigger on 11,9 | 11,10 | 11,11 while the temporary barrier sits on 12,9 | 12,10 | 12,11.
+     */
+    private boolean isPlayerInA3RetreatWarningLane(Player player) {
+        if (player == null) {
+            return false;
+        }
+
+        Direction facing = player.getFacing();
+        if (facing != Direction.LEFT && facing != Direction.RIGHT) {
+            return false;
+        }
+
+        double zoneX = TileMap.MAP_OFFSET_X + 11 * 48;
+        double zoneY = 9 * 48;
+        Hitbox retreatZone = new Hitbox(zoneX, zoneY, 48, 3 * 48);
+        return retreatZone.overlaps(player.getHitbox());
+    }
+
+    /** Returns room-specific debug lines for the trial chambers when F6 overlay is enabled. */
+    public List<String> getTrialDebugLines(Room room, Player player) {
+        ArrayList<String> lines = new ArrayList<>();
+        if (room == null) {
+            return lines;
+        }
+
+        String roomId = room.getRoomId();
+        if ("A2".equals(roomId)) {
+            appendA2DebugLines(lines, room);
+        } else if ("A3".equals(roomId)) {
+            appendA3DebugLines(lines, room, player);
+        } else if ("B3".equals(roomId)) {
+            appendB3DebugLines(lines);
+        }
+        return lines;
+    }
+
+    private void appendA2DebugLines(List<String> lines, Room room) {
+        int totalButtons = 0;
+        int pressedButtons = 0;
+        ArrayList<String> buttonStates = new ArrayList<>();
+        ArrayList<String> blockStates = new ArrayList<>();
+
+        for (WorldObject object : room.getObjects()) {
+            if (object instanceof PressureButton) {
+                PressureButton button = (PressureButton) object;
+                totalButtons++;
+                if (button.isPressed()) {
+                    pressedButtons++;
+                }
+                buttonStates.add(String.format(
+                    "%d,%d=%s%s",
+                    button.getTileCol(),
+                    button.getTileRow(),
+                    button.isPressed() ? "ON" : "off",
+                    button.requiresPlayer() ? " (P)" : ""
+                ));
+            } else if (object instanceof PushBlock) {
+                PushBlock block = (PushBlock) object;
+                blockStates.add(String.format(
+                    "%d,%d%s",
+                    block.getTileCol(),
+                    block.getTileRow(),
+                    block.isFallen() ? " FALLEN" : ""
+                ));
+            }
+        }
+
+        lines.add(String.format(
+            "A2 Strength | solved=%s | heroGate=%s",
+            a2Solved,
+            hasStoryFlag(A2_HERO_THICKET_FLAG)
+        ));
+        if (strengthChest != null) {
+            lines.add(String.format(
+                "Chest | locked=%s | open=%s",
+                strengthChest.isLocked(),
+                strengthChest.isOpen()
+            ));
+        }
+        lines.add(String.format("Buttons | %d/%d pressed", pressedButtons, totalButtons));
+        if (!buttonStates.isEmpty()) {
+            lines.add("Button tiles | " + String.join("  ", buttonStates));
+        }
+        if (!blockStates.isEmpty()) {
+            lines.add("Blocks | " + String.join("  ", blockStates));
+        }
+    }
+
+    private void appendA3DebugLines(List<String> lines, Room room, Player player) {
+        lines.add(String.format(
+            "A3 Courage | solved=%s | heroGate=%s",
+            a3Solved,
+            hasStoryFlag(A3_HERO_THICKET_FLAG)
+        ));
+        if (courageChest != null) {
+            lines.add(String.format(
+                "Chest | locked=%s | open=%s | near=%s",
+                courageChest.isLocked(),
+                courageChest.isOpen(),
+                isPlayerNearA3Chest(player)
+            ));
+        }
+        lines.add(String.format(
+            "State | warned=%s retreat=%s active=%s",
+            a3TrialWarned,
+            a3WaitingForRetreat,
+            a3TrialActive
+        ));
+
+        double nextInterval = computeA3SpawnInterval();
+        int volleyCount = 1;
+        double elapsed = A3_TRIAL_DURATION_SECONDS - a3TrialTimeRemaining;
+        if (elapsed >= 10.0) volleyCount++;
+        if (elapsed >= 20.0) volleyCount++;
+        lines.add(String.format(
+            "Storm | time=%.2fs spawnIn=%.2fs interval=%.2fs volley=%d projectiles=%d",
+            Math.max(0.0, a3TrialTimeRemaining),
+            Math.max(0.0, a3TrialSpawnTimer),
+            nextInterval,
+            volleyCount,
+            room.getProjectiles().size()
+        ));
+
+        if (a3TrialLastSpawnIndex >= 0 && a3TrialLastSpawnIndex < A3_TRIAL_PROJECTILE_SPAWN_TILES.length) {
+            int[] lastEmitter = A3_TRIAL_PROJECTILE_SPAWN_TILES[a3TrialLastSpawnIndex];
+            lines.add(String.format(
+                "Emitters | last=%d,%d randomPool=%d",
+                lastEmitter[0],
+                lastEmitter[1],
+                A3_TRIAL_PROJECTILE_SPAWN_TILES.length
+            ));
+        } else {
+            lines.add(String.format(
+                "Emitters | last=none randomPool=%d",
+                A3_TRIAL_PROJECTILE_SPAWN_TILES.length
+            ));
+        }
+    }
+
+    private void appendB3DebugLines(List<String> lines) {
+        lines.add(String.format(
+            "B3 Wisdom | heroGate=%s",
+            hasStoryFlag(B3_HERO_THICKET_FLAG)
+        ));
+        if (wisdomChest != null) {
+            lines.add(String.format(
+                "Chest | locked=%s | open=%s",
+                wisdomChest.isLocked(),
+                wisdomChest.isOpen()
+            ));
+        }
+    }
+
+    private void debugTrialLog(String message) {
+        if (!GameplayPane.areWorldDebugMarkersVisible()) {
+            return;
+        }
+        System.out.println("[TRIAL DEBUG] " + message);
+    }
+
+    private void clearRoomProjectiles(Room room) {
+        if (room == null) return;
+        if (canvas != null) {
+            for (Projectile projectile : room.getProjectiles()) {
+                projectile.removeSpriteFromCanvas(canvas);
+            }
+        }
+        room.getProjectiles().clear();
     }
 
     /** D2 is a puzzle-only room — no enemies. */
@@ -1323,7 +1781,12 @@ public class WorldMap {
             activeRoom.update(dt, player);
 
             if (!player.isAlive()) {
+                handlePlayerDeath(player);
                 return;
+            }
+
+            if (activeRoom == overworldGrid[0][2]) {
+                updateA3Trial(dt, player);
             }
 
             // --- dungeon entrance check (C3 only) ---
@@ -1339,6 +1802,40 @@ public class WorldMap {
             if (inDungeon && activeRoom == dungeonRooms[0]) {
                 checkDungeonExitTrigger(player);
             }
+        }
+    }
+
+    /**
+     * Resets trial-room transient state on player death.
+     * For A3, death is a failure: clear the storm and make the chest approach restart cleanly.
+     */
+    public void handlePlayerDeath(Player player) {
+        if (player == null || a3Solved || activeRoom != overworldGrid[0][2]) {
+            return;
+        }
+
+        boolean failedActiveTrial = a3TrialActive;
+        boolean shouldResetA3 = a3TrialWarned
+            || a3WaitingForRetreat
+            || a3TrialActive
+            || !activeRoom.getProjectiles().isEmpty();
+        if (!shouldResetA3) {
+            return;
+        }
+
+        resetA3TrialState(true);
+        debugTrialLog("A3 failed: player died, storm cleared, trial reset.");
+        if (failedActiveTrial && dialogue != null && !dialogue.isOpen()) {
+            GamePlayState.setCurrent(GamePlayState.DIALOGUE);
+            dialogue.open(
+                new String[]{
+                    "You failed the Trial of Courage.",
+                    "Gather yourself and try again."
+                },
+                "Trial of Courage",
+                false,
+                () -> GamePlayState.setCurrent(GamePlayState.PLAYING)
+            );
         }
     }
 
@@ -1375,6 +1872,9 @@ public class WorldMap {
             // If re-entering D1, reset the cleared flag so the blocker reappears
             if (room == dungeonRooms[0]) {
                 d1Cleared = false;
+            }
+            if (room == overworldGrid[0][2] && !a3Solved) {
+                resetA3TrialState(false);
             }
         }
     }
@@ -1679,7 +2179,17 @@ public class WorldMap {
                 thicket.syncPersistentState();
             }
         }
-        if (courageChest  != null && hasCollectedItem(courageChest.getChestId()))  courageChest.forceOpen();
+        if (hasStoryFlag(A3_TRIAL_SOLVED_FLAG)) {
+            a3Solved = true;
+            if (courageChest != null) {
+                courageChest.setLocked(false);
+            }
+        }
+        if (courageChest != null && hasCollectedItem(courageChest.getChestId())) {
+            courageChest.setLocked(false);
+            courageChest.forceOpen();
+            a3Solved = true;
+        }
         if (strengthChest != null && hasCollectedItem(strengthChest.getChestId())) {
             strengthChest.setLocked(false);
             strengthChest.forceOpen();
