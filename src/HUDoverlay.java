@@ -239,9 +239,9 @@ within this class
       int quarterUnits = Math.max(0, Math.min(4, filled - i * 4));
       String path;
       if      (quarterUnits == 4) path = HEART_FULL;
-      else if (quarterUnits == 3) path = HEART_LAST_QUARTER;
+      else if (quarterUnits == 3) path = HEART_QUARTER;
       else if (quarterUnits == 2) path = HEART_HALF;
-      else if (quarterUnits == 1) path = HEART_QUARTER;
+      else if (quarterUnits == 1) path = HEART_LAST_QUARTER;
       else                        path = HEART_EMPTY;
       double x = HEART_ROW_X + i * (heartW + gapBetweenHearts);
       GImage img = new GImage(path, x, HEART_ROW_Y);
