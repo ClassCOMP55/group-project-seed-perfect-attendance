@@ -30,6 +30,8 @@ import java.util.Collections;
 public class ArmorEnemy extends Enemy {
 
     private static final String SPRITE_DIR = "assets/visuals/mushroom mob/";
+    /** Mushroom assets are standard 48x48 sprites; render at the common enemy size. */
+    private static final double RENDER_SIZE = 72.0;
     private static final int MAX_HEALTH = 3 * Player.HALF_HEARTS_PER_HEART;
     private static final double PATROL_SPEED = 28.0;
     private static final double CHASE_SPEED = 30.0;
@@ -69,7 +71,7 @@ public class ArmorEnemy extends Enemy {
         this.turnCooldownTicks = 0;
         this.isPushable = false;
         loadAllSprites();
-        setSpriteRenderSize(114, 114);
+        setSpriteRenderSize(RENDER_SIZE, RENDER_SIZE);
     }
 
     private void loadAllSprites() {
@@ -93,7 +95,7 @@ public class ArmorEnemy extends Enemy {
         for (int state = 0; state < 4; state++) {
             for (int dir = 0; dir < 4; dir++) {
                 GImage img = new GImage(SPRITE_DIR + names[state][dir]);
-                img.setSize(114, 114); // pre-size before canvas.add() so ACM imageUpdate won't reset
+                img.setSize(RENDER_SIZE, RENDER_SIZE); // pre-size before canvas.add() so ACM imageUpdate won't reset
                 animSprites[state][dir] = img;
             }
         }
