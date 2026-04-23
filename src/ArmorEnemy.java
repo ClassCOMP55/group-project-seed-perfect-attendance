@@ -69,7 +69,7 @@ public class ArmorEnemy extends Enemy {
         this.turnCooldownTicks = 0;
         this.isPushable = false;
         loadAllSprites();
-        setSpriteRenderSize(72, 72);
+        setSpriteRenderSize(114, 114);
     }
 
     private void loadAllSprites() {
@@ -93,7 +93,7 @@ public class ArmorEnemy extends Enemy {
         for (int state = 0; state < 4; state++) {
             for (int dir = 0; dir < 4; dir++) {
                 GImage img = new GImage(SPRITE_DIR + names[state][dir]);
-                img.setSize(72, 72); // pre-size before canvas.add() so ACM imageUpdate won't reset
+                img.setSize(114, 114); // pre-size before canvas.add() so ACM imageUpdate won't reset
                 animSprites[state][dir] = img;
             }
         }
