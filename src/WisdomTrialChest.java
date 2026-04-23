@@ -39,6 +39,7 @@ public class WisdomTrialChest extends WorldObject {
     private Consumer<String> collectedItemRecorder;
 
     private final GImage chestSprite;
+    private final BufferedImage openImage;
     private final GRect placeholder;
     private double spriteRenderWidth = 48.0;
     private double spriteRenderHeight = 48.0;
@@ -47,7 +48,8 @@ public class WisdomTrialChest extends WorldObject {
         super(x, y, 48, 48);
         this.chestId = chestId;
         this.isOpen = false;
-        this.chestSprite = loadSprite("assets/visuals/png's/chest.png");
+        this.chestSprite = loadSprite("assets/visuals/png's/chest_closed.png");
+        this.openImage   = loadRawImage("assets/visuals/png's/chest.png");
 
         this.placeholder = new GRect(x, y, 48, 48);
         this.placeholder.setFilled(true);
@@ -151,6 +153,7 @@ public class WisdomTrialChest extends WorldObject {
         }
 
         isOpen = true;
+        swapToOpenSprite();
         GameSFX.play(GameSFX.SFX.CHEST_OPEN);
         player.setHasReflect(true);
         player.collectItem(new ReflectRelicItem());
@@ -171,6 +174,7 @@ public class WisdomTrialChest extends WorldObject {
 
     public void forceOpen() {
         isOpen = true;
+        swapToOpenSprite();
     }
 
     public void setDialogue(Dialogue dialogue) {
@@ -191,6 +195,27 @@ public class WisdomTrialChest extends WorldObject {
 
     public boolean isLocked() {
         return false;
+    }
+
+    private void swapToOpenSprite() {
+        if (chestSprite == null || openImage == null) return;
+        BufferedImage trimmed = trimTransparentBounds(openImage);
+        double nativeWidth  = Math.max(1.0, trimmed.getWidth());
+        double nativeHeight = Math.max(1.0, trimmed.getHeight());
+        double scale = CHEST_SPRITE_TARGET_HEIGHT / nativeHeight;
+        spriteRenderWidth  = Math.max(48.0, nativeWidth * scale);
+        spriteRenderHeight = CHEST_SPRITE_TARGET_HEIGHT;
+        chestSprite.setImage(trimmed);
+        chestSprite.setSize(spriteRenderWidth, spriteRenderHeight);
+        resetVisualPosition();
+    }
+
+    private BufferedImage loadRawImage(String path) {
+        try {
+            return ImageIO.read(new File(path));
+        } catch (IOException | RuntimeException ignored) {
+            return null;
+        }
     }
 
     private GImage loadSprite(String path) {
