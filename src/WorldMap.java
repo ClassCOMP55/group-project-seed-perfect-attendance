@@ -306,7 +306,7 @@ public class WorldMap {
     /** Starter sign + NPC positions in A1 so room dialogue can be tested immediately from spawn. */
     private static final double START_SIGN_X = TileMap.MAP_OFFSET_X + 15 * 48;
     private static final double START_SIGN_Y = 7 * 48;
-    private static final double START_NPC_X  = TileMap.MAP_OFFSET_X + 10 * 48;
+    private static final double START_NPC_X  = TileMap.MAP_OFFSET_X + 7 * 48;
     private static final double START_NPC_Y  = 10 * 48;
     private static final double START_BREAD_MERCHANT_X = TileMap.MAP_OFFSET_X + 11 * 48;
     private static final double START_BREAD_MERCHANT_Y = 4 * 48;
@@ -382,8 +382,8 @@ public class WorldMap {
     private static final String PICKAXE_TAKEN_FLAG   = "pickaxe_prop_taken";
 
     /** Position of the decorative pickaxe prop placed next to the drunk NPC in A1. */
-    private static final double PICKAXE_PROP_X = TileMap.MAP_OFFSET_X + 11 * 48;
-    private static final double PICKAXE_PROP_Y = 10 * 48;
+    private static final double PICKAXE_PROP_X = TileMap.MAP_OFFSET_X + 7 * 48;
+    private static final double PICKAXE_PROP_Y = 11 * 48;
 
     /** Position of the miner's hat ground pickup in B2 (just left of the ore node). */
     private static final double MINERS_HAT_X = TileMap.MAP_OFFSET_X + 8 * 48;
