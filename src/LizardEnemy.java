@@ -23,17 +23,8 @@ public class LizardEnemy extends Enemy {
     // ==========================================================
 
     private static final String SPRITE_DIR = "assets/visuals/lizard mobs/";
-    /**
-     * Lizard GIFs are exported as multi-frame strips on a large shared canvas instead of the
-     * skeletons' normalized 64x64 canvases. We scale each full GIF so its effective 64x64
-     * animation cell lands at the same on-screen size as the other enemies' 72x72 renders.
-     */
-    private static final double SOURCE_FRAME_SIZE = 64.0;
-    private static final double TARGET_FRAME_SIZE = 72.0;
-    private static final double RUN_CANVAS_WIDTH = 512.0;
-    private static final double ACTION_CANVAS_WIDTH = 448.0;
-    private static final double DAMAGE_CANVAS_WIDTH = 320.0;
-    private static final double CANVAS_HEIGHT = 256.0;
+    /** Lizard assets are standard 48x48 GIFs; render them at the common enemy size. */
+    private static final double RENDER_SIZE = 72.0;
 
     /** 3 hearts in half-heart units, matching the player's default. */
     private static final int MAX_HEALTH = (Player.DEFAULT_HEART_COUNT-1) * Player.HALF_HEARTS_PER_HEART;
@@ -128,20 +119,9 @@ public class LizardEnemy extends Enemy {
         }
     }
 
-    /**
-     * Matches the lizard's large GIF canvas to the same effective frame scale used by the
-     * skeleton enemies so the visible body size is consistent in-game.
-     */
+    /** Keeps lizard visuals at the same on-screen size as the other regular enemies. */
     private void applyRenderSizeForState(AnimState state) {
-        double canvasWidth = RUN_CANVAS_WIDTH;
-        if (state == AnimState.ATTACK || state == AnimState.DEATH) {
-            canvasWidth = ACTION_CANVAS_WIDTH;
-        } else if (state == AnimState.DAMAGE) {
-            canvasWidth = DAMAGE_CANVAS_WIDTH;
-        }
-
-        double scale = TARGET_FRAME_SIZE / SOURCE_FRAME_SIZE;
-        setSpriteRenderSize(canvasWidth * scale, CANVAS_HEIGHT * scale);
+        setSpriteRenderSize(RENDER_SIZE, RENDER_SIZE);
     }
 
     @Override
