@@ -165,10 +165,10 @@ public class Boss extends Enemy {
         this.lungeCooldownTicks = 0;
         this.projectiles       = null; // wired by Room via setProjectileList()
 
-        // Resize hitbox and hurtbox to match 232×232 visual body
-        hitbox.width  = RENDER_SIZE;
-        hitbox.height = RENDER_SIZE;
-        hitbox.updatePosition(x - RENDER_HALF, y - RENDER_HALF);
+        // Hitbox sized to 2×2 tiles (2 × 48px = 96px)
+        hitbox.width  = 96;
+        hitbox.height = 96;
+        hitbox.updatePosition(x - 48, y - 48);
         hurtbox = new Hurtbox(x, y, 80.0, 88.0); // 4× the default 20/22 radii
 
         loadAllSprites();
@@ -177,6 +177,20 @@ public class Boss extends Enemy {
 
     @Override
     protected int collisionHalf() { return RENDER_HALF; }
+
+    /** Shifts the sprite 1.5 tiles (72px) up and left relative to the hitbox center. */
+    private static final int SPRITE_OFFSET = 72; // 1.5 tiles × 48px
+
+    @Override
+    protected void syncVisualPosition() {
+        double hw = RENDER_SIZE / 2.0;
+        double hh = RENDER_SIZE / 2.0;
+        acm.graphics.GImage frame = getAnimator().getCurrentFrame();
+        if (frame != null) {
+            frame.setSize(RENDER_SIZE, RENDER_SIZE);
+            frame.setLocation(x - hw - SPRITE_OFFSET, y - hh - 38);
+        }
+    }
 
     private void loadAllSprites() {
         String[][] names = {
