@@ -668,7 +668,7 @@ public class WorldMap {
             return;
         }
 
-        startRoom.addObject(new Sign(START_SIGN_X, START_SIGN_Y, START_SIGN_LINES, dialogue));
+        //startRoom.addObject(new Sign(START_SIGN_X, START_SIGN_Y, START_SIGN_LINES, dialogue));
         WorldNpc drunkNpc = new WorldNpc(
             START_NPC_X,
             START_NPC_Y,
