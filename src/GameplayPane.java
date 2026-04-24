@@ -240,7 +240,7 @@ public class GameplayPane extends GraphicsPane {
     }
 
     private static final String[] ENDING_DIALOGUE_LINES = {
-        "Bastian... you've done it. The wand is destroyed.",
+        "Warrior... you've done it. You defeated Bastian and destroyed the wand.",
         "I can feel my power returning. The polymorph is breaking at last!",
         "You've saved this town, warrior. I always knew you were the right choice.",
         "Now then. Off you go. Peace is restored. Do... hero things."
