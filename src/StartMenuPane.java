@@ -1,24 +1,25 @@
+import java.awt.Color;
 import java.awt.event.MouseEvent;
 
-import acm.graphics.GLabel;
+import acm.graphics.GImage;
 import acm.graphics.GObject;
-import acm.graphics.GRoundRect;
+import acm.graphics.GRect;
 
 /**
- * Main menu — same night scene and title banner as {@link LandingPane}, with
- * Start / Options / Quit.
+ * Main menu — displays Start Game.png full-screen.
+ * Three hit zones over the baked-in Start Game / Options / Quit buttons.
  */
 public class StartMenuPane extends NightScenePane {
 
-    private GLabel wizardSprite;
-    private GLabel goatSprite;
+    private static final String BG = "assets/visuals/start screen/Start Game.png";
 
-    private GRoundRect startFrame;
-    private GLabel startLabel;
-    private GRoundRect optionsFrame;
-    private GLabel optionsLabel;
-    private GRoundRect quitFrame;
-    private GLabel quitLabel;
+    // All three buttons share the same X and width — tune after first run
+    private static final int BTN_X = 465;
+    private static final int BTN_W = 362;
+    private static final int BTN_H = 45;
+    private static final int BTN_START_Y   = 412;
+    private static final int BTN_OPTIONS_Y = 470;
+    private static final int BTN_QUIT_Y    = 528;
 
     public StartMenuPane(MainApplication mainScreen) {
         this.mainScreen = mainScreen;
@@ -26,47 +27,21 @@ public class StartMenuPane extends NightScenePane {
 
     @Override
     public void showContent() {
-        double ox = originX();
-        double lw = mainScreen.getLayoutWidth();
-        double bw = nightButtonWidth();
-        double bh = nightButtonHeight();
-        double[] tops = threeMenuButtonTops();
+        GImage bg = new GImage(BG, 0, 0);
+        bg.setSize(mainScreen.getWidth(), mainScreen.getHeight());
+        addGraphic(bg);
 
-        paintNightSky();
-        addTitleBanner();
+        makeZone(BTN_X, BTN_START_Y,   BTN_W, BTN_H);
+        makeZone(BTN_X, BTN_OPTIONS_Y, BTN_W, BTN_H);
+        makeZone(BTN_X, BTN_QUIT_Y,    BTN_W, BTN_H);
+    }
 
-        wizardSprite = new GLabel("\uD83E\uDDD9", 0, 0);
-        wizardSprite.setFont(emojiDisplayFont(72));
-        wizardSprite.setColor(NIGHT_CREAM);
-        wizardSprite.setLocation(scaleX(48), scaleY(228));
-        addGraphic(wizardSprite);
-
-        goatSprite = new GLabel("\uD83D\uDC10", 0, 0);
-        goatSprite.setFont(emojiDisplayFont(72));
-        goatSprite.setColor(NIGHT_CREAM);
-        goatSprite.setLocation(scaleX(560), scaleY(228));
-        addGraphic(goatSprite);
-
-        startFrame = addNightButton(ox, lw, tops[0], bw, bh);
-        startLabel = new GLabel("Start Game", 0, 0);
-        startLabel.setFont(displayFont(18));
-        startLabel.setColor(NIGHT_GOLD);
-        centerLabelInRect(startLabel, startFrame);
-        addGraphic(startLabel);
-
-        optionsFrame = addNightButton(ox, lw, tops[1], bw, bh);
-        optionsLabel = new GLabel("Options", 0, 0);
-        optionsLabel.setFont(displayFont(18));
-        optionsLabel.setColor(NIGHT_GOLD);
-        centerLabelInRect(optionsLabel, optionsFrame);
-        addGraphic(optionsLabel);
-
-        quitFrame = addNightButton(ox, lw, tops[2], bw, bh);
-        quitLabel = new GLabel("Quit", 0, 0);
-        quitLabel.setFont(displayFont(18));
-        quitLabel.setColor(NIGHT_GOLD);
-        centerLabelInRect(quitLabel, quitFrame);
-        addGraphic(quitLabel);
+    private GRect makeZone(int x, int y, int w, int h) {
+        GRect r = new GRect(x, y, w, h);
+        r.setFilled(false);
+        r.setColor(new Color(0, 0, 0, 0));
+        addGraphic(r);
+        return r;
     }
 
     @Override
@@ -79,17 +54,17 @@ public class StartMenuPane extends NightScenePane {
 
     @Override
     public void mouseClicked(MouseEvent e) {
-        GObject hit = mainScreen.getElementAtLocation(e.getX(), e.getY());
-        if (hit == startLabel || hit == startFrame) {
+        int mx = e.getX(), my = e.getY();
+        if (inZone(mx, my, BTN_X, BTN_START_Y, BTN_W, BTN_H)) {
             mainScreen.switchToGameSavesScreen();
-            return;
-        }
-        if (hit == optionsLabel || hit == optionsFrame) {
+        } else if (inZone(mx, my, BTN_X, BTN_OPTIONS_Y, BTN_W, BTN_H)) {
             mainScreen.switchToSettingsScreen();
-            return;
-        }
-        if (hit == quitLabel || hit == quitFrame) {
+        } else if (inZone(mx, my, BTN_X, BTN_QUIT_Y, BTN_W, BTN_H)) {
             System.exit(0);
         }
+    }
+
+    private static boolean inZone(int mx, int my, int x, int y, int w, int h) {
+        return mx >= x && mx <= x + w && my >= y && my <= y + h;
     }
 }

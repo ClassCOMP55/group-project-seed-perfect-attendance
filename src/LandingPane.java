@@ -2,21 +2,25 @@ import java.awt.Color;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 
-import acm.graphics.GLabel;
+import acm.graphics.GImage;
 import acm.graphics.GObject;
-import acm.graphics.GRoundRect;
+import acm.graphics.GRect;
 
 /**
- * Landing splash — same night scene as the main menu, plus Enter CTA.
+ * Landing splash — displays title.png full-screen.
+ * One hit zone over the "Enter the Realm" button; E / Enter / Space also advance.
  */
 public class LandingPane extends NightScenePane {
 
-    private GLabel ctaLabel;
-    private GLabel hintLabel;
-    private GLabel wizardEmoji;
-    private GLabel goatEmoji;
-    private GRoundRect enterFrame;
-    private GLabel enterLabel;
+    private static final String BG = "assets/visuals/start screen/title.png";
+
+    // "Enter the Realm" button hit zone — tune these numbers after first run
+    private static final int ENTER_X = 407;
+    private static final int ENTER_Y = 428;
+    private static final int ENTER_W = 447;
+    private static final int ENTER_H = 57;
+
+    private GRect enterZone;
 
     public LandingPane(MainApplication mainScreen) {
         this.mainScreen = mainScreen;
@@ -24,50 +28,14 @@ public class LandingPane extends NightScenePane {
 
     @Override
     public void showContent() {
-        double ox = originX();
-        double lw = mainScreen.getLayoutWidth();
-        double bw = nightButtonWidth();
-        double bh = nightButtonHeight();
-        double enterTop = scaleY(350);
+        GImage bg = new GImage(BG, 0, 0);
+        bg.setSize(mainScreen.getWidth(), mainScreen.getHeight());
+        addGraphic(bg);
 
-        paintNightSky();
-        addTitleBanner();
-
-        wizardEmoji = new GLabel("\uD83E\uDDD9", 0, 0);
-        wizardEmoji.setFont(emojiDisplayFont(72));
-        wizardEmoji.setColor(NIGHT_CREAM);
-        wizardEmoji.setLocation(scaleX(48), scaleY(255));
-        addGraphic(wizardEmoji);
-
-        goatEmoji = new GLabel("\uD83D\uDC10", 0, 0);
-        goatEmoji.setFont(emojiDisplayFont(72));
-        goatEmoji.setColor(NIGHT_CREAM);
-        goatEmoji.setLocation(scaleX(560), scaleY(255));
-        addGraphic(goatEmoji);
-
-        enterFrame = addNightButton(ox, lw, enterTop, bw, bh);
-
-        enterLabel = new GLabel("Enter the Realm", 0, 0);
-        enterLabel.setFont(displayFont(18));
-        enterLabel.setColor(NIGHT_GOLD);
-        centerLabelInRect(enterLabel, enterFrame);
-        addGraphic(enterLabel);
-
-        ctaLabel = new GLabel("Press Enter  ·  Space  ·  or Click", 0, 0);
-        ctaLabel.setFont(displayFont(12));
-        ctaLabel.setColor(new Color(160, 170, 210));
-        ctaLabel.setLocation(centeredX(ctaLabel), scaleY(410));
-        addGraphic(ctaLabel);
-
-        hintLabel = new GLabel("\u2728", 0, 0);
-        hintLabel.setFont(emojiDisplayFont(20));
-        hintLabel.setColor(new Color(255, 230, 150));
-        hintLabel.setLocation(centeredX(hintLabel), scaleY(434));
-        addGraphic(hintLabel);
-    }
-
-    private void goToMenu() {
-        mainScreen.switchToStartMenuScreen();
+        enterZone = new GRect(ENTER_X, ENTER_Y, ENTER_W, ENTER_H);
+        enterZone.setFilled(false);
+        enterZone.setColor(new Color(0, 0, 0, 0));
+        addGraphic(enterZone);
     }
 
     @Override
@@ -76,17 +44,26 @@ public class LandingPane extends NightScenePane {
             mainScreen.remove(item);
         }
         contents.clear();
+        enterZone = null;
+    }
+
+    private void goToMenu() {
+        mainScreen.switchToStartMenuScreen();
     }
 
     @Override
     public void mouseClicked(MouseEvent e) {
-        goToMenu();
+        int mx = e.getX(), my = e.getY();
+        if (mx >= ENTER_X && mx <= ENTER_X + ENTER_W
+                && my >= ENTER_Y && my <= ENTER_Y + ENTER_H) {
+            goToMenu();
+        }
     }
 
     @Override
     public void keyPressed(KeyEvent e) {
         int k = e.getKeyCode();
-        if (k == KeyEvent.VK_ENTER || k == KeyEvent.VK_SPACE) {
+        if (k == KeyEvent.VK_ENTER || k == KeyEvent.VK_SPACE || k == KeyEvent.VK_E) {
             goToMenu();
         }
     }

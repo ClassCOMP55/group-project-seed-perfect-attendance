@@ -1,42 +1,44 @@
 import java.awt.Color;
 import java.awt.event.MouseEvent;
 
-import acm.graphics.GLabel;
-import acm.graphics.GLine;
+import acm.graphics.GImage;
 import acm.graphics.GObject;
 import acm.graphics.GOval;
-import acm.graphics.GRoundRect;
+import acm.graphics.GRect;
 
 /**
- * Settings: night theme; three aligned columns; volume slider with live 0–100 readout.
+ * Settings screen — displays Settings.png full-screen.
+ * Two draggable slider knobs sit on top of the baked-in slider tracks (Sound + Music).
+ * One hit zone covers the baked-in Back button.
  */
 public class SettingsPane extends NightScenePane {
 
-    private GLabel settingsSubtitle;
-    private GLabel graphicsHeader;
-    private GLabel graphicsValueLabel;
-    private GLabel soundHeader;
-    private GLabel volumePercentLabel;
-    private GLabel creditsHeader;
-    private GLabel[] creditLines;
-    private GRoundRect backFrame;
-    private GLabel backLabel;
+    private static final String BG = "assets/visuals/start screen/Settings.png";
 
-    private GLabel arrowLeft;
-    private GLabel arrowRight;
-    private GLine trackLine;
-    private GOval sliderKnob;
+    // Sound (SFX) slider track — tune after first run
+    private static final int SOUND_LEFT  = 425;
+    private static final int SOUND_RIGHT = 870;
+    private static final int SOUND_Y     = 455;
 
-    /** Center X of the Sound column (for re-centering the volume number). */
-    private double soundColumnCenterX;
-    /** Baseline Y for the big volume number. */
-    private double volumeNumberBaselineY;
+    // Music slider track — tune after first run
+    private static final int MUSIC_LEFT  = 425;
+    private static final int MUSIC_RIGHT = 870;
+    private static final int MUSIC_Y     = 545;
 
-    private double sliderTrackLeft;
-    private double sliderTrackRight;
-    private double sliderY;
-    private double knobSize;
-    private boolean draggingSlider;
+    // Knob appearance
+    private static final int KNOB_SIZE = 20;
+
+    // Back button hit zone — tune after first run
+    private static final int BACK_X = 465;
+    private static final int BACK_Y = 583;
+    private static final int BACK_W = 365;
+    private static final int BACK_H = 45;
+
+    private GOval soundKnob;
+    private GOval musicKnob;
+    private GRect backZone;
+    /** -1 = not dragging, 0 = dragging sound knob, 1 = dragging music knob */
+    private int dragging = -1;
 
     public SettingsPane(MainApplication mainScreen) {
         this.mainScreen = mainScreen;
@@ -44,173 +46,50 @@ public class SettingsPane extends NightScenePane {
 
     @Override
     public void showContent() {
-        double ox = originX();
-        double lw = mainScreen.getLayoutWidth();
+        GImage bg = new GImage(BG, 0, 0);
+        bg.setSize(mainScreen.getWidth(), mainScreen.getHeight());
+        addGraphic(bg);
 
-        paintNightSky();
-        addTitleBanner();
+        soundKnob = buildKnob();
+        positionKnob(soundKnob, GameSettings.getSfxVolumePercent(),
+                SOUND_LEFT, SOUND_RIGHT, SOUND_Y);
 
-        settingsSubtitle = new GLabel("Settings", 0, 0);
-        settingsSubtitle.setFont(displayFont(17));
-        settingsSubtitle.setColor(NIGHT_GOLD);
-        settingsSubtitle.setLocation(centeredX(settingsSubtitle), scaleY(206));
-        addGraphic(settingsSubtitle);
+        musicKnob = buildKnob();
+        positionKnob(musicKnob, GameSettings.getMusicVolumePercent(),
+                MUSIC_LEFT, MUSIC_RIGHT, MUSIC_Y);
 
-        double c1 = ox + lw * 0.20;
-        soundColumnCenterX = ox + lw * 0.50;
-        double c3 = ox + lw * 0.80;
-
-        double yHead = scaleY(242);
-        double yValueRow = scaleY(276);
-        double lineStep = scaleY(23) - scaleY(0);
-        double yTrackCenter = scaleY(318);
-
-        graphicsHeader = new GLabel("Graphics:", 0, 0);
-        graphicsHeader.setFont(displayFont(17));
-        graphicsHeader.setColor(NIGHT_CREAM);
-        placeLabelCenter(graphicsHeader, c1, yHead);
-        addGraphic(graphicsHeader);
-
-        graphicsValueLabel = new GLabel(graphicsAngleText(), 0, 0);
-        graphicsValueLabel.setFont(displayFont(15));
-        graphicsValueLabel.setColor(NIGHT_CREAM);
-        placeLabelCenter(graphicsValueLabel, c1, yValueRow);
-        addGraphic(graphicsValueLabel);
-
-        creditsHeader = new GLabel("Credits:", 0, 0);
-        creditsHeader.setFont(displayFont(17));
-        creditsHeader.setColor(NIGHT_CREAM);
-        placeLabelCenter(creditsHeader, c3, yHead);
-        addGraphic(creditsHeader);
-
-        soundHeader = new GLabel("Sound:", 0, 0);
-        soundHeader.setFont(displayFont(17));
-        soundHeader.setColor(NIGHT_CREAM);
-        placeLabelCenter(soundHeader, soundColumnCenterX, yHead);
-        addGraphic(soundHeader);
-
-        volumeNumberBaselineY = yValueRow;
-        volumePercentLabel = new GLabel(volumePercentText(), 0, 0);
-        volumePercentLabel.setFont(displayFont(20));
-        volumePercentLabel.setColor(NIGHT_GOLD);
-        placeLabelCenter(volumePercentLabel, soundColumnCenterX, volumeNumberBaselineY);
-        addGraphic(volumePercentLabel);
-
-        buildSlider(soundColumnCenterX, yTrackCenter);
-
-        String[] names = { "Charles", "Roberto", "Angel", "Gorge" };
-        creditLines = new GLabel[names.length];
-        for (int i = 0; i < names.length; i++) {
-            GLabel line = new GLabel(names[i], 0, 0);
-            line.setFont(displayFont(14));
-            line.setColor(NIGHT_CREAM);
-            placeLabelCenter(line, c3, yValueRow + i * lineStep);
-            creditLines[i] = line;
-            addGraphic(line);
-        }
-
-        double bw = scaleX(168) - scaleX(0);
-        double bh = nightButtonHeight();
-        double margin = scaleY(44) - scaleY(0);
-        double backTop = scaleY(500) - margin - bh;
-        backFrame = addNightButton(ox, lw, backTop, bw, bh);
-        backLabel = new GLabel("Back", 0, 0);
-        backLabel.setFont(displayFont(18));
-        backLabel.setColor(NIGHT_GOLD);
-        centerLabelInRect(backLabel, backFrame);
-        addGraphic(backLabel);
+        backZone = new GRect(BACK_X, BACK_Y, BACK_W, BACK_H);
+        backZone.setFilled(false);
+        backZone.setColor(new Color(0, 0, 0, 0));
+        addGraphic(backZone);
     }
 
-    private static String volumePercentText() {
-        return Integer.toString(GameSettings.getVolumePercent());
+    private GOval buildKnob() {
+        GOval k = new GOval(0, 0, KNOB_SIZE, KNOB_SIZE);
+        k.setFilled(true);
+        k.setFillColor(Color.WHITE);
+        k.setColor(new Color(255, 215, 120)); // gold border
+        addGraphic(k);
+        return k;
     }
 
-    private void refreshVolumeLabel() {
-        if (volumePercentLabel == null) {
-            return;
-        }
-        volumePercentLabel.setLabel(volumePercentText());
-        placeLabelCenter(volumePercentLabel, soundColumnCenterX, volumeNumberBaselineY);
+    private void positionKnob(GOval knob, int percent, int left, int right, int trackY) {
+        double t  = percent / 100.0;
+        double cx = left + t * (right - left);
+        knob.setLocation(cx - KNOB_SIZE / 2.0, trackY - KNOB_SIZE / 2.0);
     }
 
-    private void buildSlider(double centerX, double trackCenterY) {
-        knobSize = Math.max(scaleY(16) - scaleY(0), 12);
-        double halfTrack = scaleX(95) - scaleX(0);
-        sliderTrackLeft = centerX - halfTrack;
-        sliderTrackRight = centerX + halfTrack;
-        sliderY = trackCenterY - knobSize / 2;
-
-        double trackY = trackCenterY;
-
-        double arrowGap = scaleX(18) - scaleX(0);
-        arrowLeft = new GLabel("<", 0, 0);
-        arrowLeft.setFont(displayFont(18));
-        arrowLeft.setColor(NIGHT_GOLD);
-        placeLabelCenter(arrowLeft, sliderTrackLeft - arrowGap, trackY);
-        addGraphic(arrowLeft);
-
-        arrowRight = new GLabel(">", 0, 0);
-        arrowRight.setFont(displayFont(18));
-        arrowRight.setColor(NIGHT_GOLD);
-        placeLabelCenter(arrowRight, sliderTrackRight + arrowGap, trackY);
-        addGraphic(arrowRight);
-
-        GLabel minMark = new GLabel("0", 0, 0);
-        minMark.setFont(displayFont(11));
-        minMark.setColor(new Color(160, 170, 200));
-        placeLabelCenter(minMark, sliderTrackLeft, trackY + scaleY(18) - scaleY(0));
-        addGraphic(minMark);
-
-        GLabel maxMark = new GLabel("100", 0, 0);
-        maxMark.setFont(displayFont(11));
-        maxMark.setColor(new Color(160, 170, 200));
-        placeLabelCenter(maxMark, sliderTrackRight, trackY + scaleY(18) - scaleY(0));
-        addGraphic(maxMark);
-
-        trackLine = new GLine(sliderTrackLeft, trackY, sliderTrackRight, trackY);
-        trackLine.setColor(new Color(160, 170, 210));
-        addGraphic(trackLine);
-
-        sliderKnob = new GOval(0, 0, knobSize, knobSize);
-        sliderKnob.setFilled(true);
-        sliderKnob.setFillColor(NIGHT_BUTTON_FILL);
-        sliderKnob.setColor(NIGHT_GOLD);
-        positionKnobFromVolume();
-        addGraphic(sliderKnob);
-    }
-
-    private void placeLabelCenter(GLabel g, double centerX, double baselineY) {
-        g.setLocation(centerX - g.getWidth() / 2, baselineY);
-    }
-
-    private void positionKnobFromVolume() {
-        int v = GameSettings.getVolumePercent();
-        double t = v / 100.0;
-        double cx = sliderTrackLeft + t * (sliderTrackRight - sliderTrackLeft);
-        double knobX = cx - knobSize / 2;
-        sliderKnob.setLocation(knobX, sliderY);
-        refreshVolumeLabel();
-        GameMusic.refreshVolume();
-        GameSFX.refreshVolume();
-    }
-
-    private int volumeFromKnobCenterX(double cx) {
-        double span = sliderTrackRight - sliderTrackLeft;
-        if (span <= 1e-6) {
-            return GameSettings.getVolumePercent();
-        }
-        double t = (cx - sliderTrackLeft) / span;
-        if (t < 0) {
-            t = 0;
-        }
-        if (t > 1) {
-            t = 1;
-        }
+    private int percentFromX(double x, int left, int right) {
+        double span = right - left;
+        if (span <= 0) return 0;
+        double t = (x - left) / span;
+        t = Math.max(0, Math.min(1, t));
         return (int) Math.round(t * 100);
     }
 
-    private static String graphicsAngleText() {
-        return "< " + GameSettings.getGraphicsTemplate().getDisplayName() + " >";
+    private boolean nearTrack(double x, double y, int left, int right, int trackY) {
+        if (y < trackY - KNOB_SIZE || y > trackY + KNOB_SIZE) return false;
+        return x >= left - 10 && x <= right + 10;
     }
 
     @Override
@@ -219,79 +98,66 @@ public class SettingsPane extends NightScenePane {
             mainScreen.remove(item);
         }
         contents.clear();
-        creditLines = null;
-        volumePercentLabel = null;
-        draggingSlider = false;
+        soundKnob = null;
+        musicKnob = null;
+        backZone  = null;
+        dragging  = -1;
     }
 
     @Override
     public void mouseClicked(MouseEvent e) {
-        GObject hit = mainScreen.getElementAtLocation(e.getX(), e.getY());
-        if (hit == backLabel || hit == backFrame) {
+        int mx = e.getX(), my = e.getY();
+        if (mx >= BACK_X && mx <= BACK_X + BACK_W
+                && my >= BACK_Y && my <= BACK_Y + BACK_H) {
             GameSFX.play(GameSFX.SFX.CLICKING);
             mainScreen.switchToStartMenuScreen();
-            return;
-        }
-        if (hit == graphicsValueLabel) {
-            GameSFX.play(GameSFX.SFX.CLICKING);
-            GameSettings.cycleGraphicsTemplate();
-            graphicsValueLabel.setLabel(graphicsAngleText());
-            return;
-        }
-        if (hit == arrowLeft) {
-            GameSFX.play(GameSFX.SFX.CLICKING);
-            GameSettings.setVolumePercent(GameSettings.getVolumePercent() - 5);
-            positionKnobFromVolume();
-            SettingsIO.persist();
-            return;
-        }
-        if (hit == arrowRight) {
-            GameSFX.play(GameSFX.SFX.CLICKING);
-            GameSettings.setVolumePercent(GameSettings.getVolumePercent() + 5);
-            positionKnobFromVolume();
-            SettingsIO.persist();
         }
     }
 
     @Override
     public void mousePressed(MouseEvent e) {
-        double x = e.getX();
-        double y = e.getY();
-        if (sliderKnob != null && sliderKnob.contains(x, y)) {
-            draggingSlider = true;
-            return;
-        }
-        if (trackLine != null && nearTrack(x, y)) {
-            draggingSlider = true;
-            GameSettings.setVolumePercent(volumeFromKnobCenterX(x));
-            positionKnobFromVolume();
+        double x = e.getX(), y = e.getY();
+        if (soundKnob != null && soundKnob.contains(x, y)) {
+            dragging = 0;
+        } else if (musicKnob != null && musicKnob.contains(x, y)) {
+            dragging = 1;
+        } else if (nearTrack(x, y, SOUND_LEFT, SOUND_RIGHT, SOUND_Y)) {
+            dragging = 0;
+            GameSettings.setSfxVolumePercent(percentFromX(x, SOUND_LEFT, SOUND_RIGHT));
+            positionKnob(soundKnob, GameSettings.getSfxVolumePercent(),
+                    SOUND_LEFT, SOUND_RIGHT, SOUND_Y);
+            GameSFX.refreshVolume();
+            SettingsIO.persist();
+        } else if (nearTrack(x, y, MUSIC_LEFT, MUSIC_RIGHT, MUSIC_Y)) {
+            dragging = 1;
+            GameSettings.setMusicVolumePercent(percentFromX(x, MUSIC_LEFT, MUSIC_RIGHT));
+            positionKnob(musicKnob, GameSettings.getMusicVolumePercent(),
+                    MUSIC_LEFT, MUSIC_RIGHT, MUSIC_Y);
+            GameMusic.refreshVolume();
             SettingsIO.persist();
         }
-    }
-
-    private boolean nearTrack(double x, double y) {
-        double mid = sliderY + knobSize / 2;
-        if (y < mid - knobSize || y > mid + knobSize) {
-            return false;
-        }
-        double pad = scaleX(12) - scaleX(0);
-        return x >= sliderTrackLeft - pad && x <= sliderTrackRight + pad;
     }
 
     @Override
     public void mouseDragged(MouseEvent e) {
-        if (!draggingSlider) {
-            return;
+        if (dragging == 0) {
+            GameSettings.setSfxVolumePercent(percentFromX(e.getX(), SOUND_LEFT, SOUND_RIGHT));
+            positionKnob(soundKnob, GameSettings.getSfxVolumePercent(),
+                    SOUND_LEFT, SOUND_RIGHT, SOUND_Y);
+            GameSFX.refreshVolume();
+        } else if (dragging == 1) {
+            GameSettings.setMusicVolumePercent(percentFromX(e.getX(), MUSIC_LEFT, MUSIC_RIGHT));
+            positionKnob(musicKnob, GameSettings.getMusicVolumePercent(),
+                    MUSIC_LEFT, MUSIC_RIGHT, MUSIC_Y);
+            GameMusic.refreshVolume();
         }
-        GameSettings.setVolumePercent(volumeFromKnobCenterX(e.getX()));
-        positionKnobFromVolume();
     }
 
     @Override
     public void mouseReleased(MouseEvent e) {
-        if (draggingSlider) {
+        if (dragging >= 0) {
             SettingsIO.persist();
         }
-        draggingSlider = false;
+        dragging = -1;
     }
 }

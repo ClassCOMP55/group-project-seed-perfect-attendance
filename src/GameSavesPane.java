@@ -1,31 +1,49 @@
 import java.awt.Color;
 import java.awt.event.MouseEvent;
 
-import acm.graphics.GLabel;
+import acm.graphics.GImage;
 import acm.graphics.GObject;
-import acm.graphics.GRoundRect;
+import acm.graphics.GRect;
 
 /**
- * Three save slots — same night sky / gold button look as {@link StartMenuPane}.
- * Occupied slots show a wordless “×” control (same idiom as closing/dismissing) to clear the file.
+ * Save-slot screen — displays create_save_or_load_save.png full-screen.
+ * For each occupied slot, overlays the matching load_save_X.png (424x52) and
+ * adds a delete (X) hit zone at the right edge of that overlay.
  */
 public class GameSavesPane extends NightScenePane {
 
-    /** Fresh saves start with the release-default Healing Bread count. */
     private static final int NEW_GAME_STARTING_HEALING_BREAD =
         MainApplication.NEW_GAME_STARTING_HEALING_BREAD;
-    private static final int MAX_LOADED_HEARTS = 99;
-    private static final int MAX_LOADED_COINS = 999_999;
+    private static final int MAX_LOADED_HEARTS       = 99;
+    private static final int MAX_LOADED_COINS        = 999_999;
     private static final int MAX_LOADED_HEALING_BREAD = 99;
 
-    private GLabel subtitleLabel;
-    private GRoundRect[] slotFrames = new GRoundRect[3];
-    private GLabel[] slotLabels = new GLabel[3];
-    /** Minimal clear control per slot — non-null only when that slot has a save. */
-    private GRoundRect[] clearFrames = new GRoundRect[3];
-    private GLabel[] clearLabels = new GLabel[3];
-    private GRoundRect backFrame;
-    private GLabel backLabel;
+    private static final String BG = "assets/visuals/start screen/create_save_or_load_save.png";
+    private static final String[] LOAD_IMGS = {
+        "assets/visuals/start screen/load_save_1.png",
+        "assets/visuals/start screen/load_save_2.png",
+        "assets/visuals/start screen/load_save_3.png"
+    };
+
+    // Slot button hit zones in the base image — tune after first run
+    private static final int SLOT_X = 464;
+    private static final int SLOT_W = 365;
+    private static final int SLOT_H = 47;
+    private static final int[] SLOT_Y = { 410, 468, 528 };
+
+    // Back button
+    private static final int BACK_X = 464;
+    private static final int BACK_Y = 585;
+    private static final int BACK_W = 365;
+    private static final int BACK_H = 45;
+
+    // Load overlay images are 424px wide; center them in the 1280px window
+    private static final int OVERLAY_X = 462;
+    // The X delete box sits at the right edge of each overlay — tune after first run
+    private static final int DELETE_OFFSET_X = 374; // pixels from overlay left edge
+    private static final int DELETE_W        = 48;
+
+    private GRect[] deleteZones = new GRect[3];
 
     public GameSavesPane(MainApplication mainScreen) {
         this.mainScreen = mainScreen;
@@ -33,101 +51,34 @@ public class GameSavesPane extends NightScenePane {
 
     @Override
     public void showContent() {
-        double ox = originX();
-        double lw = mainScreen.getLayoutWidth();
-        double bw = nightButtonWidth();
-        double bh = nightButtonHeight();
-        double g = nightButtonGap();
+        GImage bg = new GImage(BG, 0, 0);
+        bg.setSize(mainScreen.getWidth(), mainScreen.getHeight());
+        addGraphic(bg);
 
-        paintNightSky();
-        addTitleBanner();
-
-        subtitleLabel = new GLabel("Start Game", 0, 0);
-        subtitleLabel.setFont(displayFont(20));
-        subtitleLabel.setColor(NIGHT_GOLD);
-        subtitleLabel.setLocation(centeredX(subtitleLabel), scaleY(198));
-        addGraphic(subtitleLabel);
-
-        GLabel hint = new GLabel("Choose a save slot", 0, 0);
-        hint.setFont(displayFont(13));
-        hint.setColor(new Color(140, 150, 200));
-        hint.setLocation(centeredX(hint), scaleY(224));
-        addGraphic(hint);
-
-        double margin = scaleY(52) - scaleY(0);
-        double yBack = scaleY(500) - margin - bh;
-        double y3 = yBack - g - bh;
-        double y2 = y3 - g - bh;
-        double y1 = y2 - g - bh;
-
-        double side = Math.max(scaleY(30) - scaleY(0), 24);
-        double hGap = scaleX(10) - scaleX(0);
-        // Same horizontal origin as {@link #addNightButton} / Back — × sits to the right without shifting the bar.
-        double buttonLeft = ox + (lw - bw) / 2;
-
-		for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 3; i++) {
             int slot = i + 1;
-            double y = (i == 0) ? y1 : (i == 1) ? y2 : y3;
-            slotFrames[i] = addNightRowButton(buttonLeft, y, bw, bh);
-
-            String text = SaveManager.slotOccupied(slot)
-                ? "Load Save #" + slot
-                : "Create Save #" + slot;
-            slotLabels[i] = new GLabel(text, 0, 0);
-            slotLabels[i].setFont(displayFont(18));
-            slotLabels[i].setColor(NIGHT_GOLD);
-            centerLabelInRect(slotLabels[i], slotFrames[i]);
-            addGraphic(slotLabels[i]);
-
-            clearFrames[i] = null;
-            clearLabels[i] = null;
             if (SaveManager.slotOccupied(slot)) {
-                addClearControl(i, buttonLeft, y, bw, bh, side, hGap, ox, lw);
+                // Overlay the load_save image to cover the "Create Save" text
+                GImage overlay = new GImage(LOAD_IMGS[i], OVERLAY_X, SLOT_Y[i]);
+                addGraphic(overlay);
+                // X delete zone — right portion of the overlay
+                deleteZones[i] = makeZone(OVERLAY_X + DELETE_OFFSET_X, SLOT_Y[i], DELETE_W, SLOT_H);
+            } else {
+                deleteZones[i] = null;
             }
+            // Slot zone covers the full button row (delete check runs first in mouseClicked)
+            makeZone(SLOT_X, SLOT_Y[i], SLOT_W, SLOT_H);
         }
 
-        backFrame = addNightButton(ox, lw, yBack, bw, bh);
-        backLabel = new GLabel("Back", 0, 0);
-        backLabel.setFont(displayFont(18));
-        backLabel.setColor(NIGHT_GOLD);
-        centerLabelInRect(backLabel, backFrame);
-        addGraphic(backLabel);
+        makeZone(BACK_X, BACK_Y, BACK_W, BACK_H);
     }
 
-    private GRoundRect addNightRowButton(double left, double y, double bw, double bh) {
-        GRoundRect frame = new GRoundRect(left, y, bw, bh, nightButtonCornerRadius());
-        frame.setFilled(true);
-        frame.setFillColor(NIGHT_BUTTON_FILL);
-        frame.setColor(NIGHT_GOLD);
-        addGraphic(frame);
-        return frame;
-    }
-
-    /** Small gold square with × — reads as “remove” without a word label. */
-    private void addClearControl(int index, double buttonLeft, double y, double bw, double bh,
-            double side, double hGap, double ox, double lw) {
-        double clearLeft = buttonLeft + bw + hGap;
-        double maxLeft = ox + lw - side - 2;
-        if (clearLeft > maxLeft) {
-            clearLeft = Math.max(ox + 2, maxLeft);
-        }
-        double clearTop = y + (bh - side) / 2;
-        double arc = Math.min(scaleX(6) - scaleX(0), scaleY(6) - scaleY(0));
-        GRoundRect cf = new GRoundRect(clearLeft, clearTop, side, side, arc, arc);
-        cf.setFilled(true);
-        cf.setFillColor(NIGHT_BUTTON_FILL);
-        cf.setColor(NIGHT_GOLD);
-        addGraphic(cf);
-        clearFrames[index] = cf;
-
-        GLabel cx = new GLabel("\u00D7", 0, 0);
-        cx.setFont("Courier New-BOLD-" + Math.max(10, scaleFontSize(16)));
-        cx.setColor(NIGHT_GOLD);
-        double labX = clearLeft + (side - cx.getWidth()) / 2;
-        double labY = clearTop + (side + cx.getAscent() - cx.getDescent()) / 2;
-        cx.setLocation(labX, labY);
-        addGraphic(cx);
-        clearLabels[index] = cx;
+    private GRect makeZone(int x, int y, int w, int h) {
+        GRect r = new GRect(x, y, w, h);
+        r.setFilled(false);
+        r.setColor(new Color(0, 0, 0, 0));
+        addGraphic(r);
+        return r;
     }
 
     @Override
@@ -136,35 +87,37 @@ public class GameSavesPane extends NightScenePane {
             mainScreen.remove(item);
         }
         contents.clear();
-        slotFrames = new GRoundRect[3];
-        slotLabels = new GLabel[3];
-        clearFrames = new GRoundRect[3];
-        clearLabels = new GLabel[3];
-        backFrame = null;
-        backLabel = null;
-        subtitleLabel = null;
+        deleteZones = new GRect[3];
     }
 
     @Override
     public void mouseClicked(MouseEvent e) {
-        GObject hit = mainScreen.getElementAtLocation(e.getX(), e.getY());
-        if (hit == backLabel || hit == backFrame) {
+        int mx = e.getX(), my = e.getY();
+
+        if (inZone(mx, my, BACK_X, BACK_Y, BACK_W, BACK_H)) {
             mainScreen.switchToStartMenuScreen();
             return;
         }
+
+        // Check delete zones first so they take priority over the slot zone overlap
         for (int i = 0; i < 3; i++) {
-            if (clearFrames[i] != null
-                    && (hit == clearFrames[i] || hit == clearLabels[i])) {
+            if (deleteZones[i] != null
+                    && inZone(mx, my, OVERLAY_X + DELETE_OFFSET_X, SLOT_Y[i], DELETE_W, SLOT_H)) {
                 handleClearSlot(i + 1);
                 return;
             }
         }
+
         for (int i = 0; i < 3; i++) {
-            if (slotFrames[i] != null && (hit == slotFrames[i] || hit == slotLabels[i])) {
+            if (inZone(mx, my, SLOT_X, SLOT_Y[i], SLOT_W, SLOT_H)) {
                 handleSlot(i + 1);
                 return;
             }
         }
+    }
+
+    private static boolean inZone(int mx, int my, int x, int y, int w, int h) {
+        return mx >= x && mx <= x + w && my >= y && my <= y + h;
     }
 
     private void handleClearSlot(int slot) {
@@ -206,14 +159,14 @@ public class GameSavesPane extends NightScenePane {
     private Player buildLoadedPlayer(SaveData loaded) {
         Player player = new Player();
         int loadedMaxHp = clampInt(loaded.getMaxHp(), 1, MAX_LOADED_HEARTS);
-        int loadedHp = clampInt(loaded.getHp(), 0, loadedMaxHp);
+        int loadedHp    = clampInt(loaded.getHp(), 0, loadedMaxHp);
         int loadedCoins = clampInt(loaded.getCoins(), 0, MAX_LOADED_COINS);
         int loadedBreadCount = clampInt(loaded.getHealingBreadCount(), 0, MAX_LOADED_HEALING_BREAD);
 
         // Legacy saves stored whole hearts; current gameplay stores half-heart units.
         if (loadedMaxHp <= Player.DEFAULT_HEART_COUNT) {
             loadedMaxHp *= Player.HALF_HEARTS_PER_HEART;
-            loadedHp *= Player.HALF_HEARTS_PER_HEART;
+            loadedHp    *= Player.HALF_HEARTS_PER_HEART;
         }
         loadedHp = clampInt(loadedHp, 0, loadedMaxHp);
 
@@ -238,23 +191,23 @@ public class GameSavesPane extends NightScenePane {
         return player;
     }
 
-    private int clampInt(int value, int min, int max) {
+    private static int clampInt(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
     }
 
-    private Item createItemById(String itemId) {
-        if (Pickaxe.ITEM_ID.equals(itemId))               return new Pickaxe();
-        if (MinersHat.ITEM_ID.equals(itemId))             return new MinersHat();
-        if (RawOre.ITEM_ID.equals(itemId))                return new RawOre();
-        if (HalfDamageRelicItem.ITEM_ID.equals(itemId))  return new HalfDamageRelicItem();
-        if (ReflectRelicItem.ITEM_ID.equals(itemId))      return new ReflectRelicItem();
-        if (IntangibleRelicItem.ITEM_ID.equals(itemId))   return new IntangibleRelicItem();
-        if (MarkOfHeroItem.ITEM_ID.equals(itemId))        return new MarkOfHeroItem();
-        if (FixedLeverItem.ITEM_ID.equals(itemId))        return new FixedLeverItem();
+    private static Item createItemById(String itemId) {
+        if (Pickaxe.ITEM_ID.equals(itemId))              return new Pickaxe();
+        if (MinersHat.ITEM_ID.equals(itemId))            return new MinersHat();
+        if (RawOre.ITEM_ID.equals(itemId))               return new RawOre();
+        if (HalfDamageRelicItem.ITEM_ID.equals(itemId)) return new HalfDamageRelicItem();
+        if (ReflectRelicItem.ITEM_ID.equals(itemId))     return new ReflectRelicItem();
+        if (IntangibleRelicItem.ITEM_ID.equals(itemId))  return new IntangibleRelicItem();
+        if (MarkOfHeroItem.ITEM_ID.equals(itemId))       return new MarkOfHeroItem();
+        if (FixedLeverItem.ITEM_ID.equals(itemId))       return new FixedLeverItem();
         return new Item(itemId, formatInventoryDisplayName(itemId), false);
     }
 
-    private String formatInventoryDisplayName(String itemId) {
+    private static String formatInventoryDisplayName(String itemId) {
         if (itemId == null || itemId.isEmpty()) return "";
         String[] words = itemId.split("_");
         StringBuilder sb = new StringBuilder();
@@ -262,9 +215,7 @@ public class GameSavesPane extends NightScenePane {
             if (words[i].isEmpty()) continue;
             if (sb.length() > 0) sb.append(' ');
             sb.append(Character.toUpperCase(words[i].charAt(0)));
-            if (words[i].length() > 1) {
-                sb.append(words[i].substring(1));
-            }
+            if (words[i].length() > 1) sb.append(words[i].substring(1));
         }
         return sb.length() == 0 ? itemId : sb.toString();
     }
