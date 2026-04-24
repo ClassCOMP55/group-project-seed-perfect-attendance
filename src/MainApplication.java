@@ -385,7 +385,8 @@ public class MainApplication extends GraphicsProgram{
 	 * own room-based music, so non-menu screens only need the menu track stopped.
 	 */
 	private void updateMenuMusicForScreen(GraphicsPane newScreen) {
-		if (newScreen == landingPane || newScreen == startMenuPane || newScreen == settingsPane) {
+		if (newScreen == landingPane || newScreen == startMenuPane || newScreen == settingsPane
+				|| newScreen == gameSavesPane || newScreen == openingNarrativePane || newScreen == tutorialPane) {
 			GameMusic.startMainMenuMusic();
 		} else {
 			GameMusic.stopMainMenuMusic();
