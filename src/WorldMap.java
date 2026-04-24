@@ -1085,14 +1085,14 @@ public class WorldMap {
     private void populateB3() {
         Room b3 = overworldGrid[1][2];
         b3.addRespawningEntity(() -> new LizardEnemy(500, 300, b3.getTileMap()));
-        b3.addRespawningEntity(() -> new RangedEnemy(760, 420, b3.getTileMap()));
+        b3.addRespawningEntity(() -> new RangedEnemy(300, 330, b3.getTileMap()));
     }
 
     /** Bridge room (C1) — light mixed patrol. */
     private void populateC1() {
         Room c1 = overworldGrid[2][0];
         c1.addRespawningEntity(() -> new LizardEnemy(400, 300, c1.getTileMap()));
-        c1.addRespawningEntity(() -> new RangedEnemy(760, 250, c1.getTileMap()));
+        c1.addRespawningEntity(() -> new RangedEnemy(1000, 200, c1.getTileMap()));
     }
 
     /** Dense forest (C2) — high danger: 5 enemies with mixed types. */
