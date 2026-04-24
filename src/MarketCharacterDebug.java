@@ -265,13 +265,13 @@ public class MarketCharacterDebug extends GraphicsPane {
         syncDebugAvatarVisibility();
 
         debugTitle = new GLabel("market-character-debug", 0, 0);
-        debugTitle.setFont("Monospaced-BOLD-14");
+        debugTitle.setFont("Courier New-BOLD-14");
         debugTitle.setColor(new Color(255, 80, 80));
         debugTitle.setLocation(10, playerHudBottomY() + 18);
         place(debugTitle);
 
         zoneLabel = new GLabel("", 0, 0);
-        zoneLabel.setFont("Monospaced-BOLD-13");
+        zoneLabel.setFont("Courier New-BOLD-13");
         zoneLabel.setColor(new Color(255, 215, 120));
         zoneLabel.setLocation(10, playerHudBottomY() + 36);
         place(zoneLabel);
@@ -279,7 +279,7 @@ public class MarketCharacterDebug extends GraphicsPane {
         placeZoneBannerVisuals();
 
         controlsLabel = new GLabel("J/LMB attack  |  K relic intangible  |  F2 death  |  F3 debug  |  ESC menu", 0, 0);
-        controlsLabel.setFont("Monospaced-BOLD-12");
+        controlsLabel.setFont("Courier New-BOLD-12");
         controlsLabel.setColor(new Color(255, 240, 170));
         controlsLabel.setLocation(10, h - 12);
         place(controlsLabel);
@@ -736,7 +736,7 @@ public class MarketCharacterDebug extends GraphicsPane {
         }
 
         dummyRespawnLabel = new GLabel("", 0, 0);
-        dummyRespawnLabel.setFont("Monospaced-BOLD-11");
+        dummyRespawnLabel.setFont("Courier New-BOLD-11");
         dummyRespawnLabel.setColor(new Color(255, 235, 190));
         place(dummyRespawnLabel);
     }
@@ -749,12 +749,12 @@ public class MarketCharacterDebug extends GraphicsPane {
         place(zoneBannerBg);
 
         zoneBannerTitle = new GLabel("", 0, 0);
-        zoneBannerTitle.setFont("Serif-BOLD-18");
+        zoneBannerTitle.setFont("Courier New-BOLD-18");
         zoneBannerTitle.setColor(new Color(248, 225, 150));
         place(zoneBannerTitle);
 
         zoneBannerSubtitle = new GLabel("", 0, 0);
-        zoneBannerSubtitle.setFont("Serif-BOLD-13");
+        zoneBannerSubtitle.setFont("Courier New-BOLD-13");
         zoneBannerSubtitle.setColor(new Color(255, 242, 214));
         place(zoneBannerSubtitle);
     }
@@ -771,7 +771,7 @@ public class MarketCharacterDebug extends GraphicsPane {
         place(debugMapPanelBg);
 
         debugMapTitleLabel = new GLabel("", 0, 0);
-        debugMapTitleLabel.setFont("Monospaced-BOLD-11");
+        debugMapTitleLabel.setFont("Courier New-BOLD-11");
         debugMapTitleLabel.setColor(DEBUG_TEXT_COLOR);
         place(debugMapTitleLabel);
 
@@ -786,7 +786,7 @@ public class MarketCharacterDebug extends GraphicsPane {
             debugMapCells.add(cell);
 
             GLabel label = new GLabel("", 0, 0);
-            label.setFont("Monospaced-PLAIN-10");
+            label.setFont("Courier New-BOLD-10");
             label.setColor(DEBUG_TEXT_COLOR);
             place(label);
             debugMapCellLabels.add(label);
@@ -807,7 +807,7 @@ public class MarketCharacterDebug extends GraphicsPane {
         debugOverlayLabels.clear();
         for (int i = 0; i < DEBUG_LINE_COUNT; i++) {
             GLabel label = new GLabel("", 0, 0);
-            label.setFont("Monospaced-PLAIN-11");
+            label.setFont("Courier New-BOLD-11");
             label.setColor(DEBUG_TEXT_COLOR);
             place(label);
             debugOverlayLabels.add(label);

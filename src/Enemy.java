@@ -874,7 +874,7 @@ public class Enemy extends Entity {
 
         if (combatNameLabel == null) {
             combatNameLabel = new GLabel(getDisplayName());
-            combatNameLabel.setFont("SansSerif-BOLD-10");
+            combatNameLabel.setFont("Courier New-BOLD-10");
             combatNameLabel.setColor(COMBAT_OVERLAY_NAME_COLOR);
         }
         if (combatHeartDisplay == null) {

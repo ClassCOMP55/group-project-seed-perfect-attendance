@@ -69,11 +69,11 @@ public class HeroThicket extends WorldObject {
         );
 
         this.titleLabel = new GLabel(this.speakerName, x, y);
-        this.titleLabel.setFont("SansSerif-BOLD-14");
+        this.titleLabel.setFont("Courier New-BOLD-14");
         this.titleLabel.setColor(TITLE_COLOR);
 
         this.hintLabel = new GLabel("e to interact", x, y);
-        this.hintLabel.setFont("SansSerif-PLAIN-12");
+        this.hintLabel.setFont("Courier New-BOLD-12");
         this.hintLabel.setColor(HINT_COLOR);
 
         resetVisualPosition();

@@ -61,7 +61,7 @@ public class EndingNarrativePane extends GraphicsPane {
 
         // Hint at bottom — place first so font metrics are available, then center
         GLabel hint = new GLabel("press 'e' to progress", 0, 0);
-        hint.setFont("Monospaced-PLAIN-" + Math.max(12, scaleFontSize(16)));
+        hint.setFont("Courier New-BOLD-" + Math.max(12, scaleFontSize(16)));
         hint.setColor(Color.WHITE);
         place(hint);
         hint.setLocation(centeredX(hint), originY() + mainScreen.getLayoutHeight() * 0.92);
@@ -150,6 +150,6 @@ public class EndingNarrativePane extends GraphicsPane {
     }
 
     private String italicFont(int base) {
-        return "Comic Sans MS-ITALIC-" + Math.max(10, scaleFontSize(base));
+        return "Courier New-BOLD-" + Math.max(10, scaleFontSize(base));
     }
 }

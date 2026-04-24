@@ -131,7 +131,7 @@ public class GraphicsPane {
 	}
 
 	protected String scaledFont(int baseSize) {
-		return "DialogInput-PLAIN-" + scaleFontSize(baseSize);
+		return "Courier New-BOLD-" + scaleFontSize(baseSize);
 	}
 
 	protected double centeredX(GObject object) {
@@ -162,7 +162,7 @@ public class GraphicsPane {
 		settingsCornerFrame.setFillColor(new Color(40, 45, 75));
 		settingsCornerFrame.setColor(new Color(255, 215, 120));
 		settingsCornerLabel = new GLabel("\u00D7", 0, 0);
-		settingsCornerLabel.setFont("SansSerif-BOLD-" + Math.max(11, scaleFontSize(18)));
+		settingsCornerLabel.setFont("Courier New-BOLD-" + Math.max(11, scaleFontSize(18)));
 		settingsCornerLabel.setColor(new Color(255, 215, 120));
 		GLabel lab = settingsCornerLabel;
 		double cx = bx + (side - lab.getWidth()) / 2;
@@ -247,7 +247,7 @@ public class GraphicsPane {
 	 */
 	protected GLabel pixelLabel(String text, int size, Color color) {
 		GLabel lbl = new GLabel(text, 0, 0);
-		lbl.setFont("Monospaced-BOLD-" + scaleFontSize(size));
+		lbl.setFont("Courier New-BOLD-" + scaleFontSize(size));
 		lbl.setColor(color);
 		return lbl;
 	}
@@ -677,7 +677,7 @@ public class GraphicsPane {
 	private void setupHudCoinCluster(Player player) {
 		removeHudCoinCluster();
 		hudCoinTotalLabel = new GLabel("0", 0, 0);
-		hudCoinTotalLabel.setFont("SansSerif-BOLD-14");
+		hudCoinTotalLabel.setFont("Courier New-BOLD-14");
 		hudCoinTotalLabel.setColor(new Color(255, 230, 140));
 		int c = player == null ? 0 : Math.max(0, Math.min(HUD_COIN_DISPLAY_MAX, player.getCoins()));
 		hudCoinTotalLabel.setLabel(String.valueOf(c));

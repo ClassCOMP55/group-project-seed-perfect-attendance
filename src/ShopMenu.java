@@ -179,22 +179,22 @@ public class ShopMenu extends GraphicsPane {
         place(panel);
 
         titleLabel = new GLabel("", px + 28, py + 46);
-        titleLabel.setFont("SansSerif-BOLD-24");
+        titleLabel.setFont("Courier New-BOLD-24");
         titleLabel.setColor(SELECTED);
         place(titleLabel);
 
         helpLabel = new GLabel("W/S or Up/Down move   Enter/Space select   Esc close", px + 28, py + 74);
-        helpLabel.setFont("SansSerif-PLAIN-13");
+        helpLabel.setFont("Courier New-BOLD-13");
         helpLabel.setColor(NORMAL);
         place(helpLabel);
 
         walletLabel = new GLabel("", px + 28, py + 112);
-        walletLabel.setFont("SansSerif-BOLD-18");
+        walletLabel.setFont("Courier New-BOLD-18");
         walletLabel.setColor(NORMAL);
         place(walletLabel);
 
         ownedLabel = new GLabel("", px + 28, py + 138);
-        ownedLabel.setFont("SansSerif-PLAIN-14");
+        ownedLabel.setFont("Courier New-BOLD-14");
         ownedLabel.setColor(NORMAL);
         place(ownedLabel);
 
@@ -205,7 +205,7 @@ public class ShopMenu extends GraphicsPane {
         place(stockBox);
 
         stockLabel = new GLabel("Stock", px + 44, py + 184);
-        stockLabel.setFont("SansSerif-BOLD-16");
+        stockLabel.setFont("Courier New-BOLD-16");
         stockLabel.setColor(SELECTED);
         place(stockLabel);
 
@@ -216,7 +216,7 @@ public class ShopMenu extends GraphicsPane {
         place(buyHit);
 
         buyLabel = new GLabel("", px + 48, py + 218);
-        buyLabel.setFont("SansSerif-PLAIN-20");
+        buyLabel.setFont("Courier New-BOLD-20");
         place(buyLabel);
 
         leaveHit = new GRect(px + 40, py + 234, panelW - 80, 30);
@@ -226,11 +226,11 @@ public class ShopMenu extends GraphicsPane {
         place(leaveHit);
 
         leaveLabel = new GLabel("", px + 48, py + 256);
-        leaveLabel.setFont("SansSerif-PLAIN-20");
+        leaveLabel.setFont("Courier New-BOLD-20");
         place(leaveLabel);
 
         statusLabel = new GLabel("", px + 28, py + 320);
-        statusLabel.setFont("SansSerif-PLAIN-16");
+        statusLabel.setFont("Courier New-BOLD-16");
         statusLabel.setColor(STATUS);
         place(statusLabel);
     }

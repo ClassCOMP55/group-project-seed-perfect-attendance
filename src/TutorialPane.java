@@ -102,6 +102,6 @@ public class TutorialPane extends GraphicsPane {
     }
 
     private String monoFont(int base, boolean bold) {
-        return "Monospaced-" + (bold ? "BOLD" : "PLAIN") + "-" + Math.max(10, scaleFontSize(base));
+        return "Courier New-BOLD-" + Math.max(10, scaleFontSize(base));
     }
 }

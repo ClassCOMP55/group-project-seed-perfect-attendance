@@ -276,7 +276,7 @@ public class Room {
         // --- room ID label centered in the room ---
         // TECH DEMO: visible debug label; remove when real room art is in place.
         dummyLabel = new GLabel(roomId);
-        dummyLabel.setFont("SansSerif-BOLD-36");
+        dummyLabel.setFont("Courier New-BOLD-36");
         dummyLabel.setColor(Color.WHITE);
         // Approximate center — GLabel width is not known until rendered on canvas,
         // so we offset from the room's pixel center using a rough character-width estimate.

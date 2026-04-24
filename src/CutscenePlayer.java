@@ -200,7 +200,7 @@ public class CutscenePlayer {
         if (text != null && !text.isEmpty()) {
             if (textLabel == null) {
                 textLabel = new GLabel("", 0, 0);
-                textLabel.setFont("Monospaced-BOLD-18");
+                textLabel.setFont("Courier New-BOLD-18");
                 textLabel.setColor(Color.WHITE);
             }
             textLabel.setLabel(text);

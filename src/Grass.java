@@ -172,7 +172,7 @@ public class Grass extends WorldObject {
         this.placeholder.setColor(GRASS_BORDER_COLOR);
 
         this.debugLabel = new GLabel("grass");
-        this.debugLabel.setFont("SansSerif-BOLD-10");
+        this.debugLabel.setFont("Courier New-BOLD-10");
 
         refreshVisualState();
     }

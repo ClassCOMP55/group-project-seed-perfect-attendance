@@ -121,7 +121,7 @@ public class GameSavesPane extends NightScenePane {
         clearFrames[index] = cf;
 
         GLabel cx = new GLabel("\u00D7", 0, 0);
-        cx.setFont("SansSerif-BOLD-" + Math.max(10, scaleFontSize(16)));
+        cx.setFont("Courier New-BOLD-" + Math.max(10, scaleFontSize(16)));
         cx.setColor(NIGHT_GOLD);
         double labX = clearLeft + (side - cx.getWidth()) / 2;
         double labY = clearTop + (side + cx.getAscent() - cx.getDescent()) / 2;

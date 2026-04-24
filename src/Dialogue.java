@@ -421,7 +421,7 @@ public class Dialogue extends GraphicsPane
 		for (int i = 0; i < rows.size(); i++)
 		{
 			GLabel lbl = new GLabel(rows.get(i), textX, TEXT_Y + i * LINE_HEIGHT);
-			lbl.setFont("Monospaced-PLAIN-18");
+			lbl.setFont("Courier New-BOLD-18");
 			lbl.setColor(TEXT_COLOR);
 			place(lbl);
 			textRows.add(lbl);
@@ -543,7 +543,7 @@ public class Dialogue extends GraphicsPane
 		if (speakerName != null && !speakerName.isEmpty())
 		{
 			speakerLabel = new GLabel(speakerName, textX, SPEAKER_Y);
-			speakerLabel.setFont("Monospaced-BOLD-18");
+			speakerLabel.setFont("Courier New-BOLD-18");
 			speakerLabel.setColor(SPEAKER_COLOR);
 			place(speakerLabel);
 		}
@@ -552,17 +552,17 @@ public class Dialogue extends GraphicsPane
 		{
 			// Save prompt: static question + two option labels
 			GLabel question = new GLabel("Save your progress?", textX, TEXT_Y);
-			question.setFont("Monospaced-PLAIN-18");
+			question.setFont("Courier New-BOLD-18");
 			question.setColor(TEXT_COLOR);
 			place(question);
 
 			option0Label = new GLabel("Yes", OPTION0_X, OPTION_Y);
-			option0Label.setFont("Monospaced-BOLD-18");
+			option0Label.setFont("Courier New-BOLD-18");
 			option0Label.setColor(OPTION_SELECTED);
 			place(option0Label);
 
 			option1Label = new GLabel("No", OPTION1_X, OPTION_Y);
-			option1Label.setFont("Monospaced-BOLD-18");
+			option1Label.setFont("Courier New-BOLD-18");
 			option1Label.setColor(OPTION_NORMAL);
 			place(option1Label);
 		}
@@ -573,7 +573,7 @@ public class Dialogue extends GraphicsPane
 			for (int i = 0; i < rows.size(); i++)
 			{
 				GLabel lbl = new GLabel(rows.get(i), textX, TEXT_Y + i * LINE_HEIGHT);
-				lbl.setFont("Monospaced-PLAIN-18");
+				lbl.setFont("Courier New-BOLD-18");
 				lbl.setColor(TEXT_COLOR);
 				place(lbl);
 				textRows.add(lbl);
@@ -602,7 +602,7 @@ public class Dialogue extends GraphicsPane
 
 			// Continue hint — hidden until typing finishes
 			continueHint = new GLabel("\u25BC [J]", PANEL_X + PANEL_W - 80, PANEL_Y + PANEL_H - 16);
-			continueHint.setFont("SansSerif-PLAIN-13");
+			continueHint.setFont("Courier New-BOLD-13");
 			continueHint.setColor(HINT_COLOR);
 			continueHint.setVisible(false);
 			place(continueHint);
@@ -740,7 +740,7 @@ public class Dialogue extends GraphicsPane
 	private GLabel buildChoiceLabel(String text, double x, double y)
 	{
 		GLabel label = new GLabel(text, x, y);
-		label.setFont("Monospaced-BOLD-18");
+		label.setFont("Courier New-BOLD-18");
 		label.setColor(OPTION_NORMAL);
 		return label;
 	}
@@ -796,7 +796,7 @@ public class Dialogue extends GraphicsPane
 				GLabel hint = new GLabel(
 					"F1 = open dialogue   F2 = save prompt   J / Space = advance   Left/Right = save option",
 					20, TEST_H - 12);
-				hint.setFont("SansSerif-PLAIN-13");
+				hint.setFont("Courier New-BOLD-13");
 				hint.setColor(Color.DARK_GRAY);
 				add(hint);
 

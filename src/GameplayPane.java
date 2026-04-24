@@ -1090,7 +1090,7 @@ public class GameplayPane extends GraphicsPane {
         String pState = "HP " + player.getHealth() + "/" + player.getMaxHealth();
         if (player.isDying()) pState += " | DYING";
         acm.graphics.GLabel pHp = new acm.graphics.GLabel(pState, pBarX, pBarY);
-        pHp.setFont("SansSerif-BOLD-11");
+        pHp.setFont("Courier New-BOLD-11");
         pHp.setColor(java.awt.Color.CYAN);
         canvas.add(pHp);
         debugObjects.add(pHp);
@@ -1103,7 +1103,7 @@ public class GameplayPane extends GraphicsPane {
             player.getX(), player.getY(),
             activeRoom.getRoomId());
         acm.graphics.GLabel posLabel = new acm.graphics.GLabel(posText, 10, 14);
-        posLabel.setFont("SansSerif-BOLD-12");
+        posLabel.setFont("Courier New-BOLD-12");
         posLabel.setColor(java.awt.Color.WHITE);
         canvas.add(posLabel);
         debugObjects.add(posLabel);
@@ -1221,7 +1221,7 @@ public class GameplayPane extends GraphicsPane {
                 + " | " + e.getAnimState().name()
                 + " | HP " + e.getHealth() + "/" + e.getMaxHealth();
             acm.graphics.GLabel stateLbl = new acm.graphics.GLabel(stateText, 0, 0);
-            stateLbl.setFont("SansSerif-BOLD-9");
+            stateLbl.setFont("Courier New-BOLD-9");
             stateLbl.setColor(java.awt.Color.WHITE);
             stateLbl.setLocation(barX, eBarY + stateLbl.getAscent());
             canvas.add(stateLbl);
@@ -1278,7 +1278,7 @@ public class GameplayPane extends GraphicsPane {
                 projectile.isReflected() ? "REFLECTED" : projectile.getDirection().name()
             );
             acm.graphics.GLabel projLabel = new acm.graphics.GLabel(projLabelText, 0, 0);
-            projLabel.setFont("SansSerif-BOLD-9");
+            projLabel.setFont("Courier New-BOLD-9");
             projLabel.setColor(projColor);
             projLabel.setLocation(projectile.getX() + 12, projectile.getY() - 10);
             canvas.add(projLabel);
@@ -1298,7 +1298,7 @@ public class GameplayPane extends GraphicsPane {
                 itemText = "coin +" + ((Coin) item).getValue();
             }
             acm.graphics.GLabel itemLabel = new acm.graphics.GLabel(itemText, 0, 0);
-            itemLabel.setFont("SansSerif-BOLD-10");
+            itemLabel.setFont("Courier New-BOLD-10");
             itemLabel.setColor(new java.awt.Color(255, 220, 120));
             canvas.add(itemLabel);
             double labelX = itemHitbox.x + (itemHitbox.width - itemLabel.getWidth()) / 2.0;
@@ -1363,7 +1363,7 @@ public class GameplayPane extends GraphicsPane {
                 double lx = mapOffsetX + c * tileSize + 2;
                 double ly = r * tileSize + 9;
                 acm.graphics.GLabel coordLabel = new acm.graphics.GLabel(c + "," + r, lx, ly);
-                coordLabel.setFont("SansSerif-PLAIN-8");
+                coordLabel.setFont("Courier New-BOLD-8");
                 coordLabel.setColor(gridLabelColor);
                 canvas.add(coordLabel);
                 debugObjects.add(coordLabel);
@@ -1395,7 +1395,7 @@ public class GameplayPane extends GraphicsPane {
         }
 
         acm.graphics.GLabel lbl = new acm.graphics.GLabel(label, x + w + 3, y + h);
-        lbl.setFont("SansSerif-BOLD-8");
+        lbl.setFont("Courier New-BOLD-8");
         lbl.setColor(color);
         canvas.add(lbl);
         debugObjects.add(lbl);
@@ -1423,7 +1423,7 @@ public class GameplayPane extends GraphicsPane {
 
         for (int i = 0; i < lines.size(); i++) {
             acm.graphics.GLabel line = new acm.graphics.GLabel(lines.get(i), panelX + 8.0, panelY + 16.0 + i * lineH);
-            line.setFont("SansSerif-BOLD-11");
+            line.setFont("Courier New-BOLD-11");
             line.setColor(i == 0 ? new java.awt.Color(150, 220, 255) : java.awt.Color.WHITE);
             canvas.add(line);
             debugObjects.add(line);

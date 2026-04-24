@@ -34,7 +34,7 @@ public class WorldLabel extends WorldObject {
         String shownText = (text == null || text.trim().isEmpty()) ? "Label" : text.trim();
 
         this.label = new GLabel(shownText, 0, 0);
-        this.label.setFont("SansSerif-BOLD-14");
+        this.label.setFont("Courier New-BOLD-14");
         this.label.setColor(LABEL_TEXT_COLOR);
 
         this.backdropWidth = label.getWidth() + LABEL_H_PADDING * 2.0;

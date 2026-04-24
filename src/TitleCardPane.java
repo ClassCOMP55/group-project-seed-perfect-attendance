@@ -100,7 +100,7 @@ public class TitleCardPane extends GraphicsPane {
     }
 
     private String sketchFont(int base) {
-        return "Comic Sans MS-PLAIN-" + Math.max(10, scaleFontSize(base));
+        return "Courier New-BOLD-" + Math.max(10, scaleFontSize(base));
     }
 
     private void addBoth(GObject g) {

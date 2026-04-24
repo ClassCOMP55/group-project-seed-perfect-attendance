@@ -60,11 +60,11 @@ public class BreadMerchant extends WorldObject {
         apron.setColor(APRON_COLOR.darker());
 
         titleLabel = new GLabel(this.merchantName, x, y);
-        titleLabel.setFont("SansSerif-BOLD-12");
+        titleLabel.setFont("Courier New-BOLD-12");
         titleLabel.setColor(TITLE_COLOR);
 
         hintLabel = new GLabel("e to shop", x, y);
-        hintLabel.setFont("SansSerif-PLAIN-12");
+        hintLabel.setFont("Courier New-BOLD-12");
         hintLabel.setColor(HINT_COLOR);
 
         resetVisualPosition();

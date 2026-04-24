@@ -97,11 +97,11 @@ public class WorldNpc extends WorldObject {
         this.belt.setColor(NPC_BELT_COLOR.darker());
 
         this.titleLabel = new GLabel("NPC", x, y);
-        this.titleLabel.setFont("SansSerif-BOLD-14");
+        this.titleLabel.setFont("Courier New-BOLD-14");
         this.titleLabel.setColor(NPC_LABEL_COLOR);
 
         this.hintLabel = new GLabel("e to interact", x, y);
-        this.hintLabel.setFont("SansSerif-PLAIN-12");
+        this.hintLabel.setFont("Courier New-BOLD-12");
         this.hintLabel.setColor(NPC_HINT_COLOR);
 
         resetVisualPosition();

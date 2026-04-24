@@ -293,7 +293,7 @@ within this class
     int displayCoins = Math.max(0, Math.min(COINS_DISPLAY_MAX, currentCoins));
 
     coinslabel.setLabel(String.valueOf(displayCoins));
-    coinslabel.setFont("SansSerif-BOLD-14");
+    coinslabel.setFont("Courier New-BOLD-14");
 
     double w = pane.mainScreen.getWidth();
     double labelW = coinslabel.getWidth();

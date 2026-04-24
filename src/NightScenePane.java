@@ -1,8 +1,4 @@
 import java.awt.Color;
-import java.awt.GraphicsEnvironment;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
 
 import acm.graphics.GLabel;
 import acm.graphics.GLine;
@@ -80,7 +76,7 @@ public class NightScenePane extends GraphicsPane {
     }
 
     protected String displayFont(int base) {
-        return "SansSerif-BOLD-" + Math.max(11, scaleFontSize(base));
+        return "Courier New-BOLD-" + Math.max(11, scaleFontSize(base));
     }
 
     /**
@@ -88,20 +84,7 @@ public class NightScenePane extends GraphicsPane {
      * has no color-emoji glyphs, so 🐐 / 🧙 render as blank — this picks an OS emoji font when present.
      */
     protected String emojiDisplayFont(int base) {
-        int px = Math.max(24, scaleFontSize(base));
-        GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
-        Set<String> families = new HashSet<>(Arrays.asList(ge.getAvailableFontFamilyNames()));
-        String[] emojiFamilies = {
-            "Apple Color Emoji",
-            "Segoe UI Emoji",
-            "Noto Color Emoji",
-        };
-        for (String name : emojiFamilies) {
-            if (families.contains(name)) {
-                return name + "-PLAIN-" + px;
-            }
-        }
-        return displayFont(base);
+        return "Courier New-BOLD-" + Math.max(24, scaleFontSize(base));
     }
 
     /**

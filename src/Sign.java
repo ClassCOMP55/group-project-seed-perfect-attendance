@@ -111,11 +111,11 @@ public class Sign extends WorldObject {
         this.placeholder.setColor(SIGN_EDGE_COLOR);
 
         this.titleLabel = new GLabel("Sign", x, y);
-        this.titleLabel.setFont("SansSerif-BOLD-14");
+        this.titleLabel.setFont("Courier New-BOLD-14");
         this.titleLabel.setColor(SIGN_LABEL_COLOR);
 
         this.hintLabel = new GLabel("e to interact", x, y);
-        this.hintLabel.setFont("SansSerif-PLAIN-12");
+        this.hintLabel.setFont("Courier New-BOLD-12");
         this.hintLabel.setColor(SIGN_HINT_COLOR);
 
         resetVisualPosition();

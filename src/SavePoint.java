@@ -187,12 +187,12 @@ public class SavePoint {
 		this.markerPlate.setColor(MARKER_BORDER);
 
 		this.markerLabel = new GLabel("[E] SAVE", x - 24, y + visualHeight / 2.0 - 49);
-		this.markerLabel.setFont("SansSerif-BOLD-11");
+		this.markerLabel.setFont("Courier New-BOLD-11");
 		this.markerLabel.setColor(MARKER_TEXT);
 
 		// "Game Saved!" label — shown above the object after a confirmed save
 		this.savedLabel = new GLabel("Game Saved!", x - 36, y - visualHeight / 2.0 - 12);
-		this.savedLabel.setFont("Monospaced-BOLD-14");
+		this.savedLabel.setFont("Courier New-BOLD-14");
 		this.savedLabel.setColor(SAVED_COLOR);
 		this.savedLabel.setVisible(false);
 	}

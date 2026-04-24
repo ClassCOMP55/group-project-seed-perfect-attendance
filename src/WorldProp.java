@@ -42,7 +42,7 @@ public class WorldProp extends WorldObject {
         this.propSprite = loadSprite(imagePath);
 
         this.hintLabel = new GLabel(hintText != null ? hintText : "e to interact", x, y);
-        this.hintLabel.setFont("SansSerif-PLAIN-12");
+        this.hintLabel.setFont("Courier New-BOLD-12");
         this.hintLabel.setColor(HINT_COLOR);
         positionLabel();
     }

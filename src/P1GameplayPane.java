@@ -184,13 +184,13 @@ public class P1GameplayPane extends GraphicsPane {
     private void drawStaticUi() {
         helpLabel = new GLabel(
             "WASD walk  E talk near gold dots (3)  J attack  K relic ability  E advance dialogue", 0, 0);
-        helpLabel.setFont("SansSerif-BOLD-12");
+        helpLabel.setFont("Courier New-BOLD-12");
         helpLabel.setColor(new Color(220, 220, 235));
         helpLabel.setLocation(12, 22);
         place(helpLabel);
 
         phaseLabel = new GLabel("", 0, 0);
-        phaseLabel.setFont("SansSerif-BOLD-13");
+        phaseLabel.setFont("Courier New-BOLD-13");
         phaseLabel.setColor(new Color(255, 215, 120));
         phaseLabel.setLocation(12, 42);
         place(phaseLabel);
@@ -204,7 +204,7 @@ public class P1GameplayPane extends GraphicsPane {
         dialogueBg.setVisible(false);
 
         dialogueLabel = new GLabel("", 16, mainScreen.getHeight() - 100);
-        dialogueLabel.setFont("SansSerif-PLAIN-13");
+        dialogueLabel.setFont("Courier New-BOLD-13");
         dialogueLabel.setColor(new Color(230, 230, 245));
         dialogueLabel.setVisible(false);
         place(dialogueLabel);
@@ -216,7 +216,7 @@ public class P1GameplayPane extends GraphicsPane {
         place(gateHintBg);
 
         gateHintLabel = new GLabel("", 16, mainScreen.getHeight() - 21);
-        gateHintLabel.setFont("SansSerif-PLAIN-12");
+        gateHintLabel.setFont("Courier New-BOLD-12");
         gateHintLabel.setColor(new Color(210, 210, 220));
         place(gateHintLabel);
 

@@ -85,11 +85,11 @@ public class CalumundNpc extends WorldObject {
         loadSprite(Direction.RIGHT, GIF_RIGHT);
 
         titleLabel = new GLabel(SPEAKER_NAME, x, y);
-        titleLabel.setFont("SansSerif-BOLD-14");
+        titleLabel.setFont("Courier New-BOLD-14");
         titleLabel.setColor(new Color(220, 237, 255));
 
         hintLabel = new GLabel("e to interact", x, y);
-        hintLabel.setFont("SansSerif-PLAIN-12");
+        hintLabel.setFont("Courier New-BOLD-12");
         hintLabel.setColor(new Color(222, 241, 184));
 
         syncSpritePositions();
