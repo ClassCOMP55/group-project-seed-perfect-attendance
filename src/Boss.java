@@ -142,8 +142,11 @@ public class Boss extends Enemy {
     /** Render size in pixels — 4× the player's 58×58. */
     private static final int RENDER_SIZE  = 232;
 
-    /** Half of RENDER_SIZE — used for hitbox/hurtbox sizing and collisionHalf(). */
+    /** Half of RENDER_SIZE for visual centering only. */
     private static final int RENDER_HALF  = RENDER_SIZE / 2; // 116
+    /** Boss collision is intentionally smaller than the full sprite footprint. */
+    private static final int HITBOX_SIZE  = 96;
+    private static final int HITBOX_HALF  = HITBOX_SIZE / 2; // 48
 
     public Boss(double x, double y, TileMap tileMap) {
         super(x, y, SPRITE_DIR + "boss_run_front.gif", tileMap,
@@ -166,9 +169,9 @@ public class Boss extends Enemy {
         this.projectiles       = null; // wired by Room via setProjectileList()
 
         // Hitbox sized to 2×2 tiles (2 × 48px = 96px)
-        hitbox.width  = 96;
-        hitbox.height = 96;
-        hitbox.updatePosition(x - 48, y - 48);
+        hitbox.width  = HITBOX_SIZE;
+        hitbox.height = HITBOX_SIZE;
+        hitbox.updatePosition(x - HITBOX_HALF, y - HITBOX_HALF);
         hurtbox = new Hurtbox(x, y, 80.0, 88.0); // 4× the default 20/22 radii
 
         loadAllSprites();
@@ -176,21 +179,7 @@ public class Boss extends Enemy {
     }
 
     @Override
-    protected int collisionHalf() { return RENDER_HALF; }
-
-    /** Shifts the sprite 1.5 tiles (72px) up and left relative to the hitbox center. */
-    private static final int SPRITE_OFFSET = 72; // 1.5 tiles × 48px
-
-    @Override
-    protected void syncVisualPosition() {
-        double hw = RENDER_SIZE / 2.0;
-        double hh = RENDER_SIZE / 2.0;
-        acm.graphics.GImage frame = getAnimator().getCurrentFrame();
-        if (frame != null) {
-            frame.setSize(RENDER_SIZE, RENDER_SIZE);
-            frame.setLocation(x - hw - SPRITE_OFFSET, y - hh - 38);
-        }
-    }
+    protected int collisionHalf() { return HITBOX_HALF; }
 
     private void loadAllSprites() {
         String[][] names = {

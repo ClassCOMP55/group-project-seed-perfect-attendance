@@ -353,7 +353,7 @@ public class WorldMap {
     /** Relic chest positions for trial rooms (center of each room, approximately). */
     private static final double TRIAL_CHEST_A3_X = TileMap.MAP_OFFSET_X + 7 * 48;
     private static final double TRIAL_CHEST_A3_Y = 1 * 48;
-    private static final double TRIAL_CHEST_A2_X = TileMap.MAP_OFFSET_X + 5 * 48;
+    private static final double TRIAL_CHEST_A2_X = TileMap.MAP_OFFSET_X + 4 * 48;
     private static final double TRIAL_CHEST_A2_Y = 1 * 48;
     private static final double TRIAL_CHEST_B3_X = TileMap.MAP_OFFSET_X + 17 * 48;
     private static final double TRIAL_CHEST_B3_Y = 1 * 48;
@@ -959,14 +959,9 @@ public class WorldMap {
         Color purpleBarrier = new Color(132, 70, 196, 190);
         Color redBarrier = new Color(205, 62, 62, 210);
 
-        addDebugBarrierRange(a2, tileSize, purpleBarrier, 1, 9, 1, 1);
-        addDebugBarrierRange(a2, tileSize, purpleBarrier, 1, 1, 2, 12);
-        addDebugBarrierRange(a2, tileSize, purpleBarrier, 2, 9, 12, 12);
-        addDebugBarrierRange(a2, tileSize, purpleBarrier, 8, 8, 2, 7);
-        addDebugBarrierRange(a2, tileSize, purpleBarrier, 9, 9, 8, 8);
-        addDebugBarrierRange(a2, tileSize, purpleBarrier, 10, 10, 9, 11);
-
-        addDebugBarrierRange(a2, tileSize, redBarrier, 5, 6, 1, 1);
+        addDebugBarrierRange(a2, tileSize, purpleBarrier, 9, 9, 1, 1);
+        addDebugBarrierRange(a2, tileSize, purpleBarrier, 9, 9, 8, 12);
+        addDebugBarrierRange(a2, tileSize, redBarrier, 4, 4, 1, 1);
     }
 
     private void addDebugBarrierRange(Room room, int tileSize, Color fillColor,
@@ -1187,52 +1182,59 @@ public class WorldMap {
     }
 
     /**
-     * A2 — Trial of Strength push-block puzzle.
+     * A2 — Trial of Strength push-block maze.
      *
-     * Layout (tile coords):
-     *   Button 1 at (3, 8)  — block-only
-     *   Button 2 at (7, 11) — block-only
-     *   Button 3 at (5, 6)  — requires player to stand on it
-     *   Block A starts at   (3, 11)
-     *   Block B starts at   (7, 7)
+     * The player navigates an 8×12 grid of push blocks (cols 1-8, rows 1-12) to
+     * reach the strength chest at tile (4, 1). The chest is unlocked — interact
+     * with it directly to claim the Relic of Strength.
      *
-     * Solution: push Block A left onto Button 1, push Block B down onto Button 2,
-     * then the player stands on Button 3. All three pressed → chest unlocks.
-     *
-     * The strengthChest starts locked and is unlocked by the solved callback.
+     * Push block positions are laid out per the design grid image.
      */
     private void installA2Puzzle() {
         Room a2 = overworldGrid[0][1];
         if (a2 == null) return;
 
-        if (strengthChest != null) {
-            strengthChest.setLocked(true);
-            strengthChest.setLockedMessage("The chest holds its secret still. Move the blocks to prove your strength.");
-        }
-
-        a2.addObject(new PressureButton(3, 8,  false));
-        a2.addObject(new PressureButton(7, 11, false));
-        a2.addObject(new PressureButton(5, 6,  false));
-        a2.addObject(new PushBlock(3, 11));
-        a2.addObject(new PushBlock(7, 7));
-
-        a2.setPuzzleSolvedCallback(() -> {
-            a2Solved = true;
-            if (strengthChest != null) strengthChest.setLocked(false);
-            debugTrialLog("A2 solved: all pressure buttons are pressed; strength chest unlocked.");
-            if (dialogue != null && !dialogue.isOpen()) {
-                GamePlayState.setCurrent(GamePlayState.DIALOGUE);
-                dialogue.open(
-                    new String[]{
-                        "You hear a rumble in the distance.",
-                        "Somewhere nearby, a chest has opened."
-                    },
-                    "Trial of Strength",
-                    false,
-                    () -> GamePlayState.setCurrent(GamePlayState.PLAYING)
-                );
-            }
-        });
+        // Row 1
+        a2.addObject(new PushBlock(1, 1));
+        a2.addObject(new PushBlock(8, 1));
+        // Row 2
+        a2.addObject(new PushBlock(2, 2));
+        a2.addObject(new PushBlock(3, 2));
+        a2.addObject(new PushBlock(4, 2));
+        a2.addObject(new PushBlock(6, 2));
+        // Row 3
+        a2.addObject(new PushBlock(1, 3));
+        a2.addObject(new PushBlock(3, 3));
+        a2.addObject(new PushBlock(4, 3));
+        a2.addObject(new PushBlock(8, 3));
+        // Row 4 (corridor blockers)
+        a2.addObject(new PushBlock(5, 4));
+        a2.addObject(new PushBlock(6, 4));
+        // Row 5
+        a2.addObject(new PushBlock(5, 5));
+        a2.addObject(new PushBlock(7, 5));
+        // Row 6
+        a2.addObject(new PushBlock(1, 6));
+        a2.addObject(new PushBlock(2, 6));
+        a2.addObject(new PushBlock(3, 6));
+        a2.addObject(new PushBlock(7, 6));
+        a2.addObject(new PushBlock(8, 6));
+        // Row 7 (corridor blockers)
+        a2.addObject(new PushBlock(5, 7));
+        a2.addObject(new PushBlock(6, 7));
+        // Row 8
+        a2.addObject(new PushBlock(1, 8));
+        a2.addObject(new PushBlock(2, 8));
+        a2.addObject(new PushBlock(4, 8));
+        a2.addObject(new PushBlock(7, 8));
+        a2.addObject(new PushBlock(8, 8));
+        // Row 10
+        a2.addObject(new PushBlock(4, 10));
+        a2.addObject(new PushBlock(5, 10));
+        // Row 12
+        a2.addObject(new PushBlock(1, 12));
+        a2.addObject(new PushBlock(3, 12));
+        a2.addObject(new PushBlock(4, 12));
     }
 
     /** Drives the A3 dodge gauntlet: warning, retreat check, projectile storm, then chest unlock. */
@@ -1494,26 +1496,10 @@ public class WorldMap {
     }
 
     private void appendA2DebugLines(List<String> lines, Room room) {
-        int totalButtons = 0;
-        int pressedButtons = 0;
-        ArrayList<String> buttonStates = new ArrayList<>();
         ArrayList<String> blockStates = new ArrayList<>();
 
         for (WorldObject object : room.getObjects()) {
-            if (object instanceof PressureButton) {
-                PressureButton button = (PressureButton) object;
-                totalButtons++;
-                if (button.isPressed()) {
-                    pressedButtons++;
-                }
-                buttonStates.add(String.format(
-                    "%d,%d=%s%s",
-                    button.getTileCol(),
-                    button.getTileRow(),
-                    button.isPressed() ? "ON" : "off",
-                    button.requiresPlayer() ? " (P)" : ""
-                ));
-            } else if (object instanceof PushBlock) {
+            if (object instanceof PushBlock) {
                 PushBlock block = (PushBlock) object;
                 blockStates.add(String.format(
                     "%d,%d%s",
@@ -1531,17 +1517,12 @@ public class WorldMap {
         ));
         if (strengthChest != null) {
             lines.add(String.format(
-                "Chest | locked=%s | open=%s",
-                strengthChest.isLocked(),
+                "Chest | open=%s",
                 strengthChest.isOpen()
             ));
         }
-        lines.add(String.format("Buttons | %d/%d pressed", pressedButtons, totalButtons));
-        if (!buttonStates.isEmpty()) {
-            lines.add("Button tiles | " + String.join("  ", buttonStates));
-        }
         if (!blockStates.isEmpty()) {
-            lines.add("Blocks | " + String.join("  ", blockStates));
+            lines.add(String.format("Blocks | %d total", blockStates.size()));
         }
     }
 

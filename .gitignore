@@ -17,3 +17,6 @@ out/
 
 # macOS
 .DS_Store
+
+# Design docs
+*.docx

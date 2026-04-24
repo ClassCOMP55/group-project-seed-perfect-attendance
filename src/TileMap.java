@@ -603,14 +603,21 @@ public class TileMap {
         floorRect(3, 3, 6, 6);
         floorRect(3, 3, 7, 7);
 
-        // Match the A2 purple debug barrier layout: rocks cannot enter these tiles.
+        // Wall tiles inside the puzzle grid (per design image: B1, E1, G1)
+        wallRect(1, 1, 2, 2);  // col 2, row 1
+        wallRect(1, 1, 5, 5);  // col 5, row 1
+        wallRect(1, 1, 7, 7);  // col 7, row 1
+
+        // Maze corridor walls — permanent blocks that cannot be pushed.
+        wallRect(1, 1, 3, 3);  // col 3, row 1: chest only reachable from (4,2) below
+
+        // Prevent push blocks from leaving the 8×12 maze (cols 1-8, rows 1-12).
+        // Block floor tiles adjacent to the area that blocks could be pushed into.
+        // Col 0 / row 0 / row 13 are already walled; col 9 has floor gaps that need blocking.
         blockPushBlocksOnTiles(
             new int[][]{
-                {1,1}, {2,1}, {3,1}, {4,1}, {6,1}, {7,1}, {8,1}, {9,1},
-                {1,2}, {1,3}, {1,4}, {1,5}, {1,6}, {1,7}, {1,8}, {1,9}, {1,10}, {1,11}, {1,12},
-                {2,12}, {3,12}, {4,12}, {5,12}, {6,12}, {7,12}, {8,12}, {9,12},
-                {8,2}, {8,3}, {8,4}, {8,5}, {8,6}, {8,7}, {9,8},
-                {10,9}, {10,10}, {10,11}
+                {9, 1}, {9, 8}, {9, 9}, {9, 10}, {9, 11}, {9, 12},
+                {4, 1}  // chest tile — blocks must not cover the chest
             }
         );
     }
