@@ -43,10 +43,10 @@ public class TutorialPane extends GraphicsPane {
         // Control lines — merged into one label per line so they center as a unit
         String[] controls = {
             "WASD: Move",
-            "SHIFT: Strafe (keep facing the same direction while moving)",
             "J: Attack",
             "K: Use ability (if you have one)",
             "E/Space: interact and use ",
+            "SHIFT: Strafe (keep facing the same direction while moving)",
             " ",
             " ",
             " "
@@ -64,9 +64,11 @@ public class TutorialPane extends GraphicsPane {
 
         // Prose paragraphs
         String[] prose = {
-            "To heal, open your inventory and use a healing item. There is no automatic healing.",
+            "To heal, open your inventory and use a healing item if you have one.", 
+            "There is no automatic healing.",
             " ",
             "Progress is not saved automatically. Rest at the inn in town to save your game.",
+            " ",
             "Good luck."
         };
         for (String line : prose) {

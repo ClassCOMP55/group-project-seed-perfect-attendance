@@ -17,7 +17,8 @@ public class OpeningNarrativePane extends GraphicsPane {
 
     private static final String[] PARAGRAPHS = {
         "This place has always been a waypoint.",
-        "Walled in and centrally located, it draws merchants and travelers from every direction \u2014 a permanent stop on every trader\u2019s route. The inn keeps the lights on. The stalls do the rest.",
+        "Walled in and centrally located, it draws merchants and travelers from every direction \u2014 a permanent stop on every trader\u2019s route.", 
+        "The inn keeps the lights on. The stalls do the rest.",
         "This week was like any other. Until the monsters came.",
         "Most people ran. You didn\u2019t make it out.",
         "The bridge is broken. The gate holds, for now. And a goat is staring at you like you owe it something."
