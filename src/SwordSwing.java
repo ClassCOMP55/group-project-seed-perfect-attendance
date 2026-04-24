@@ -45,11 +45,6 @@ public class SwordSwing {
     /** Amount (px) the swing reaches into the player's hitbox at the front edge. */
     private static final int FORWARD_OVERLAP = 16;
 
-    /**
-     * Semi-transparent gold placeholder color for the swing visual.
-     * TODO [GRAPHICS]: replace with a sprite sheet frame or swing arc animation.
-     */
-    private static final Color SWING_COLOR = new Color(255, 215, 0, 140);
     /** Bright slash arc so attack has a clear visible animation. */
     private static final Color SWING_ARC_COLOR = new Color(255, 245, 180, 220);
 
@@ -66,11 +61,7 @@ public class SwordSwing {
     /** Current age in ticks. Incremented each update(). Swing expires when >= LIFETIME. */
     private int currentAge;
 
-    /**
-     * Placeholder visual drawn on the canvas each frame.
-     * TODO [GRAPHICS]: replace with animated sprite frame or arc visual.
-     */
-    private final GRect visual;
+    // visual (yellow rectangle placeholder) removed — arc handles the attack animation
     /** Animated slash arc shown during the swing lifetime. */
     private final GArc slashArc;
 
@@ -112,13 +103,6 @@ public class SwordSwing {
         }
 
         this.hitbox = new Hitbox(hx, hy, SWING_SIZE, SWING_SIZE);
-
-        // Visual placeholder: a semi-transparent gold rectangle at the hitbox position
-        // TODO [GRAPHICS]: replace with a sprite/animation at this position and size
-        this.visual = new GRect(hx, hy, SWING_SIZE, SWING_SIZE);
-        this.visual.setFilled(true);
-        this.visual.setFillColor(SWING_COLOR);
-        this.visual.setColor(SWING_COLOR);
 
         // Arc is slightly larger than the hitbox so the slash reads clearly.
         double arcSize = SWING_SIZE * 1.45;
@@ -205,9 +189,6 @@ public class SwordSwing {
      * @param canvas The ACM GCanvas to render onto
      */
     public void draw(GCanvas canvas) {
-        // Keep a faint hitbox tint for readability while animating the slash arc.
-        canvas.add(visual);
-
         double t = Math.max(0.0, Math.min(1.0, currentAge / (double) LIFETIME));
         double sweep = 60 + (180 * t);
         switch (facing) {
@@ -236,7 +217,6 @@ public class SwordSwing {
      * @param canvas The ACM GCanvas to remove from
      */
     public void removeFrom(GCanvas canvas) {
-        canvas.remove(visual);
         canvas.remove(slashArc);
     }
 
