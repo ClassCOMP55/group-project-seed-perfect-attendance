@@ -37,9 +37,18 @@ public class WorldProp extends WorldObject {
      */
     public WorldProp(double x, double y, String imagePath, String hintText,
                      Consumer<Player> onInteractAction) {
+        this(x, y, imagePath, hintText, onInteractAction, 1.0);
+    }
+
+    /**
+     * Same as the main constructor but with a spriteScale multiplier applied to SPRITE_SIZE.
+     * Use values above 1.0 to make the visual larger (e.g. 1.2 = 20% bigger).
+     */
+    public WorldProp(double x, double y, String imagePath, String hintText,
+                     Consumer<Player> onInteractAction, double spriteScale) {
         super(x, y, 48, 48);
         this.onInteractAction = onInteractAction;
-        this.propSprite = loadSprite(imagePath);
+        this.propSprite = loadSprite(imagePath, spriteScale);
 
         this.hintLabel = new GLabel(hintText != null ? hintText : "e to interact", x, y);
         this.hintLabel.setFont("Courier New-BOLD-12");
@@ -110,12 +119,14 @@ public class WorldProp extends WorldObject {
         hintLabel.setLocation(x + 24.0 - hintLabel.getWidth() / 2.0, y + HINT_BASELINE_Y);
     }
 
-    private GImage loadSprite(String path) {
+    private GImage loadSprite(String path, double spriteScale) {
         try {
             BufferedImage source = ImageIO.read(new File(path));
             if (source == null) return null;
             GImage image = new GImage(source);
-            image.setSize(SPRITE_SIZE, SPRITE_SIZE);
+            double displaySize = SPRITE_SIZE * spriteScale;
+            double scale = displaySize / Math.max(source.getWidth(), source.getHeight());
+            image.setSize(source.getWidth() * scale, source.getHeight() * scale);
             image.setLocation(x, y);
             return image;
         } catch (IOException | RuntimeException ignored) {

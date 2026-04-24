@@ -386,8 +386,8 @@ public class WorldMap {
     private static final double PICKAXE_PROP_Y = 11 * 48;
 
     /** Position of the miner's hat ground pickup in B2 (just left of the ore node). */
-    private static final double MINERS_HAT_X = TileMap.MAP_OFFSET_X + 8 * 48;
-    private static final double MINERS_HAT_Y = 5 * 48;
+    private static final double MINERS_HAT_X = TileMap.MAP_OFFSET_X + 12 * 48;
+    private static final double MINERS_HAT_Y = 9 * 48;
 
     private static final String[] START_NPC_LINES = {
         "I barely made it out alive when those monsters attacked. Lost my hat in the chaos, dropped it right by the ore deposits when I was running.",
@@ -759,7 +759,8 @@ public class WorldMap {
                         () -> GamePlayState.setCurrent(GamePlayState.PLAYING)
                     );
                 }
-            }
+            },
+            1.2
         );
         minersHatProp.setConsumeOnInteract(true);
         b2.addObject(minersHatProp);
@@ -1057,7 +1058,7 @@ public class WorldMap {
     /** Push Block puzzle room — light mixed patrol. */
     private void populateA2() {
         Room a2 = overworldGrid[0][1];
-        a2.addRespawningEntity(() -> new LizardEnemy(350, 250, a2.getTileMap()));
+        // a2.addRespawningEntity(() -> new LizardEnemy(350, 250, a2.getTileMap()));
         a2.addRespawningEntity(() -> new RangedEnemy(800, 400, a2.getTileMap()));
     }
 
