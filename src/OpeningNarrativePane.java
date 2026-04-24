@@ -25,7 +25,7 @@ public class OpeningNarrativePane extends GraphicsPane {
 
     private static final int WRAP_CHARS    = 62;
     private static final int FONT_SIZE     = 17;
-    private static final double START_Y    = 70;
+    private static final double START_Y    = 154;
     private static final double LINE_STEP  = 28;
     private static final double PARA_GAP   = 14;
     private static final int CHARS_PER_TICK = 2;
@@ -117,7 +117,7 @@ public class OpeningNarrativePane extends GraphicsPane {
         } else if (cursor < textLines.size()) {
             startNextLine();
         } else {
-            mainScreen.switchToTutorialScreen();
+            mainScreen.beginGameplay();
         }
     }
 

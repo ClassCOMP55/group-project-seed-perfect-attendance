@@ -42,10 +42,14 @@ public class TutorialPane extends GraphicsPane {
 
         // Control lines — merged into one label per line so they center as a unit
         String[] controls = {
-            "WASD   \u2014 Move",
-            "SHIFT  \u2014 Strafe (keep facing the same direction while moving)",
-            "J      \u2014 Attack",
-            "K      \u2014 Use ability (if you have one)"
+            "WASD: Move",
+            "SHIFT: Strafe (keep facing the same direction while moving)",
+            "J: Attack",
+            "K: Use ability (if you have one)",
+            "E/Space: interact and use ",
+            " ",
+            " ",
+            " "
         };
         for (String line : controls) {
             GLabel lbl = new GLabel(line, 0, 0);
@@ -61,6 +65,7 @@ public class TutorialPane extends GraphicsPane {
         // Prose paragraphs
         String[] prose = {
             "To heal, open your inventory and use a healing item. There is no automatic healing.",
+            " ",
             "Progress is not saved automatically. Rest at the inn in town to save your game.",
             "Good luck."
         };
@@ -97,7 +102,7 @@ public class TutorialPane extends GraphicsPane {
     @Override
     public void keyPressed(KeyEvent e) {
         if (e.getKeyCode() == KeyEvent.VK_E) {
-            mainScreen.beginGameplay();
+            mainScreen.switchToOpeningNarrativeScreen();
         }
     }
 

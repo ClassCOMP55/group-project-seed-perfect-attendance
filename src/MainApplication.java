@@ -171,12 +171,15 @@ public class MainApplication extends GraphicsProgram{
 		switchToScreen(titleCardPane);
 	}
 
-	/** Shows opening narrative screen (first of the new-game intro sequence). */
 	public void switchToTutorialScreen() {
 		switchToScreen(tutorialPane);
 	}
 
-	/** Called by TutorialPane when the player is ready to enter the world. */
+	public void switchToOpeningNarrativeScreen() {
+		switchToScreen(openingNarrativePane);
+	}
+
+	/** Called by OpeningNarrativePane when the player is ready to enter the world. */
 	public void beginGameplay() {
 		switchToScreen(worldMapGameplayPane);
 	}
@@ -227,7 +230,7 @@ public class MainApplication extends GraphicsProgram{
 		setPlayer(sessionPlayer);
 		lastSavedAtMillis = 0L;
 		worldMapGameplayPane.prepareNewSession();
-		switchToScreen(openingNarrativePane);
+		switchToScreen(tutorialPane);
 	}
 
 	/** Starts gameplay from a loaded save bound to the selected slot. */

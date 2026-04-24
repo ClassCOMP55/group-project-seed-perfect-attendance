@@ -462,11 +462,11 @@ public class Dialogue extends GraphicsPane
 		{
 			int optionCount = choiceOptions == null ? 0 : choiceOptions.length;
 			if (optionCount <= 0) return;
-			if (key == KeyEvent.VK_LEFT || key == KeyEvent.VK_A)
+			if (key == KeyEvent.VK_UP || key == KeyEvent.VK_W)
 			{
 				setSelectedOption((selectedOption - 1 + optionCount) % optionCount);
 			}
-			else if (key == KeyEvent.VK_RIGHT || key == KeyEvent.VK_D)
+			else if (key == KeyEvent.VK_DOWN || key == KeyEvent.VK_S)
 			{
 				setSelectedOption((selectedOption + 1) % optionCount);
 			}
